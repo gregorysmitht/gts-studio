@@ -1509,7 +1509,7 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
       <span class="section-label">See for yourself</span>
       <h2>What's actually happening <span style="color:#E8470A">around your business right now.</span></h2>
       <p>Answer 5 quick questions. Get real market data specific to your type of business — and experience the kind of tool we build for sites like yours.</p>
-      <button class="btn-primary" onclick="openDiagModal()">Show me what's out there →</button>
+      <button class="btn-primary diag-trigger">Show me what's out there →</button>
     </div>
     <div class="diag-preview">
       <div class="diag-preview-card">
@@ -1525,7 +1525,7 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
           <span class="diag-num">28%</span>
           <span class="diag-lbl">of local searches lead to a purchase within 24 hrs</span>
         </div>
-        <div class="diag-preview-cta" onclick="openDiagModal()">These numbers apply to your business. Find out how →</div>
+        <div class="diag-preview-cta diag-trigger">These numbers apply to your business. Find out how →</div>
       </div>
     </div>
   </div>
@@ -1964,11 +1964,6 @@ window.addEventListener('scroll', () => {
   document.getElementById('nav').style.boxShadow = window.scrollY > 10 ? '0 1px 20px rgba(0,0,0,0.08)' : 'none';
 });
 </script>
-<script>
-window.addEventListener('scroll',()=>{
-  document.getElementById('nav').style.boxShadow = window.scrollY>10?'0 1px 20px rgba(0,0,0,0.08)':'none';
-});
-</script>
 
 
 
@@ -2070,13 +2065,384 @@ window.addEventListener('scroll',()=>{
      WEBSITE PREVIEW MODAL
      ═══════════════════════════════════ -->
 
-<!-- DIAGNOSTIC MODAL -->
-<div class="diag-overlay" id="diagModal" onclick="diagOverlayClick(event)">
+</div>
+</div>
+
+
+
+
+<!-- ── DIAGNOSTIC MODAL ── -->
+<div class="diag-overlay" id="diagModal" onclick="if(event.target===this)closeDiagModal()">
   <div class="diag-modal" id="diagModalInner">
-    <button class="diag-close" onclick="closeDiagModal()">✕</button>
+    <button class="diag-close" onclick="closeDiagModal()">&#10005;</button>
     <div id="diagContent"></div>
   </div>
 </div>
+
+<script data-cfasync="false">
+
+var DIAG_STATS = {
+  universal:[
+    {number:"97%",label:"search online before contacting a local business",insight:"If you are not easy to find, you don't exist.",source_label:"BrightLocal 2023",source_url:"https://brightlocal.com/research/local-consumer-review-survey/"},
+    {number:"75%",label:"judge credibility from website design alone",insight:"They decide before reading a single word.",source_label:"Stanford Web Credibility",source_url:"https://credibility.stanford.edu/guidelines/index.html"},
+    {number:"28%",label:"of local searches lead to a purchase within 24 hrs",insight:"They are ready to buy — just not finding you.",source_label:"Google Think",source_url:"https://www.thinkwithgoogle.com/consumer-insights/consumer-trends/local-search-to-store/"},
+    {number:"57%",label:"of all web traffic comes from mobile",insight:"A bad mobile site loses half your visitors instantly.",source_label:"Statcounter 2023",source_url:"https://gs.statcounter.com/platform-market-share/desktop-mobile-tablet/"},
+    {number:"88%",label:"trust online reviews as much as personal referrals",insight:"Word of mouth now lives online.",source_label:"BrightLocal 2023",source_url:"https://brightlocal.com/research/local-consumer-review-survey/"},
+    {number:"46%",label:"of all Google searches seek local information",insight:"Nearly half the internet is looking for something nearby.",source_label:"HubSpot",source_url:"https://blog.hubspot.com/marketing/local-seo-stats"}
+  ],
+  local_service:[
+    {number:"82%",label:"use search to find local service businesses",insight:"Google is the new word of mouth for trades.",source_label:"Google Think",source_url:"https://www.thinkwithgoogle.com/consumer-insights/consumer-trends/mobile-search-trends/"},
+    {number:"4 in 5",label:"want content tailored to their city or zip code",insight:"Generic does not cut it — local relevance wins.",source_label:"Google Think",source_url:"https://www.thinkwithgoogle.com/consumer-insights/consumer-trends/local-search-to-store/"}
+  ],
+  health_wellness:[
+    {number:"77%",label:"research a provider online before booking",insight:"They have already decided before they call you.",source_label:"Pew Research",source_url:"https://www.pewresearch.org/internet/2013/01/15/health-online-2013/"},
+    {number:"94%",label:"use online reviews to evaluate wellness providers",insight:"Your reputation online is your most important asset.",source_label:"Software Advice",source_url:"https://www.softwareadvice.com/resources/how-patients-use-online-reviews/"}
+  ],
+  retail:[
+    {number:"87%",label:"start product searches online before buying in-store",insight:"The decision is made online before they walk in.",source_label:"Retail Dive",source_url:"https://www.retaildive.com/news/87-of-shoppers-now-begin-product-searches-online/530139/"},
+    {number:"34%",label:"of in-store purchases are influenced by prior online search",insight:"Your website is your storefront, even offline.",source_label:"Google Think",source_url:"https://www.thinkwithgoogle.com/consumer-insights/consumer-trends/retail-store-research-digital/"}
+  ],
+  professional:[
+    {number:"80%",label:"of B2B buyers research vendors online before contact",insight:"Your website is the first meeting — be ready.",source_label:"Demand Gen Report",source_url:"https://www.demandgenreport.com/resources/research/2022-b2b-buyer-behavior-survey"},
+    {number:"3x",label:"more leads for firms with strong digital presence",insight:"Digital investment is not a cost — it is a multiplier.",source_label:"HubSpot",source_url:"https://www.hubspot.com/state-of-marketing"}
+  ],
+  food:[
+    {number:"90%",label:"of diners research a restaurant before visiting",insight:"They judge your food before they taste it.",source_label:"Toast 2023",source_url:"https://pos.toasttab.com/resources/restaurant-success-report"},
+    {number:"61%",label:"have visited a new restaurant after finding it online",insight:"New customers come from discovery, not loyalty.",source_label:"Natl. Restaurant Assoc.",source_url:"https://restaurant.org/research-and-media/research/research-reports/"}
+  ],
+  creative:[
+    {number:"65%",label:"won't hire a creative without a strong online portfolio",insight:"Your digital presence is your proof of work.",source_label:"Dribbble",source_url:"https://dribbble.com/stories/2022/02/10/design-industry-trends-report"}
+  ],
+  nonprofit:[
+    {number:"55%",label:"who engage with a nonprofit online take follow-up action",insight:"Digital engagement drives real-world impact.",source_label:"Nonprofit Source",source_url:"https://nonprofitsource.com/online-giving-statistics/"},
+    {number:"30%",label:"of annual giving happens in December — mostly online",insight:"If your donation flow is clunky, it costs you.",source_label:"Blackbaud Institute",source_url:"https://institute.blackbaud.com/charitable-giving-report/"}
+  ]
+};
+
+var DIAG_CONCEPTS = {
+  local_service:  {title:"A service request qualifier",body:"Visitors answer 3 quick questions — what they need, when, and where. You get a pre-qualified lead before they even call you."},
+  health_wellness:{title:"A new client intake flow",body:"Visitors share their goals before booking. You show up already knowing what they need. Conversions go up. Cancellations go down."},
+  retail:         {title:"A product finder",body:"Visitors answer a few questions and land on exactly the right product. Less browsing, more buying. Works 24/7 without staff."},
+  professional:   {title:"A project scoping tool",body:"Potential clients describe their challenge before emailing you. You respond with context. They feel understood before the first call."},
+  food:           {title:"A reservation + preference capture",body:"New visitors share occasion, party size, and dietary needs upfront. You deliver a personalized experience before they arrive."},
+  creative:       {title:"A brief builder",body:"Potential clients describe their project and budget before reaching out. You get better briefs. They get faster responses."},
+  nonprofit:      {title:"A volunteer or donor matcher",body:"Supporters share their interests and availability. You match them to the right initiative. Engagement goes up. Drop-off goes down."},
+  other:          {title:"A customer intake tool",body:"Visitors describe what they need before making contact. You get qualified leads. They feel like you are already paying attention."}
+};
+
+var DIAG_BIZ = {
+  local_service:"local service businesses",
+  health_wellness:"health and wellness businesses",
+  retail:"retail businesses",
+  professional:"professional services",
+  food:"restaurants and hospitality",
+  creative:"creative studios",
+  nonprofit:"non-profits",
+  other:"small businesses"
+};
+
+var DIAG_QS = [
+  {id:"type",q:"What kind of business do you run?",opts:[
+    ["Local service / trades","local_service"],
+    ["Health and wellness","health_wellness"],
+    ["Retail / product-based","retail"],
+    ["Professional services","professional"],
+    ["Food and hospitality","food"],
+    ["Creative / studio","creative"],
+    ["Non-profit / community","nonprofit"],
+    ["Something else","other"]
+  ]},
+  {id:"website",q:"What is your website situation?",opts:[
+    ["I have one — but it is embarrassing","embarrassing"],
+    ["It exists — just not doing much","okay"],
+    ["I think it is pretty good","good"],
+    ["I do not have one","none"]
+  ]},
+  {id:"discovery",q:"How do most new customers find you?",opts:[
+    ["Word of mouth / referrals","referrals"],
+    ["Google search","google"],
+    ["Social media","social"],
+    ["Honestly — not sure","unknown"]
+  ]},
+  {id:"goal",q:"What would actually move the needle for you?",opts:[
+    ["More people finding me online","visibility"],
+    ["Looking as good as my competition","credibility"],
+    ["My site actually generating leads","leads"],
+    ["Understanding what tools to use","clarity"]
+  ]},
+  {id:"zipcode",q:"Last one — what is your zip code?",type:"text",hint:"Adds local context to your snapshot. Skip if you would rather not."}
+];
+
+var diagStep=0, diagAnswers={}, diagResult=null, diagSubmitted=false, diagEmail="";
+
+function diagGetStats(type) {
+  var s=(DIAG_STATS[type]||[]).slice(0,2);
+  var u=DIAG_STATS.universal.slice(0,4-s.length);
+  return s.concat(u).slice(0,4);
+}
+
+function openDiagModal() {
+  diagStep=0; diagAnswers={}; diagResult=null; diagSubmitted=false; diagEmail="";
+  document.getElementById("diagModal").classList.add("open");
+  document.body.style.overflow="hidden";
+  diagRender();
+}
+
+function closeDiagModal() {
+  document.getElementById("diagModal").classList.remove("open");
+  document.body.style.overflow="";
+}
+
+function diagRender() {
+  var el=document.getElementById("diagContent");
+  var inner=document.getElementById("diagModalInner");
+  if(inner) inner.scrollTop=0;
+  if(diagStep===0)                         { el.innerHTML=diagIntroHTML(); return; }
+  if(diagStep>=1&&diagStep<=DIAG_QS.length){ el.innerHTML=diagQHTML(); return; }
+  if(diagStep===DIAG_QS.length+1)          { el.innerHTML=diagEmailHTML(); return; }
+  if(diagStep===DIAG_QS.length+2&&!diagResult){ el.innerHTML=diagLoadHTML(); return; }
+  if(diagResult)                           { el.innerHTML=diagResultHTML(); return; }
+}
+
+function diagIntroHTML() {
+  return [
+    '<div class="diag-screen">',
+    '<p class="diag-label">Live Demo &#8212; G. Thomas Studio</p>',
+    '<h1 class="diag-h1">What is actually happening <span style="color:#E8470A">around your business right now.</span></h1>',
+    '<p class="diag-body">Answer 5 quick questions. Get real market data specific to your business &#8212; and experience the kind of tool we build for sites like yours.</p>',
+    '<div class="diag-twofer">',
+      '<p class="diag-twofer-title">Two things at once</p>',
+      '<p class="diag-twofer-body">This gives you useful data about your market and shows you what this experience could do for your customers on your own site.</p>',
+    '</div>',
+    '<button class="diag-btn-primary" onclick="diagStep=1;diagRender()">Show me what is out there &#8594;</button>',
+    '<p style="font-size:10px;color:rgba(255,255,255,0.15);text-align:center;margin:8px 0 0">About a minute. Free.</p>',
+    '</div>'
+  ].join('');
+}
+
+function diagQHTML() {
+  var q=DIAG_QS[diagStep-1];
+  var pct=Math.round((diagStep/(DIAG_QS.length+1))*100);
+  var opts="";
+  if(q.type==="text") {
+    opts=[
+      '<input class="diag-zip-input" id="diagZip" type="text" inputmode="numeric" placeholder="e.g. 32801" maxlength="10"',
+      ' onkeydown="if(event.key===\'Enter\'){diagPick(\''+q.id+'\',document.getElementById(\'diagZip\').value.trim()||null)}"/>',
+      '<button class="diag-btn-primary" style="margin-top:8px"',
+      ' onclick="diagPick(\''+q.id+'\',document.getElementById(\'diagZip\').value.trim()||null)">Almost there &#8594;</button>',
+      '<button class="diag-skip" onclick="diagPick(\''+q.id+'\',null)">Skip &#8212; show general data</button>'
+    ].join('');
+  } else {
+    opts='<div class="diag-opts">'+q.opts.map(function(o){
+      return '<button class="diag-opt" onclick="diagPick(\''+q.id+'\',\''+o[1]+'\')">'+o[0]+'</button>';
+    }).join('')+'</div>';
+  }
+  return [
+    '<div class="diag-screen">',
+    '<div class="diag-progress-wrap">',
+      '<div class="diag-progress-row">',
+        '<span class="diag-prog-label">'+diagStep+' of '+DIAG_QS.length+'</span>',
+        '<span class="diag-prog-pct">'+pct+'%</span>',
+      '</div>',
+      '<div class="diag-prog-bar"><div class="diag-prog-fill" style="width:'+pct+'%"></div></div>',
+    '</div>',
+    '<h2 class="diag-q-title">'+q.q+'</h2>',
+    (q.hint ? '<p class="diag-hint">'+q.hint+'</p>' : ''),
+    opts,
+    '<p class="diag-nudge">Notice how this feels &#8212; your customers could answer questions like this on your site.</p>',
+    '</div>'
+  ].join('');
+}
+
+function diagEmailHTML() {
+  return [
+    '<div class="diag-screen">',
+    '<div class="diag-progress-wrap">',
+      '<div class="diag-progress-row">',
+        '<span class="diag-prog-label">One last thing</span>',
+        '<span class="diag-prog-pct">92%</span>',
+      '</div>',
+      '<div class="diag-prog-bar"><div class="diag-prog-fill" style="width:92%"></div></div>',
+    '</div>',
+    '<h2 class="diag-q-title">Where should we send your snapshot?</h2>',
+    '<p class="diag-hint">Enter your email and your personalized market data is on its way. No spam, ever.</p>',
+    '<input class="diag-zip-input" id="diagEmailInp" type="email" placeholder="your@email.com"',
+    ' style="font-size:15px;letter-spacing:0"',
+    ' onkeydown="if(event.key===\'Enter\')diagSubmitEmail()"/>',
+    '<button class="diag-btn-primary" style="margin-top:8px" onclick="diagSubmitEmail()">Show me my snapshot &#8594;</button>',
+    '<p style="font-size:10px;color:rgba(255,255,255,0.15);text-align:center;margin:8px 0 0">No spam. Unsubscribe anytime.</p>',
+    '</div>'
+  ].join('');
+}
+
+function diagSubmitEmail() {
+  var inp=document.getElementById("diagEmailInp");
+  var email=inp?inp.value.trim():"";
+  if(!email||email.indexOf("@")<0){
+    if(inp){inp.style.borderColor="rgba(232,71,10,0.7)";inp.focus();}
+    return;
+  }
+  diagEmail=email;
+  try {
+    fetch("https://formspree.io/f/xqedrneg",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        email:diagEmail,
+        business_type:diagAnswers.type,
+        goal:diagAnswers.goal,
+        zipcode:diagAnswers.zipcode,
+        source:"diagnostic-tool",
+        _subject:"New diagnostic lead"
+      })
+    });
+  } catch(e){}
+  diagStep=DIAG_QS.length+2;
+  diagRender();
+  diagRunAnalysis();
+}
+
+function diagLoadHTML() {
+  return [
+    '<div class="diag-loading">',
+    '<div class="diag-dots">',
+      '<div class="diag-dot"></div>',
+      '<div class="diag-dot"></div>',
+      '<div class="diag-dot"></div>',
+    '</div>',
+    '<p class="diag-loading-text">Pulling your market data...</p>',
+    '</div>'
+  ].join('');
+}
+
+async function diagRunAnalysis() {
+  var a=diagAnswers;
+  var bizType=DIAG_BIZ[a.type]||"small businesses";
+  var stats=diagGetStats(a.type);
+  var sj=JSON.stringify(stats.map(function(s){
+    return {number:s.number,label:s.label,source_label:s.source_label,source_url:s.source_url};
+  }));
+  var prompt="Return ONLY valid JSON, no markdown.\n"
+    +"Business: "+bizType+", Website: "+a.website+", Goal: "+a.goal+(a.zipcode?", Zip: "+a.zipcode:"")+"\n"
+    +"Stats - copy number/label/source_label/source_url EXACTLY: "+sj+"\n"
+    +'{"headline":"One punchy sentence max 12 words",'
+    +(a.zipcode?'"local":"One sentence about businesses in the '+a.zipcode+' area",':'')
+    +'"stats":[{"number":"[exact]","label":"[exact]","insight":"[10 words max]","source_label":"[exact]","source_url":"[exact]"}],'
+    +'"opportunity":"One sentence — gap given their goal: '+a.goal+'",'
+    +'"tool_hook":"One sentence how a lead-capture tool addresses '+a.goal+' for '+bizType+'"}';
+  try {
+    var res=await fetch("/.netlify/functions/ai-proxy",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({prompt:prompt})
+    });
+    var data=await res.json();
+    var text=(data.text||"{}").replace(/```json|```/g,"").trim();
+    var json=JSON.parse(text);
+    json.stats=(json.stats||[]).map(function(s,i){
+      return Object.assign({},s,{
+        source_label:stats[i]?stats[i].source_label:s.source_label,
+        source_url:stats[i]?stats[i].source_url:s.source_url
+      });
+    });
+    diagResult=json;
+  } catch(e) {
+    diagResult={
+      headline:"Most customers decide before they ever contact you.",
+      stats:diagGetStats(a.type),
+      opportunity:"Right now your site is a brochure. It could be your best salesperson.",
+      tool_hook:"A tool like this turns passive visitors into pre-qualified leads automatically."
+    };
+  }
+  diagRender();
+}
+
+function diagResultHTML() {
+  var r=diagResult, a=diagAnswers;
+  var concept=DIAG_CONCEPTS[a.type]||DIAG_CONCEPTS.other;
+  var bizLabel=DIAG_BIZ[a.type]||"your business";
+  var statsHTML=(r.stats||[]).map(function(s,i){
+    return [
+      '<div class="diag-stat-card" style="animation-delay:'+i*0.07+'s">',
+      '<div class="diag-stat-num">'+s.number+'</div>',
+      '<div class="diag-stat-lbl">'+s.label+'</div>',
+      '<div class="diag-stat-insight">'+s.insight+'</div>',
+      (s.source_url?'<a class="diag-stat-src" href="'+s.source_url+'" target="_blank" rel="noopener">&#8599; '+s.source_label+'</a>':""),
+      '</div>'
+    ].join('');
+  }).join('');
+  var ctaHTML=diagSubmitted
+    ?'<div class="diag-success"><p class="diag-success-title">Got it.</p><p class="diag-success-body">I will be in touch soon about '+bizLabel+'.</p></div>'
+    :[
+      '<div style="display:flex;flex-direction:column;gap:6px">',
+      '<button class="diag-btn-primary" onclick="diagHandleCTA()">Sketch this out for '+bizLabel+' &#8594;</button>',
+      '<button class="diag-btn-secondary" onclick="diagReset()">Start over</button>',
+      '</div>'
+    ].join('');
+  return [
+    '<div class="diag-result">',
+    '<p class="diag-act-label">Your market snapshot</p>',
+    '<p class="diag-headline">'+r.headline+'</p>',
+    (r.local?'<p class="diag-local">&#128205; '+r.local+'</p>':""),
+    '<div class="diag-stat-grid">'+statsHTML+'</div>',
+    '<div class="diag-opportunity"><p>'+r.opportunity+'</p></div>',
+    '<div class="diag-divider">',
+      '<div class="diag-divider-line"></div>',
+      '<span class="diag-divider-text">Now flip the lens</span>',
+      '<div class="diag-divider-line"></div>',
+    '</div>',
+    '<div class="diag-concept-card">',
+      '<p class="diag-label" style="margin-bottom:8px">What this could look like on your site</p>',
+      '<p class="diag-concept-title">'+concept.title+'</p>',
+      '<p class="diag-concept-body">'+concept.body+'</p>',
+      '<p class="diag-concept-hook">'+r.tool_hook+'</p>',
+    '</div>',
+    '<p class="diag-meta">You just answered questions and got personalized data back. Your customers could do the same &#8212; except they would be telling you what they need, and you would be capturing a lead.</p>',
+    ctaHTML,
+    '</div>'
+  ].join('');
+}
+
+function diagHandleCTA() {
+  diagSubmitted=true;
+  diagRender();
+  setTimeout(function(){
+    closeDiagModal();
+    setTimeout(function(){
+      openFormModal();
+      var ef=document.getElementById("f_email");
+      if(ef&&diagEmail) ef.value=diagEmail;
+    },220);
+  },600);
+}
+
+function diagPick(id,value) {
+  diagAnswers[id]=value;
+  if(event&&event.target&&event.target.classList.contains("diag-opt")){
+    event.target.classList.add("selected");
+  }
+  setTimeout(function(){
+    diagStep = diagStep<DIAG_QS.length ? diagStep+1 : DIAG_QS.length+1;
+    diagRender();
+  },240);
+}
+
+function diagReset() {
+  diagStep=0; diagAnswers={}; diagResult=null; diagSubmitted=false; diagEmail="";
+  diagRender();
+}
+
+document.addEventListener("keydown",function(e){
+  if(e.key==="Escape") closeDiagModal();
+});
+
+document.addEventListener("DOMContentLoaded",function(){
+  document.querySelectorAll(".diag-trigger").forEach(function(el){
+    el.addEventListener("click", openDiagModal);
+  });
+});
+
+</script>
 
 <div class="ws-modal-overlay" id="wsModal" onclick="closePreviewModal(event)">
   <div class="ws-modal">
