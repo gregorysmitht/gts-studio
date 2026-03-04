@@ -77,7 +77,7 @@ nav {
   overflow:hidden; background:var(--warm-dark);
 }
 .hero-bg { position:absolute; inset:0; z-index:0; }
-.hero-bg img { width:100%; height:100%; object-fit:cover; object-position:center 30%; opacity:0.18; filter:grayscale(30%); }
+.hero-bg img { width:100%; height:100%; object-fit:cover; object-position:center 30%; opacity:0.22; filter:grayscale(20%); }
 .hero-bg-overlay { position:absolute; inset:0; background:linear-gradient(110deg,#1A1612 48%,rgba(26,22,18,0.55) 100%); }
 
 .service-strip {
@@ -793,101 +793,119 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
 .footer-email:hover { text-decoration:underline; }
 
 /* ── MOBILE ── */
-/* ── TABLET (≤900px) ── */
-@media(max-width:900px){
+/* ── TABLET (≤1024px) ── */
+@media(max-width:1024px){
   .reality-top { grid-template-columns:1fr; gap:16px; }
   .services-top { grid-template-columns:1fr; gap:16px; }
   .about-header { grid-template-columns:1fr; gap:24px; }
   .about-body-wrap { grid-template-columns:1fr; gap:32px; }
   .proof-inner { grid-template-columns:1fr; gap:48px; }
   .contact-inner { grid-template-columns:1fr; gap:40px; }
+  .p-steps { grid-template-columns:1fr 1fr; gap:32px; }
+  .p-steps::before { display:none; }
 }
 
 /* ── MOBILE (≤768px) ── */
 @media(max-width:768px){
 
-  /* Nav */
+  /* ── Nav ── */
   nav { padding:0 20px; }
   .nav-links { display:none; }
+  .nav-cta { font-size:12px; padding:8px 14px; }
 
-  /* Hero — tighten up, hide low-priority content */
-  .service-strip { display:none; } /* too cramped on mobile */
-  .hero-content { padding:48px 20px 48px; }
-  .hero h1 { font-size:38px; letter-spacing:-0.03em; }
-  .hero-sub { font-size:16px; margin-bottom:28px; }
-  .hero-strip { display:none; } /* these 3 trust signals move to contact on mobile */
-  .hero-btns { flex-direction:column; }
-  .hero-btns .btn-orange,
-  .hero-btns .btn-ghost { width:100%; text-align:center; justify-content:center; }
+  /* ── Hero: headline + sub + one button only ── */
+  .service-strip { display:none; }
+  .hero { min-height:auto; }
+  .hero-content { padding:52px 20px 52px; }
+  .hero h1 { font-size:36px; line-height:1.0; letter-spacing:-0.03em; }
+  .hero-rule { margin:20px 0; }
+  .hero-sub { font-size:15px; line-height:1.7; margin-bottom:24px; max-width:100%; }
+  .hero-btns { flex-direction:column; gap:10px; }
+  .hero-btns .btn-orange { width:100%; text-align:center; justify-content:center; padding:16px; font-size:15px; }
+  .hero-btns .btn-ghost { display:none; } /* one CTA only on mobile */
+  .hero-strip { display:none; }
 
-  /* Reality — stack, show only 2 stats on mobile */
-  .reality { padding:56px 20px; }
-  .reality-top h2 { font-size:28px; }
-  .reality-grid { grid-template-columns:1fr; }
-  .reality-card { padding:24px 20px; }
-  .stats-strip { grid-template-columns:1fr 1fr; }
-  .stat-cell { padding:20px 16px; }
-  .stat-num { font-size:42px; }
-  /* Hide 3rd stat cell on mobile — keep it clean */
-  .stat-cell:nth-child(3) { display:none; }
+  /* ── Reality: pain cards only, no stats ── */
+  .reality { padding:52px 20px; }
+  .reality-top { grid-template-columns:1fr; gap:12px; margin-bottom:28px; }
+  .reality-top h2 { font-size:26px; }
+  .reality-top p { font-size:14px; }
+  .reality-grid { grid-template-columns:1fr; gap:2px; }
+  .reality-card { padding:22px 18px; }
+  .reality-card p { font-size:13px; }
+  .stats-strip { display:none; } /* cut stats on mobile entirely */
 
-  /* Services — single col, hide bullet lists to reduce scroll */
-  .services { padding:56px 20px; }
-  .svc-grid { grid-template-columns:1fr; }
-  .svc { padding:24px 20px; }
-  .svc-list { display:none; } /* collapse detail on mobile */
-  .svc-desc { margin-bottom:10px; }
+  /* ── Services: titles + one-line desc only ── */
+  .services { padding:52px 20px; }
+  .services-top { grid-template-columns:1fr; gap:12px; margin-bottom:28px; }
+  .services-top h2 { font-size:26px; }
+  .services-top p { display:none; }
+  .svc-grid { grid-template-columns:1fr; gap:2px; }
+  .svc { padding:22px 18px; }
+  .svc-tag { display:none; }
+  .svc-list { display:none; }
+  .svc-desc { font-size:13px; margin-bottom:0; }
 
-  /* Process — single col, hide examples */
-  .process { padding:56px 20px; }
-  .process-inner > h2 { font-size:26px; margin-bottom:32px; }
+  /* ── Process: numbered list, no descriptions, no examples ── */
+  .process { padding:52px 20px; }
+  .process-inner > h2 { font-size:24px; margin-bottom:28px; }
   .p-steps { grid-template-columns:1fr; gap:0; }
   .p-steps::before { display:none; }
-  .p-step { padding:0 0 28px 0; border-bottom:1px solid var(--border); margin-bottom:28px; }
-  .p-step:last-child { border-bottom:none; margin-bottom:0; padding-bottom:0; }
-  .p-examples { display:none; } /* collapse examples on mobile */
-  .p-num-wrap { width:40px; height:40px; margin-bottom:14px; }
+  .p-step { display:flex; align-items:center; gap:16px; padding:16px 0; border-bottom:1px solid var(--border); }
+  .p-step:last-child { border-bottom:none; }
+  .p-num-wrap { width:40px; height:40px; flex-shrink:0; margin-bottom:0; }
+  .p-step h3 { font-size:15px; margin-bottom:0; }
+  .p-step > p { display:none; }
+  .p-examples { display:none; }
 
-  /* About — tighten */
-  .about-header { padding:56px 20px 32px; grid-template-columns:1fr; gap:20px; }
-  .about-header h2 { font-size:26px; }
-  .about-body-wrap { padding:32px 20px 48px; grid-template-columns:1fr; gap:0; }
-  .about-body { font-size:14px; }
-  .about-body.lead { font-size:15px; }
-  .about-pull { padding:20px; }
-  .about-values { grid-template-columns:1fr 1fr; }
-  .value { padding:22px 16px; }
-  .value p { display:none; } /* hide value descriptions on mobile, keep icon + title */
+  /* ── About: pull quote + dad line only ── */
+  .about-header { padding:52px 20px 28px; grid-template-columns:1fr; gap:16px; }
+  .about-header h2 { font-size:24px; }
+  .about-byline { display:none; }
+  .about-body-wrap { padding:28px 20px 0; grid-template-columns:1fr; gap:0; }
+  .about-body.lead { display:none; }
+  .about-body:not(.lead) { display:none; } /* hide all body copy */
+  .about-pull { display:block !important; margin-bottom:0; } /* keep only pull quote */
+  .about-pull p { font-size:15px; }
+  /* Second column body text */
+  .about-body-wrap > div:last-child .about-body { display:none; }
+  .about-values { display:none; }
 
-  /* Proof — tighten */
-  .proof { padding:56px 20px; }
-  .proof-left p { font-size:14px; }
-  .proof-cards { gap:8px; }
-  .proof-card { padding:18px 20px; }
+  /* ── Proof: dark CTA card only ── */
+  .proof { padding:52px 20px; }
+  .proof-inner { grid-template-columns:1fr; gap:0; }
+  .proof-left { display:none; } /* hide the whole left column */
+  .proof-cards .proof-card:not(.proof-card--dark) { display:none; } /* hide info cards */
+  .proof-card--dark { padding:28px 24px; border-radius:14px; }
+  .proof-dark-text { font-size:18px; }
 
-  /* Contact */
-  .contact { padding:56px 20px; }
+  /* ── Contact: headline + button + invite panel ── */
+  .contact { padding:52px 20px; }
+  .contact-inner { grid-template-columns:1fr; gap:28px; }
   .contact-left h2 { font-size:26px; }
-  .who-tags { display:none; } /* hide tag cloud on mobile */
-  .contact-invite-items { border-radius:12px; }
-  .ci-item { padding:18px 16px; }
+  .contact-left > p { font-size:14px; }
+  .who-tags { display:none; }
 
-  /* Form modal */
-  .fm-shell { border-radius:14px; margin:0; max-height:92vh; overflow-y:auto; }
-  .fm-body { padding:20px 20px 24px; }
-  .sf-q { font-size:18px; }
-  .sf-opt { font-size:12px; padding:9px 14px; }
-
-  /* Footer */
+  /* ── Footer ── */
   footer { flex-direction:column; gap:10px; text-align:center; padding:20px; }
+  .footer-copy { display:none; }
+
+  /* ── Form modal ── */
+  .fm-shell { max-height:88vh; overflow-y:auto; border-radius:16px 16px 0 0; }
+  .fm-overlay { align-items:flex-end; padding:0; }
+  .fm-body { padding:20px 20px 32px; }
+  .sf-q { font-size:17px; }
+  .sf-opt { font-size:12px; padding:9px 13px; }
+  .sf-input { font-size:14px; }
 }
 
 /* ── SMALL PHONES (≤390px) ── */
 @media(max-width:390px){
-  .hero h1 { font-size:32px; }
-  .stats-strip { grid-template-columns:1fr; }
-  .stat-cell:nth-child(3) { display:flex; }
-  .about-values { grid-template-columns:1fr; }
+  .hero h1 { font-size:30px; }
+  .services-top h2,
+  .process-inner > h2,
+  .about-header h2,
+  .contact-left h2 { font-size:22px; }
 }
 
 /* ── CONTACT INVITE PANEL ── */
@@ -969,7 +987,7 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
      ═══════════════════════════════════ -->
 <section class="hero">
   <div class="hero-bg">
-    <img src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1600&q=80&fit=crop&crop=center" alt="" />
+    <img src="hero.jpg" alt="" />
     <div class="hero-bg-overlay"></div>
   </div>
   <div class="service-strip">
@@ -1302,11 +1320,11 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
 <footer>
   <a href="#" class="footer-logo">G. Thomas Studio<span class="nav-dot"></span></a>
   <span class="footer-copy">© 2025 G. Thomas Studio. All rights reserved.</span>
-  <a href="mailto:hello@gts.studio" class="footer-email">hello@gts.studio</a>
+  <a href="/cdn-cgi/l/email-protection#ec8489808083ac8b989fc29f9899888583" class="footer-email"><span class="__cf_email__" data-cfemail="147c7178787b547360673a676061707d7b">[email&#160;protected]</span></a>
 </footer>
 
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ─── FORM MODAL ────────────────────────────────────────
 let sfStep = 1;
 const SF_TOTAL = 7;
@@ -1559,11 +1577,4 @@ window.addEventListener('scroll',()=>{
       </div>
     </div>
     <div class="ws-modal-footer">
-      <p id="wsFooterNote">Take a look — this is what your customers see first.</p>
-      <a id="wsOpenLink" href="#" target="_blank" rel="noopener" class="ws-open-btn">Open in new tab ↗</a>
-    </div>
-  </div>
-</div>
-
-</body>
-</html>
+  
