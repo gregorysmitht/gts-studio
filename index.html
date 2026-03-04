@@ -55,7 +55,7 @@ nav {
 .nav-logo {
   font-family:'Bricolage Grotesque',sans-serif; font-weight:800; font-size:18px;
   letter-spacing:-0.02em; color:var(--black); text-decoration:none;
-  display:flex; align-items:center; gap:4px; height:40px;
+  display:flex; align-items:center; gap:10px; height:40px;
 }
 .nav-dot { width:7px; height:7px; background:var(--orange); border-radius:50%; display:inline-block; }
 .nav-links { display:flex; gap:32px; list-style:none; }
@@ -1064,13 +1064,40 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
   max-width: 150px;
   object-fit: contain;
 }
+
+/* ── LOGO TEXT ── */
+.nav-logo-text {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.footer-logo-text {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.03em;
+  color: var(--white);
+  opacity: 0.85;
+  white-space: nowrap;
+}
+.fm-logo-text {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  white-space: nowrap;
+}
 </style>
 </head>
 <body>
 
 <!-- NAV -->
 <nav id="nav">
-  <a href="#" class="nav-logo"><img src="logo.png" alt="G. Thomas Studio" class="nav-logo-img" /></a>
+  <a href="#" class="nav-logo"><img src="logo.png" alt="G. Thomas Studio" class="nav-logo-img" /><span class="nav-logo-text">G. Thomas Studio</span></a>
   <ul class="nav-links">
     <li><a href="#reality">Why it matters</a></li>
     <li><a href="#services">What we do</a></li>
@@ -1418,7 +1445,7 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
 
 <!-- FOOTER -->
 <footer>
-  <a href="#" class="footer-logo"><img src="logo.png" alt="G. Thomas Studio" class="footer-logo-img" /></a>
+  <a href="#" class="footer-logo"><img src="logo.png" alt="G. Thomas Studio" class="footer-logo-img" /><span class="footer-logo-text">G. Thomas Studio</span></a>
   <span class="footer-copy">© 2025 G. Thomas Studio. All rights reserved.</span>
   <a id="footerEmail" href="#" class="footer-email"><span class="__cf_email__" data-cfemail="69010c050506290e1d1a471a1d1c0d0006">[email&#160;protected]</span></a>
   <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>document.getElementById('footerEmail').href='mai'+'lto:'+'hello@gts.studio';</script>
@@ -1625,7 +1652,7 @@ window.addEventListener('scroll',()=>{
   <div class="fm-shell">
     <div class="fm-header">
       <div class="fm-header-left">
-        <img src="logo.png" alt="G. Thomas Studio" class="fm-logo-img" />
+        <img src="logo.png" alt="G. Thomas Studio" class="fm-logo-img" /><span class="fm-logo-text">G. Thomas Studio</span>
         <span class="fm-tagline">Let's figure out if I can help</span>
       </div>
       <button class="fm-close" onclick="closeFormModal()">✕</button>
