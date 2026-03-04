@@ -3,7 +3,27 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>G. Thomas Studio — Finally. Someone in your corner.</title>
+<title>G. Thomas Studio — Website, Brand & Digital for Small Business</title>
+<meta name="description" content="G. Thomas Studio helps small businesses look the part, get found, and grow online. Website design, branding, SEO, and AI tools — without the agency overhead."/>
+<meta name="author" content="G. Thomas Studio"/>
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="logo.png"/>
+<link rel="apple-touch-icon" href="logo.png"/>
+
+<!-- Open Graph (how the link looks when shared on social / text) -->
+<meta property="og:title" content="G. Thomas Studio — Website, Brand & Digital for Small Business"/>
+<meta property="og:description" content="Finally. Someone in your corner. We help small businesses look the part, get found, and grow online."/>
+<meta property="og:image" content="hero.jpg"/>
+<meta property="og:url" content="https://gts.studio"/>
+<meta property="og:type" content="website"/>
+
+<!-- Twitter/X card -->
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="G. Thomas Studio"/>
+<meta name="twitter:description" content="Website, brand & digital presence for small businesses — without the agency overhead."/>
+<meta name="twitter:image" content="hero.jpg"/>
+
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -35,7 +55,7 @@ nav {
 .nav-logo {
   font-family:'Bricolage Grotesque',sans-serif; font-weight:800; font-size:18px;
   letter-spacing:-0.02em; color:var(--black); text-decoration:none;
-  display:flex; align-items:center; gap:4px;
+  display:flex; align-items:center; gap:4px; height:40px;
 }
 .nav-dot { width:7px; height:7px; background:var(--orange); border-radius:50%; display:inline-block; }
 .nav-links { display:flex; gap:32px; list-style:none; }
@@ -77,8 +97,8 @@ nav {
   overflow:hidden; background:var(--warm-dark);
 }
 .hero-bg { position:absolute; inset:0; z-index:0; }
-.hero-bg img { width:100%; height:100%; object-fit:cover; object-position:center 30%; opacity:0.35; filter:grayscale(10%); }
-.hero-bg-overlay { position:absolute; inset:0; background:linear-gradient(110deg,#1A1612 48%,rgba(26,22,18,0.55) 100%); }
+.hero-bg img { width:100%; height:100%; object-fit:cover; object-position:center 30%; opacity:0.55; filter:grayscale(5%); }
+.hero-bg-overlay { position:absolute; inset:0; background:linear-gradient(110deg,rgba(26,22,18,0.82) 42%,rgba(26,22,18,0.45) 100%); }
 
 .service-strip {
   position:relative; z-index:2;
@@ -808,80 +828,87 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
 /* ── MOBILE (≤768px) ── */
 @media(max-width:768px){
 
-  /* ── Nav ── */
+  /* Nav */
   nav { padding:0 20px; }
   .nav-links { display:none; }
   .nav-cta { font-size:13px; padding:9px 16px; }
 
-  /* ── Hero ── */
+  /* Hero */
   .service-strip { display:none; }
   .hero { min-height:auto; }
-  .hero-content { padding:44px 20px 44px; }
+  .hero-content { padding:44px 20px; }
   .hero h1 { font-size:34px; line-height:1.02; letter-spacing:-0.03em; }
   .hero-rule { margin:18px 0; width:36px; }
-  .hero-sub { font-size:15px; line-height:1.7; margin-bottom:24px; max-width:100%; }
+  .hero-sub { font-size:15px; line-height:1.7; margin-bottom:24px; }
   .hero-btns { flex-direction:column; gap:0; }
-  .hero-btns .btn-orange { width:100%; text-align:center; justify-content:center; padding:15px; font-size:15px; border-radius:8px; }
+  .hero-btns .btn-orange { width:100%; justify-content:center; padding:15px; font-size:15px; border-radius:8px; }
   .hero-btns .btn-ghost { display:none; }
   .hero-strip { display:none; }
 
-  /* ── Reality ── */
+  /* Reality */
   .reality { padding:44px 20px; }
   .reality-top { grid-template-columns:1fr; gap:8px; margin-bottom:24px; }
   .reality-top h2 { font-size:24px; }
   .reality-top p { display:none; }
-  .reality-grid { grid-template-columns:1fr; gap:2px; border-radius:12px; }
+  .reality-grid { grid-template-columns:1fr; gap:2px; border-radius:12px; overflow:hidden; }
   .reality-card { padding:20px 18px; }
   .reality-card h3 { font-size:15px; }
   .reality-card p { font-size:13px; }
   .stats-strip { display:none; }
 
-  /* ── Services ── */
+  /* Services */
   .services { padding:44px 20px; }
   .services-top { grid-template-columns:1fr; gap:8px; margin-bottom:24px; }
   .services-top h2 { font-size:24px; }
   .services-top p { display:none; }
-  .svc-grid { grid-template-columns:1fr; gap:2px; border-radius:12px; }
+  .svc-grid { grid-template-columns:1fr; gap:2px; border-radius:12px; overflow:hidden; }
   .svc { padding:20px 18px; }
   .svc-tag { display:none; }
   .svc-list { display:none; }
   .svc-desc { font-size:13px; margin-bottom:0; }
 
-  /* ── Process ── */
+  /* Process — accordion */
   .process { padding:44px 20px; }
-  .process-inner > h2 { font-size:22px; margin-bottom:24px; }
+  .process-inner > h2 { font-size:22px; margin-bottom:8px; }
   .p-steps { grid-template-columns:1fr; gap:0; }
   .p-steps::before { display:none; }
-  .p-step { display:flex; align-items:center; gap:14px; padding:14px 0; border-bottom:1px solid var(--border); }
+  .p-step { display:block !important; padding:0; border-bottom:1px solid var(--border); }
   .p-step:last-child { border-bottom:none; }
-  .p-num-wrap { width:38px; height:38px; flex-shrink:0; margin-bottom:0; }
-  .p-num { font-size:14px; }
+  .p-step-header { display:flex !important; align-items:center; gap:14px; padding:16px 0; cursor:pointer; width:100%; }
+  .p-chevron { display:block !important; margin-left:auto; font-size:20px; color:var(--orange); transition:transform 0.25s; flex-shrink:0; }
+  .p-step.open .p-chevron { transform:rotate(45deg); }
+  .p-step-body { display:none !important; padding:4px 0 18px 52px; }
+  .p-step.open .p-step-body { display:block !important; }
+  .p-step-body > p { font-size:13px; line-height:1.75; color:var(--mid); margin-bottom:10px; }
+  .p-step-body .p-examples { display:flex; flex-direction:column; border-top:none; padding-top:0; gap:4px; }
+  .p-num-wrap { margin-bottom:0 !important; flex-shrink:0; width:38px; height:38px; }
+  .p-num { font-size:13px; }
   .p-step h3 { font-size:15px; font-weight:700; margin-bottom:0; }
   .p-step > p { display:none; }
-  .p-examples { display:none; }
 
-  /* ── About ── */
-  .about-header { padding:44px 20px 24px; grid-template-columns:1fr; gap:16px; }
-  .about-header h2 { font-size:22px; }
+  /* About — mobile redesign */
+  .about { overflow:hidden; }
+  .about-header { padding:44px 20px 24px; grid-template-columns:1fr; gap:0; }
+  .about-header h2 { font-size:22px; line-height:1.15; }
   .about-byline { display:none; }
-  .about-body-wrap { padding:24px 20px 0; grid-template-columns:1fr; }
-  .about-body { display:none; }
-  .about-body.lead { display:none; }
-  .about-pull { display:block !important; margin-bottom:0; padding:20px; }
-  .about-pull p { font-size:14px; line-height:1.7; }
-  .about-body-wrap > div:last-child > .about-body { display:none; }
+  .about-body-wrap { padding:0 20px 44px; grid-template-columns:1fr; gap:0; }
+  .about-body { display:none !important; }
+  .about-pull { display:block !important; margin:0 0 20px 0; padding:20px; border-radius:12px; }
+  .about-pull p { font-size:14px; line-height:1.75; }
   .about-values { display:none; }
+  /* Show a single closing line on mobile */
+  .about-mobile-cta { display:block !important; font-size:14px; color:var(--mid); line-height:1.7; }
 
-  /* ── Proof: dark CTA card only, no background section ── */
-  .proof { padding:24px 20px; background:var(--warm-dark); }
+  /* Proof */
+  .proof { padding:28px 20px; }
   .proof-inner { grid-template-columns:1fr; gap:0; }
   .proof-left { display:none; }
   .proof-cards .proof-card:not(.proof-card--dark) { display:none; }
   .proof-card--dark { padding:24px; border-radius:12px; gap:16px; }
-  .proof-dark-text { font-size:16px; line-height:1.5; }
-  .proof-card--dark .btn-orange { width:100%; text-align:center; justify-content:center; padding:15px; }
+  .proof-dark-text { font-size:16px; line-height:1.6; }
+  .proof-card--dark .btn-orange { width:100%; justify-content:center; padding:15px; }
 
-  /* ── Contact ── */
+  /* Contact */
   .contact { padding:44px 20px; }
   .contact-inner { grid-template-columns:1fr; gap:24px; }
   .contact-left h2 { font-size:24px; }
@@ -889,20 +916,58 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
   .who-tags { display:none; }
   .contact-invite-btn { padding:15px; font-size:15px; }
 
-  /* ── Footer ── */
+  /* Footer */
   footer { flex-direction:column; gap:8px; text-align:center; padding:20px; }
   .footer-copy { display:none; }
 
-  /* ── Form modal — slides up from bottom ── */
+  /* Form modal — full bottom sheet on mobile */
   .fm-overlay { align-items:flex-end; padding:0; }
-  .fm-shell { border-radius:20px 20px 0 0; max-height:90vh; overflow-y:auto; }
-  .fm-header { padding:16px 20px 14px; }
-  .fm-body { padding:20px 20px 40px; }
-  .sf-q { font-size:17px; }
-  .sf-options { gap:7px; }
-  .sf-opt { font-size:12px; padding:9px 13px; }
-  .sf-input { font-size:15px; padding:13px 16px; }
-  .sf-next { width:100%; justify-content:center; padding:15px; }
+  .fm-shell {
+    border-radius:20px 20px 0 0;
+    max-height:92vh;
+    overflow-y:auto;
+    width:100%;
+    margin:0;
+    transform:translateY(40px);
+  }
+  .fm-overlay.open .fm-shell { transform:translateY(0); }
+  .fm-header { padding:18px 20px 14px; border-bottom:1px solid rgba(0,0,0,0.06); }
+  .fm-logo { font-size:14px; }
+  .fm-tagline { font-size:12px; }
+  .fm-close { width:32px; height:32px; font-size:14px; }
+  .fm-body { padding:24px 20px 48px; }
+  .sf-progress { margin-bottom:6px; }
+  .sf-step-label { font-size:11px; margin-bottom:20px; }
+  .sf-q { font-size:18px; line-height:1.35; margin-bottom:6px; }
+  .sf-hint { font-size:13px; margin-bottom:16px; }
+  .sf-options { gap:8px; }
+  .sf-opt {
+    font-size:13px;
+    padding:11px 16px;
+    border-radius:8px;
+    text-align:left;
+    width:100%;
+  }
+  .sf-input {
+    font-size:16px;
+    padding:14px 16px;
+    border-radius:10px;
+    margin-bottom:12px;
+  }
+  .sf-textarea { min-height:100px; }
+  .sf-next {
+    width:100%;
+    justify-content:center;
+    padding:16px;
+    font-size:15px;
+    border-radius:10px;
+    margin-top:4px;
+  }
+  .sf-website-row { flex-direction:column; gap:8px; }
+  .sf-preview-btn { width:100%; justify-content:center; padding:12px; }
+  .sf-done { padding:32px 0 16px; text-align:center; }
+  .sf-done h3 { font-size:20px; }
+  .sf-done p { font-size:14px; }
 }
 
 /* ── SMALL PHONES (≤390px) ── */
@@ -913,6 +978,9 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
   .about-header h2,
   .contact-left h2 { font-size:22px; }
 }
+
+
+/* ── PROCESS ACCORDION ── */
 
 /* ── CONTACT INVITE PANEL ── */
 .contact-invite {
@@ -971,13 +1039,38 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
   padding: 18px;
   border-radius: 12px;
 }
+
+/* ── LOGO IMAGES ── */
+.nav-logo-img {
+  height: 32px !important;
+  width: auto !important;
+  display: block !important;
+  max-width: 160px;
+  object-fit: contain;
+}
+.footer-logo-img {
+  height: 28px !important;
+  width: auto !important;
+  display: block !important;
+  max-width: 140px;
+  object-fit: contain;
+  opacity: 0.85;
+}
+.footer-logo-img:hover { opacity: 1; }
+.fm-logo-img {
+  height: 28px !important;
+  width: auto !important;
+  display: block !important;
+  max-width: 150px;
+  object-fit: contain;
+}
 </style>
 </head>
 <body>
 
 <!-- NAV -->
 <nav id="nav">
-  <a href="#" class="nav-logo">G. Thomas Studio<span class="nav-dot"></span></a>
+  <a href="#" class="nav-logo"><img src="logo.png" alt="G. Thomas Studio" class="nav-logo-img" /></a>
   <ul class="nav-links">
     <li><a href="#reality">Why it matters</a></li>
     <li><a href="#services">What we do</a></li>
@@ -1212,6 +1305,7 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
       <div class="about-pull">
         <p>My dad owned a company in the construction business for 30 years. The only thing he never had was someone in his corner who knew how to show it to the world.</p>
       </div>
+      <p class="about-mobile-cta" style="display:none">What those big companies had wasn't magic — it was strategy, the right tools, and people who knew how to use them. <strong>I'm here to finally bring that to businesses like yours.</strong></p>
       <p class="about-body">What those big companies had wasn't magic. It was strategy, the right tools, and people who knew how to use them. <strong>I'm here to finally bring that to businesses like yours.</strong></p>
     </div>
   </div>
@@ -1324,13 +1418,54 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
 
 <!-- FOOTER -->
 <footer>
-  <a href="#" class="footer-logo">G. Thomas Studio<span class="nav-dot"></span></a>
+  <a href="#" class="footer-logo"><img src="logo.png" alt="G. Thomas Studio" class="footer-logo-img" /></a>
   <span class="footer-copy">© 2025 G. Thomas Studio. All rights reserved.</span>
-  <a href="/cdn-cgi/l/email-protection#ec8489808083ac8b989fc29f9899888583" class="footer-email"><span class="__cf_email__" data-cfemail="147c7178787b547360673a676061707d7b">[email&#160;protected]</span></a>
+  <a id="footerEmail" href="#" class="footer-email"><span class="__cf_email__" data-cfemail="69010c050506290e1d1a471a1d1c0d0006">[email&#160;protected]</span></a>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>document.getElementById('footerEmail').href='mai'+'lto:'+'hello@gts.studio';</script>
 </footer>
 
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+
+// Process accordion — mobile only
+function initAccordion() {
+  if (window.innerWidth > 768) return;
+  document.querySelectorAll('.p-step').forEach(step => {
+    if (step.dataset.accordionInit) return;
+    step.dataset.accordionInit = '1';
+    const numWrap = step.querySelector('.p-num-wrap');
+    const h3 = step.querySelector('h3');
+    const p = step.querySelector('p');
+    const ul = step.querySelector('.p-examples');
+    // Build header row
+    const header = document.createElement('div');
+    header.className = 'p-step-mobile-header';
+    header.appendChild(numWrap.cloneNode(true));
+    const h3clone = h3.cloneNode(true);
+    h3clone.style.marginBottom = '0';
+    header.appendChild(h3clone);
+    const chevron = document.createElement('span');
+    chevron.className = 'p-step-mobile-chevron';
+    chevron.textContent = '＋';
+    header.appendChild(chevron);
+    // Build body
+    const body = document.createElement('div');
+    body.className = 'p-step-mobile-body';
+    if (p) body.appendChild(p.cloneNode(true));
+    if (ul) body.appendChild(ul.cloneNode(true));
+    // Hide originals, insert new
+    step.innerHTML = '';
+    step.appendChild(header);
+    step.appendChild(body);
+    step.addEventListener('click', function() {
+      const isOpen = step.classList.contains('open');
+      document.querySelectorAll('.p-step').forEach(s => s.classList.remove('open'));
+      if (!isOpen) step.classList.add('open');
+    });
+  });
+}
+window.addEventListener('DOMContentLoaded', initAccordion);
+
 // ─── FORM MODAL ────────────────────────────────────────
 let sfStep = 1;
 const SF_TOTAL = 7;
@@ -1383,16 +1518,37 @@ function sfNext() {
   sfShowStep(sfStep);
 }
 
-function sfSubmit() {
+async function sfSubmit() {
   const email = document.getElementById('f_email').value.trim();
   if (!email) { document.getElementById('f_email').focus(); return; }
   sfData.email = email;
   sfData.business = document.getElementById('f_biz').value.trim();
+
+  // Show done state immediately
   document.getElementById('sfBar').style.width = '100%';
   document.getElementById('sfLabel').textContent = 'Done ✓';
   document.getElementById('formModal').querySelectorAll('.sf-step').forEach(s => s.classList.remove('active'));
   document.getElementById('sfDone').classList.add('active');
-  console.log('G. Thomas Studio Submission:', sfData);
+
+  // Submit to Formspree
+  try {
+    await fetch('https://formspree.io/f/xqedrneg', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        name:      sfData.name     || '',
+        email:     sfData.email    || '',
+        business:  sfData.business || '',
+        org_type:  sfData.step2    || '',
+        challenge: sfData.step3    || '',
+        status:    sfData.step4    || '',
+        website:   sfData.website  || '',
+        note:      sfData.note     || ''
+      })
+    });
+  } catch(e) {
+    console.error('Formspree error:', e);
+  }
 }
 
 // Option button clicks
@@ -1469,7 +1625,7 @@ window.addEventListener('scroll',()=>{
   <div class="fm-shell">
     <div class="fm-header">
       <div class="fm-header-left">
-        <span class="fm-logo">G. Thomas Studio<span class="fm-dot"></span></span>
+        <img src="logo.png" alt="G. Thomas Studio" class="fm-logo-img" />
         <span class="fm-tagline">Let's figure out if I can help</span>
       </div>
       <button class="fm-close" onclick="closeFormModal()">✕</button>
@@ -1578,9 +1734,4 @@ window.addEventListener('scroll',()=>{
       <div class="ws-overlay-message" id="wsOverlayMsg" style="display:none">
         <div class="ws-overlay-icon">🔒</div>
         <h4>Can't preview this site directly</h4>
-        <p>Some websites block embedded previews for security reasons. That's totally normal — I'll check it out manually when you reach out.</p>
-        <p class="ws-overlay-url" id="wsOverlayUrl"></p>
-      </div>
-    </div>
-    <div class="ws-modal-footer">
-  
+        <p>Some websites block embedded previews for security reaso
