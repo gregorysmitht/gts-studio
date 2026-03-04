@@ -989,6 +989,246 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
 
 /* ── PROCESS ACCORDION ── */
 
+
+/* ── DIAGNOSTIC SECTION ── */
+.diagnostic-section {
+  padding: 96px 48px;
+  background: var(--warm-dark);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.diag-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 72px;
+  align-items: center;
+}
+@media (max-width: 768px) {
+  .diagnostic-section { padding: 72px 24px; }
+  .diag-inner { grid-template-columns: 1fr; gap: 40px; }
+}
+.diag-intro .section-label { color: var(--orange); }
+.diag-intro h2 {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: clamp(26px, 4vw, 40px);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  margin: 12px 0 16px;
+}
+.diag-intro p {
+  font-size: 15px;
+  color: rgba(255,255,255,0.45);
+  line-height: 1.8;
+  margin: 0 0 28px;
+  max-width: 400px;
+}
+.diag-preview-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 20px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.diag-preview-stat {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.diag-preview-stat:first-child { padding-top: 0; }
+.diag-preview-stat:last-of-type { border-bottom: none; }
+.diag-num {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--orange);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  flex-shrink: 0;
+  min-width: 80px;
+}
+.diag-lbl {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.5);
+  line-height: 1.45;
+}
+.diag-preview-cta {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--orange);
+  cursor: pointer;
+  letter-spacing: -0.01em;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  margin-top: 2px;
+}
+.diag-preview-cta:hover { opacity: 0.75; }
+
+/* ── DIAGNOSTIC MODAL ── */
+.diag-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.82);
+  backdrop-filter: blur(6px);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.diag-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+.diag-modal {
+  background: #141210;
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 28px 24px 32px;
+  position: relative;
+  transform: translateY(12px);
+  transition: transform 0.25s ease;
+  scrollbar-width: none;
+}
+.diag-overlay.open .diag-modal { transform: translateY(0); }
+.diag-modal::-webkit-scrollbar { display: none; }
+.diag-close {
+  position: absolute;
+  top: 16px; right: 18px;
+  background: none; border: none;
+  color: rgba(255,255,255,0.3);
+  font-size: 18px; cursor: pointer;
+  line-height: 1; padding: 4px;
+  font-family: inherit;
+}
+.diag-close:hover { color: #fff; }
+.diag-progress-wrap { margin-bottom: 20px; }
+.diag-progress-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.diag-prog-label { font-size: 10px; color: rgba(255,255,255,0.2); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
+.diag-prog-pct { font-size: 10px; color: #E8470A; font-weight: 700; }
+.diag-prog-bar { height: 2px; background: rgba(255,255,255,0.07); border-radius: 100px; }
+.diag-prog-fill { height: 100%; background: #E8470A; border-radius: 100px; transition: width 0.35s ease; }
+.diag-screen { animation: diagFadeUp 0.28s ease; }
+@keyframes diagFadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.diag-label { font-size: 10px; font-weight: 700; color: #E8470A; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 10px; }
+.diag-h1 { font-size: clamp(20px,4vw,26px); font-weight: 800; color: #fff; letter-spacing: -0.03em; line-height: 1.1; margin: 0 0 12px; }
+.diag-body { font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.75; margin: 0 0 18px; }
+.diag-twofer { background: rgba(232,71,10,0.06); border: 1px solid rgba(232,71,10,0.12); border-radius: 10px; padding: 13px 15px; margin-bottom: 20px; }
+.diag-twofer-title { font-size: 10px; font-weight: 700; color: #E8470A; letter-spacing: 0.07em; text-transform: uppercase; margin: 0 0 4px; }
+.diag-twofer-body { font-size: 11px; color: rgba(255,255,255,0.32); line-height: 1.65; margin: 0; }
+.diag-q-title { font-size: 17px; font-weight: 800; color: #fff; letter-spacing: -0.02em; line-height: 1.2; margin: 0 0 14px; }
+.diag-hint { font-size: 11px; color: rgba(255,255,255,0.25); margin: -8px 0 14px; }
+.diag-opts { display: flex; flex-direction: column; gap: 6px; }
+.diag-opt {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 9px;
+  padding: 11px 14px;
+  font-size: 13px; font-weight: 600;
+  color: rgba(255,255,255,0.62);
+  cursor: pointer; text-align: left;
+  font-family: inherit;
+  transition: all 0.12s;
+  width: 100%;
+}
+.diag-opt:hover, .diag-opt.selected {
+  background: rgba(232,71,10,0.12);
+  border-color: rgba(232,71,10,0.4);
+  color: #E8470A;
+}
+.diag-nudge { font-size: 10px; color: rgba(255,255,255,0.13); margin: 12px 0 0; line-height: 1.5; }
+.diag-zip-input {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 10px;
+  padding: 12px 15px;
+  font-size: 20px; font-weight: 700;
+  color: #fff; font-family: inherit;
+  letter-spacing: 0.05em; outline: none;
+  width: 100%; margin-bottom: 8px;
+  transition: border-color 0.2s;
+}
+.diag-zip-input:focus { border-color: rgba(232,71,10,0.5); }
+.diag-btn-primary {
+  background: #E8470A; color: #fff; border: none;
+  border-radius: 9px; padding: 13px 20px;
+  font-size: 13px; font-weight: 800;
+  cursor: pointer; font-family: inherit;
+  width: 100%; letter-spacing: -0.01em;
+  transition: opacity 0.15s;
+}
+.diag-btn-primary:hover { opacity: 0.83; }
+.diag-skip { background: none; border: none; color: rgba(255,255,255,0.22); font-size: 11px; cursor: pointer; font-family: inherit; padding: 4px 0; margin-top: 2px; }
+.diag-loading { text-align: center; padding: 44px 0; }
+.diag-dots { display: flex; justify-content: center; gap: 6px; margin-bottom: 14px; }
+.diag-dot { width: 7px; height: 7px; border-radius: 50%; background: #E8470A; animation: diagBounce 1s infinite; }
+.diag-dot:nth-child(2) { animation-delay: 0.14s; }
+.diag-dot:nth-child(3) { animation-delay: 0.28s; }
+@keyframes diagBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
+.diag-loading-text { font-size: 12px; color: rgba(255,255,255,0.27); }
+.diag-result { animation: diagFadeIn 0.35s ease; }
+@keyframes diagFadeIn { from{opacity:0} to{opacity:1} }
+.diag-act-label { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.22); letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 8px; }
+.diag-headline { font-size: 15px; font-weight: 800; color: #fff; letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 6px; }
+.diag-local { font-size: 11px; color: rgba(255,255,255,0.3); margin: 0 0 12px; line-height: 1.6; }
+.diag-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 8px; }
+.diag-stat-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 11px; padding: 13px 11px;
+  display: flex; flex-direction: column; gap: 4px;
+  animation: diagFadeUp 0.35s ease both;
+}
+.diag-stat-num { font-size: 28px; font-weight: 800; color: #E8470A; letter-spacing: -0.04em; line-height: 1; }
+.diag-stat-lbl { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.78); line-height: 1.3; }
+.diag-stat-insight { font-size: 10px; color: rgba(255,255,255,0.3); line-height: 1.5; flex: 1; }
+.diag-stat-src { font-size: 9px; color: rgba(232,71,10,0.42); text-decoration: none; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; margin-top: 3px; display: inline-block; }
+.diag-stat-src:hover { color: rgba(232,71,10,0.7); }
+.diag-opportunity { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 12px 14px; margin-bottom: 20px; }
+.diag-opportunity p { font-size: 12px; color: rgba(255,255,255,0.42); line-height: 1.7; margin: 0; }
+.diag-divider { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.diag-divider-line { flex: 1; height: 1px; background: rgba(255,255,255,0.06); }
+.diag-divider-text { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.16); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+.diag-concept-card {
+  background: linear-gradient(140deg, rgba(232,71,10,0.09), rgba(232,71,10,0.02));
+  border: 1px solid rgba(232,71,10,0.15);
+  border-radius: 13px; padding: 18px; margin-bottom: 8px;
+}
+.diag-concept-title { font-size: 13px; font-weight: 800; color: #fff; letter-spacing: -0.02em; line-height: 1.2; margin: 0 0 6px; }
+.diag-concept-body { font-size: 12px; color: rgba(255,255,255,0.42); line-height: 1.7; margin: 0 0 12px; }
+.diag-concept-hook { border-top: 1px solid rgba(232,71,10,0.12); padding-top: 11px; font-size: 11px; color: rgba(255,255,255,0.28); line-height: 1.65; margin: 0; font-style: italic; }
+.diag-meta { font-size: 11px; color: rgba(255,255,255,0.18); line-height: 1.65; margin: 0 0 16px; padding: 0 2px; }
+.diag-btn-secondary {
+  background: transparent; color: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 9px; padding: 10px;
+  font-size: 11px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  width: 100%; transition: opacity 0.15s;
+}
+.diag-btn-secondary:hover { opacity: 0.7; }
+.diag-contact-form { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 18px; animation: diagFadeUp 0.28s ease; }
+.diag-contact-title { font-size: 12px; font-weight: 700; color: #fff; margin: 0 0 13px; }
+.diag-field { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 8px; padding: 10px 13px; font-size: 13px; color: #fff; font-family: inherit; outline: none; width: 100%; display: block; margin-bottom: 7px; transition: border-color 0.2s; }
+.diag-field:focus { border-color: rgba(232,71,10,0.4); }
+.diag-success { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 24px; text-align: center; }
+.diag-success-title { font-size: 15px; font-weight: 800; color: #fff; margin: 0 0 6px; letter-spacing: -0.02em; }
+.diag-success-body { font-size: 12px; color: rgba(255,255,255,0.38); line-height: 1.7; margin: 0; }
+
 /* ── CONTACT INVITE PANEL ── */
 .contact-invite {
   display: flex;
@@ -1108,6 +1348,7 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
   <ul class="nav-links">
     <li><a href="#reality">Why it matters</a></li>
     <li><a href="#services">What we do</a></li>
+        <li><a href="#diagnostic">See for yourself</a></li>
     <li><a href="#process">How it works</a></li>
     <li><a href="#about">About</a></li>
   </ul>
@@ -1258,6 +1499,37 @@ footer { background:var(--black); padding:28px 48px; display:flex; align-items:c
   </div>
 </section>
 
+
+<!-- ═══════════════════════════════════
+     3.5 — DIAGNOSTIC TOOL
+     ═══════════════════════════════════ -->
+<section class="diagnostic-section" id="diagnostic">
+  <div class="diag-inner">
+    <div class="diag-intro">
+      <span class="section-label">See for yourself</span>
+      <h2>What's actually happening <span style="color:#E8470A">around your business right now.</span></h2>
+      <p>Answer 5 quick questions. Get real market data specific to your type of business — and experience the kind of tool we build for sites like yours.</p>
+      <button class="btn-primary" onclick="openDiagModal()">Show me what's out there →</button>
+    </div>
+    <div class="diag-preview">
+      <div class="diag-preview-card">
+        <div class="diag-preview-stat">
+          <span class="diag-num">97%</span>
+          <span class="diag-lbl">search online before contacting any local business</span>
+        </div>
+        <div class="diag-preview-stat">
+          <span class="diag-num">75%</span>
+          <span class="diag-lbl">judge credibility from website design alone</span>
+        </div>
+        <div class="diag-preview-stat">
+          <span class="diag-num">28%</span>
+          <span class="diag-lbl">of local searches lead to a purchase within 24 hrs</span>
+        </div>
+        <div class="diag-preview-cta" onclick="openDiagModal()">These numbers apply to your business. Find out how →</div>
+      </div>
+    </div>
+  </div>
+</section>
 
 <!-- ═══════════════════════════════════
      4 — PROCESS
@@ -1797,6 +2069,15 @@ window.addEventListener('scroll',()=>{
 <!-- ═══════════════════════════════════
      WEBSITE PREVIEW MODAL
      ═══════════════════════════════════ -->
+
+<!-- DIAGNOSTIC MODAL -->
+<div class="diag-overlay" id="diagModal" onclick="diagOverlayClick(event)">
+  <div class="diag-modal" id="diagModalInner">
+    <button class="diag-close" onclick="closeDiagModal()">✕</button>
+    <div id="diagContent"></div>
+  </div>
+</div>
+
 <div class="ws-modal-overlay" id="wsModal" onclick="closePreviewModal(event)">
   <div class="ws-modal">
     <div class="ws-modal-header">
