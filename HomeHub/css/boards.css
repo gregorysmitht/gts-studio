@@ -256,30 +256,54 @@
    sense while the panel was nailed to the bottom-left. The panel now
    carries its own ground, so all that is left here is a whisper of a
    vignette to stop a bright photo glaring at 2am. */
+/* The shade the type reads against.
+
+   It lives on this full-screen layer rather than behind the panel, and
+   that is the whole trick: a gradient inside a box the size of the text
+   has edges, and a soft ellipse with a visible rim reads as a grey blob
+   stuck on the photograph — worse than the card it replaced. Anchored
+   at the corner of a full-screen element there is no box to clip
+   against, so it is genuinely just the corner getting darker. */
 .ambient-vignette {
   position: absolute;
   inset: 0;
+  pointer-events: none;
+  transition: background 420ms var(--ease-out);
   background: radial-gradient(ellipse at center,
     transparent 45%, rgba(0, 0, 0, 0.28) 100%);
-  pointer-events: none;
 }
 
-/* ── The information panel ──────────────────────────────────
-   One card, absolutely placed against a corner, offset by a drift that
-   idle-time JS keeps nudging. Two separate transforms would fight, so
-   the drift is a pair of custom properties and the transform composes
-   them once. */
+.ambient-vignette.at-bl {
+  background: radial-gradient(115% 85% at 0% 100%,
+    rgba(0, 0, 0, 0.80) 0%, rgba(0, 0, 0, 0.52) 26%,
+    rgba(0, 0, 0, 0.18) 46%, transparent 66%);
+}
+.ambient-vignette.at-tl {
+  background: radial-gradient(115% 85% at 0% 0%,
+    rgba(0, 0, 0, 0.80) 0%, rgba(0, 0, 0, 0.52) 26%,
+    rgba(0, 0, 0, 0.18) 46%, transparent 66%);
+}
+.ambient-vignette.at-tr {
+  background: radial-gradient(115% 85% at 100% 0%,
+    rgba(0, 0, 0, 0.80) 0%, rgba(0, 0, 0, 0.52) 26%,
+    rgba(0, 0, 0, 0.18) 46%, transparent 66%);
+}
+.ambient-vignette.at-br {
+  background: radial-gradient(115% 85% at 100% 100%,
+    rgba(0, 0, 0, 0.80) 0%, rgba(0, 0, 0, 0.52) 26%,
+    rgba(0, 0, 0, 0.18) 46%, transparent 66%);
+}
+
+/* ── The information ────────────────────────────────────────
+   No card. A frosted rectangle blocks its whole bounding box, which on
+   a real photograph came to a quarter of the screen and landed on
+   somebody's face. Type sits on the picture instead, over a pool of
+   shade that fades out in every direction, so what is blocked is
+   roughly the shape of the words. */
 
 .ambient-panel {
   position: absolute;
-  max-width: min(calc(var(--u) * 62), 42vw);
-  padding: calc(var(--u) * 3.5) calc(var(--u) * 4);
-  border-radius: var(--r-xl);
-  background: rgba(14, 12, 10, 0.42);
-  border: 1px solid rgba(255, 246, 232, 0.10);
-  backdrop-filter: blur(30px) saturate(1.2);
-  -webkit-backdrop-filter: blur(30px) saturate(1.2);
-  box-shadow: 0 calc(var(--u) * 3) calc(var(--u) * 8) rgba(0, 0, 0, 0.42);
+  max-width: min(calc(var(--u) * 46), 34vw);
   transform: translate(var(--drift-x, 0), var(--drift-y, 0));
   /* 30s to match the drift tick, so the movement is continuous rather
      than a step every half minute. Opacity is the corner change. */
@@ -288,136 +312,117 @@
 .ambient-panel.moving { opacity: 0; }
 
 .ambient-panel.at-bl {
-  left: max(calc(var(--u) * 6), env(safe-area-inset-left));
-  bottom: max(calc(var(--u) * 6), env(safe-area-inset-bottom));
+  left: max(calc(var(--u) * 7), env(safe-area-inset-left));
+  bottom: max(calc(var(--u) * 7), env(safe-area-inset-bottom));
 }
 .ambient-panel.at-tl {
-  left: max(calc(var(--u) * 6), env(safe-area-inset-left));
-  top: max(calc(var(--u) * 6), env(safe-area-inset-top));
+  left: max(calc(var(--u) * 7), env(safe-area-inset-left));
+  top: max(calc(var(--u) * 7), env(safe-area-inset-top));
 }
 .ambient-panel.at-tr {
-  right: max(calc(var(--u) * 6), env(safe-area-inset-right));
-  top: max(calc(var(--u) * 6), env(safe-area-inset-top));
+  right: max(calc(var(--u) * 7), env(safe-area-inset-right));
+  top: max(calc(var(--u) * 7), env(safe-area-inset-top));
 }
 .ambient-panel.at-br {
-  right: max(calc(var(--u) * 6), env(safe-area-inset-right));
-  bottom: max(calc(var(--u) * 6), env(safe-area-inset-bottom));
+  right: max(calc(var(--u) * 7), env(safe-area-inset-right));
+  bottom: max(calc(var(--u) * 7), env(safe-area-inset-bottom));
 }
+
+/* Every line of type carries its own shadow. The shade handles a busy
+   photo; this handles a bright one. */
+.ambient-panel > * { text-shadow: 0 1px 12px rgba(0, 0, 0, 0.75); }
 
 .ambient-clock {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--u) * 1.5);
+  gap: calc(var(--u) * 1.25);
   font-family: var(--font-display);
-  font-size: calc(var(--u) * 11);
+  /* Was 11u. Still the largest thing here and still readable across a
+     room — it does not need to be the largest thing on the wall when
+     the wall is a photograph. */
+  font-size: calc(var(--u) * 7.5);
   font-weight: 300;
-  line-height: 0.9;
+  line-height: 0.95;
   letter-spacing: var(--track-tight);
   font-variant-numeric: tabular-nums lining-nums;
 }
 .ambient-period {
-  font-size: calc(var(--u) * 2.75);
+  font-size: calc(var(--u) * 2.25);
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--fg-3);
 }
 .ambient-date {
-  font-size: var(--t-md);
+  font-size: var(--t-sm);
   color: var(--fg-2);
-  margin-top: calc(var(--u) * 1.25);
+  margin-top: calc(var(--u) * 0.5);
   letter-spacing: var(--track-wide);
 }
 
+/* One line, not a block: glyph, temperature, range, conditions. */
 .ambient-wx {
   display: flex;
   align-items: center;
-  gap: calc(var(--u) * 1.75);
-  margin-top: calc(var(--u) * 2.5);
-  padding-top: calc(var(--u) * 2.5);
-  border-top: 1px solid rgba(255, 246, 232, 0.10);
+  gap: calc(var(--u) * 1.25);
+  margin-top: calc(var(--u) * 1.5);
+  min-width: 0;
 }
-.ambient-wx-read { display: flex; align-items: baseline; gap: calc(var(--u) * 1.5); }
 .ambient-temp {
   font-family: var(--font-display);
-  font-size: calc(var(--u) * 5.5);
+  font-size: calc(var(--u) * 3.75);
   font-weight: 300;
   line-height: 1;
   letter-spacing: var(--track-tight);
 }
-.ambient-hilo { display: flex; gap: calc(var(--u) * 1.25); font-size: var(--t-sm); font-weight: 500; }
-.ambient-hilo span { display: inline-flex; align-items: center; }
+.ambient-hilo {
+  display: flex;
+  gap: calc(var(--u) * 0.75);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+}
 .ambient-hilo .hi { color: var(--warm); }
 .ambient-hilo .lo { color: var(--cool); }
 .ambient-wx-summary {
-  margin-left: auto;
-  text-align: right;
-  font-family: var(--font-display);
-  font-size: var(--t-md);
-  color: var(--fg-2);
-  line-height: 1.15;
-}
-
-.ambient-alert,
-.ambient-timing {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--u) * 1.25);
-  margin-top: calc(var(--u) * 1.75);
-  padding: calc(var(--u) * 1.25) calc(var(--u) * 1.75);
-  border-radius: var(--r-pill);
   font-size: var(--t-sm);
-  font-weight: 600;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid var(--glass-line);
-}
-.ambient-alert { color: var(--sev-moderate); border-color: rgba(214, 166, 92, 0.34); }
-.ambient-alert.severe { color: var(--sev-severe); border-color: rgba(222, 122, 85, 0.46); }
-.ambient-timing.storm { color: var(--thunder); border-color: rgba(232, 194, 106, 0.30); }
-.ambient-timing.rain  { color: var(--rain);    border-color: rgba(127, 180, 212, 0.30); }
-.ambient-timing.now   { color: var(--accent);  border-color: rgba(221, 178, 124, 0.42); }
-
-.ambient-section {
-  margin-top: calc(var(--u) * 2.5);
-  padding-top: calc(var(--u) * 2);
-  border-top: 1px solid rgba(255, 246, 232, 0.10);
-}
-.ambient-section-head {
-  font-size: var(--label-size);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: calc(var(--u) * 1.25);
-}
-
-.ambient-row {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--u) * 1.25);
-  padding: calc(var(--u) * 0.6) 0;
-  font-size: var(--t-md);
   color: var(--fg-2);
-}
-.ambient-row-title {
-  flex: 1;
-  min-width: 0;
-  color: var(--fg);
-  /* Two lines, then stop. A wall panel that grows to fit a long event
-     title pushes everything below it off the bottom of the card. */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
-.ambient-row-when {
-  flex: none;
+
+/* ── Lines ──────────────────────────────────────────────────
+   Pinned or rotating, they are the same object: a mark, a label and
+   sometimes a time. No pills, no borders — an outlined chip is a small
+   card, and cards are what this was trying to stop doing. */
+
+.ambient-line {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.1);
+  margin-top: calc(var(--u) * 1.1);
   font-size: var(--t-sm);
+  color: var(--fg);
+  min-width: 0;
+}
+.ambient-line > svg { flex: none; }
+.ambient-line-text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ambient-line-when {
+  flex: none;
+  margin-left: auto;
+  padding-left: calc(var(--u) * 1);
+  font-size: var(--t-xs);
   font-weight: 600;
   font-variant-numeric: tabular-nums lining-nums;
   color: var(--fg-3);
 }
-.ambient-row.overdue .ambient-row-when { color: var(--sev-severe); }
 .ambient-dot {
   width: calc(var(--u) * 1.1);
   height: calc(var(--u) * 1.1);
@@ -425,13 +430,28 @@
   flex: none;
 }
 
-/* Overnight the panel keeps the time and the weather and drops the
-   rest — a hallway at 3am has no use for a list of errands, and a
-   quarter of the panel lit is a quarter of the burn-in. */
-.ambient-panel.night {
-  background: rgba(10, 9, 8, 0.34);
-  opacity: 0.72;
+.ambient-line.alert           { color: var(--sev-moderate); font-weight: 600; }
+.ambient-line.alert.severe    { color: var(--sev-severe); }
+.ambient-line.timing.storm    { color: var(--thunder); }
+.ambient-line.timing.rain     { color: var(--rain); }
+.ambient-line.timing.now      { color: var(--accent); }
+.ambient-line.task.overdue    { color: var(--sev-severe); }
+.ambient-line.task.overdue .ambient-line-when { color: var(--sev-severe); }
+
+/* The one that takes turns. Everything non-urgent queues here and
+   changes every eight seconds, so a quiet evening shows three lines
+   instead of six and still says everything eventually. */
+.ambient-rotator {
+  opacity: 0;
+  transform: translateY(calc(var(--u) * 0.6));
+  transition: opacity 320ms var(--ease-out), transform 320ms var(--ease-out);
 }
+.ambient-rotator.in { opacity: 1; transform: translateY(0); }
+
+/* Overnight the panel is only its three permanent lines — a hallway at
+   3am has no use for a list of errands, and a quarter of the type lit
+   is a quarter of the burn-in. */
+.ambient-panel.night { opacity: 0.66; }
 .ambient-panel.night .ambient-clock { color: var(--fg-2); }
 
 /* ── The rest ───────────────────────────────────────────────
