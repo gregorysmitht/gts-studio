@@ -347,13 +347,21 @@ final class MusicBridge {
 
         let musicId = MusicItemID(id)
 
-        /* All four go through Queue(for:startingAt:) rather than the
-           album- and playlist-specific initialisers. `startingAt` has no
-           default in this SDK, and those two want a *Track* to begin at,
-           which would mean loading an album's whole track list before it
-           could play. Album, Playlist, Song and Station all conform to
-           PlayableMusicItem, so a one-element queue starting at that
-           element means "play this from the top" for every case. */
+        /* All four go through Queue(for:startingAt:) and nothing else.
+
+           The album- and playlist-specific initialisers look like the
+           obvious choice and are a trap twice over. They do not take what
+           you would expect — Queue(playlist:startingAt:) wants a
+           Playlist.Entry, not a Track — and when the argument type is
+           wrong Swift resolves to a different overload and reports
+           "Missing argument for parameter 'startingAt'", which sends you
+           looking at the one thing on the line that is definitely fine.
+
+           Queue(for:) takes any sequence of PlayableMusicItem, so the
+           same call shape covers all four cases. Albums and playlists
+           load their track lists first and queue the *tracks*: a queue
+           holding an album entry rather than tracks compiles, then fails
+           at play() with MPMusicPlayerControllerErrorDomain 6. */
 
         /* Deliberately longhand rather than one generic `resolve<T>`.
            Constraining a type to be both MusicCatalogResourceRequestable
@@ -389,12 +397,12 @@ final class MusicBridge {
             /* A queue "for" a single album entry looks reasonable and then
                fails at play() with MPMusicPlayerControllerErrorDomain 6:
                nothing in it is an actual track. Load the track list and
-               start at the first, which is what tapping an album does. */
-            let albumTracks = try await album.with(.tracks)
-            guard let firstTrack = albumTracks.tracks?.first else {
+               queue the tracks themselves, which is what tapping an album
+               in Music does. */
+            guard let tracks = try await album.with(.tracks).tracks, let first = tracks.first else {
                 throw BridgeError.upstream("That album has no tracks to play")
             }
-            player.queue = ApplicationMusicPlayer.Queue(album: albumTracks, startingAt: firstTrack)
+            player.queue = ApplicationMusicPlayer.Queue(for: tracks, startingAt: first)
 
         case "playlist":
             var list = try? await MusicCatalogResourceRequest<Playlist>(matching: \.id, equalTo: musicId)
@@ -405,11 +413,10 @@ final class MusicBridge {
                 list = try? await request.response().items.first
             }
             guard let list else { throw notFound }
-            let listTracks = try await list.with(.tracks)
-            guard let firstTrack = listTracks.tracks?.first else {
+            guard let tracks = try await list.with(.tracks).tracks, let first = tracks.first else {
                 throw BridgeError.upstream("That playlist is empty")
             }
-            player.queue = ApplicationMusicPlayer.Queue(playlist: listTracks, startingAt: firstTrack)
+            player.queue = ApplicationMusicPlayer.Queue(for: tracks, startingAt: first)
 
         case "station":
             // Stations live only in the catalog; there is no library to
