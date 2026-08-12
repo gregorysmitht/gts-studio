@@ -17,7 +17,10 @@ settings:
     MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.9"
-    DEVELOPMENT_TEAM: ""          # ← your 10-character Team ID
+    # Your Apple Developer Team ID. Committed so a fresh clone signs and
+    # builds without going back through Xcode's signing pane; change it
+    # if you ever build this under a different account.
+    DEVELOPMENT_TEAM: "Q4ZSRFYJKQ"
     CODE_SIGN_STYLE: Automatic
 
 targets:
