@@ -1,0 +1,463 @@
+/* ============================================================
+   Music — mini player and full-screen Now Playing
+   ============================================================ */
+
+/* ── Mini player ──────────────────────────────────────────────
+   A pill inside the top bar, present only while something is playing.
+   The band is already there for the clock, so music costs the widget
+   grid nothing at all. */
+
+#mini-player {
+  /* Lives inside the top bar. It used to be a bar across the foot of the
+     hub, which cost the grid real height whenever music played; up here
+     the band already exists and the widgets keep every pixel they had.
+
+     Absolutely centred rather than laid out between the two ends: left
+     and right are different widths, so a flex child would land in the
+     middle of the gap between them rather than the middle of the screen
+     — almost centred, which is the least convincing place to be. Being
+     positioned also means it costs the bar no height at all. */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 2);
+  padding: calc(var(--u) * 1.1) calc(var(--u) * 1.6);
+  width: min(calc(var(--u) * 62), 46vw);
+  border-radius: var(--r-pill);
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(var(--blur)) saturate(1.3);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3);
+  box-shadow: 0 calc(var(--u) * 1.5) calc(var(--u) * 4) rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur) var(--ease-out),
+              transform var(--dur) var(--ease-spring);
+}
+#mini-player.in {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+/* Out of the layout entirely when silent — it is positioned, so it costs
+   the bar nothing either way, but this stops an empty pill catching
+   taps. */
+#mini-player:empty { display: none; }
+#mini-player:not(.in) {
+  transform: translate(-50%, calc(-50% - var(--u)));
+  pointer-events: none;
+}
+
+.mini-open {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.mini-art-wrap {
+  width: calc(var(--u) * 7);
+  height: calc(var(--u) * 7);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: var(--glass-well);
+  color: var(--fg-4);
+  box-shadow: 0 calc(var(--u) * 0.5) calc(var(--u) * 1.5) rgba(0, 0, 0, 0.35);
+}
+.mini-art { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.mini-meta { min-width: 0; flex: 1; }
+.mini-title {
+  font-family: var(--font-display);
+  font-size: var(--t-md);
+  font-weight: 400;
+  letter-spacing: var(--track-snug);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mini-artist {
+  font-size: var(--t-xs);
+  margin-top: 1px;
+  color: var(--fg-3);
+  letter-spacing: var(--track-wide);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A hairline of progress along the bottom of the pill. Inset by the
+   corner radius: run it the full width and the rounded ends clip both
+   halves away, leaving a stub in the middle that reads as a glitch. */
+.mini-progress {
+  position: absolute;
+  bottom: calc(var(--u) * 0.75);
+  left: calc(var(--u) * 3);
+  right: calc(var(--u) * 3);
+  height: 3px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(255, 246, 232, 0.14);
+}
+.mini-progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 240ms linear;
+}
+
+.mini-controls {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.5);
+  flex: none;
+}
+.mini-controls .icon-btn {
+  width: calc(var(--u) * 6.5);
+  height: calc(var(--u) * 6.5);
+  border: none;
+  background: none;
+}
+.mini-play { background: var(--glass-hi); }
+.mini-time {
+  font-size: var(--t-xs);
+  color: var(--fg-4);
+  /* Wide enough for "-12:34" so the controls beside it don't shuffle
+     sideways as the countdown crosses ten minutes. */
+  min-width: calc(var(--u) * 6);
+  text-align: right;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+#mini-player.paused .mini-art { filter: saturate(0.7) brightness(0.85); }
+
+/* ── Now Playing ──────────────────────────────────────────────
+   The album art is the composition. Everything else sits on a
+   blurred enlargement of the same image, so the whole wall takes
+   the colour of the record. */
+
+.np-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* Now Playing is the one screen that runs edge to edge: the header
+   floats over the artwork instead of sitting in a bar above it, so
+   the record reaches all four corners. */
+.panel:has(.np-stage) .panel-head {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 2;
+  border-bottom: none;
+}
+
+.np-backdrop {
+  position: absolute;
+  inset: calc(var(--u) * -10);
+  background-size: cover;
+  background-position: center;
+  filter: blur(calc(var(--u) * 9)) saturate(1.5);
+  transform: scale(1.15);
+  transition: background-image var(--dur-panel) var(--ease-out);
+}
+/* Two jobs: keep the floating header legible over any album cover, and
+   keep the transport legible over the foot of it. */
+.np-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom, rgba(8,7,6,0.52) 0%, transparent calc(var(--u) * 16)),
+    linear-gradient(to bottom, rgba(8,7,6,0.34) 0%, rgba(8,7,6,0.60) 62%, rgba(8,7,6,0.86) 100%);
+}
+
+.np-content {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--u) * 6);
+  /* Top padding clears the floating header. */
+  padding: calc(var(--u) * 13) calc(var(--u) * 4) calc(var(--u) * 4);
+}
+
+.np-art-wrap {
+  width: min(38vw, 46vh);
+  aspect-ratio: 1;
+  flex: none;
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  box-shadow: 0 calc(var(--u) * 5) calc(var(--u) * 14) rgba(0, 0, 0, 0.55);
+}
+.np-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0;
+  transform: scale(1.04);
+  transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-out);
+}
+.np-art.loaded { opacity: 1; transform: none; }
+
+.np-meta { min-width: 0; max-width: 42ch; }
+.np-title {
+  font-family: var(--font-display);
+  font-size: var(--t-xxl);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: var(--track-snug);
+  text-wrap: balance;
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.5);
+}
+.np-artist {
+  font-size: var(--t-xl);
+  font-weight: 400;
+  color: var(--fg-2);
+  margin-top: calc(var(--u) * 1.5);
+  letter-spacing: var(--track-wide);
+}
+.np-album {
+  font-size: var(--label-size);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--fg-4);
+  margin-top: calc(var(--u) * 2);
+}
+
+/* ── Transport ────────────────────────────────────────────────
+   Fades away when nobody has touched the wall for a while; any
+   activity brings it straight back. The panel header goes with it,
+   so an untouched wall shows the record and nothing else. */
+
+.np-controls {
+  position: relative;
+  flex: none;
+  padding: 0 calc(var(--u) * 5) calc(var(--u) * 5);
+  transition: opacity 900ms var(--ease-out), transform 900ms var(--ease-out);
+}
+/* Keeps the transport a composed block rather than a wall-wide rule. */
+.np-transport {
+  width: 100%;
+  max-width: calc(var(--u) * 92);
+  margin: 0 auto;
+}
+
+.panel.resting .np-controls {
+  opacity: 0;
+  transform: translateY(calc(var(--u) * 2));
+  pointer-events: none;
+}
+.panel.resting .panel-head {
+  opacity: 0;
+  pointer-events: none;
+}
+.panel .panel-head { transition: opacity 900ms var(--ease-out); }
+
+/* The art comes forward a touch once everything else steps back. */
+.panel.resting .np-scrim { opacity: 0.72; }
+.np-scrim { transition: opacity 900ms var(--ease-out); }
+
+.np-scrub {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 2);
+  margin-bottom: calc(var(--u) * 3);
+}
+.np-elapsed, .np-remaining {
+  font-size: var(--t-xs);
+  color: var(--fg-3);
+  min-width: calc(var(--u) * 6);
+  flex: none;
+}
+.np-remaining { text-align: right; }
+
+.np-track {
+  position: relative;
+  flex: 1;
+  height: calc(var(--u) * 0.75);
+  border-radius: var(--r-pill);
+  background: rgba(255, 246, 232, 0.20);
+  cursor: pointer;
+}
+/* A taller invisible hit area — the visible bar is too thin for a finger. */
+.np-track::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--u) * -2) 0;
+}
+.np-track-fill {
+  height: 100%;
+  width: 0;
+  border-radius: var(--r-pill);
+  background: var(--fg);
+}
+.np-track-knob {
+  position: absolute;
+  top: 50%;
+  width: calc(var(--u) * 2);
+  height: calc(var(--u) * 2);
+  margin-left: calc(var(--u) * -1);
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: var(--fg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.np-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--u) * 4);
+}
+.np-btn {
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 50%;
+  color: var(--fg-2);
+  transition: transform var(--dur-fast) var(--ease-spring),
+              color var(--dur-fast) var(--ease-out);
+}
+.np-btn:active { transform: scale(0.88); }
+.np-btn.on { color: var(--accent); }
+
+.np-play {
+  width: calc(var(--u) * 11);
+  height: calc(var(--u) * 11);
+  background: var(--fg);
+  color: #0d0b09;
+  box-shadow: 0 calc(var(--u) * 1.5) calc(var(--u) * 4) rgba(0, 0, 0, 0.45);
+}
+.np-play:active { transform: scale(0.93); }
+
+/* Repeat-one gets a dot rather than a different glyph. */
+.np-repeat { position: relative; }
+.np-repeat[data-mode="one"]::after {
+  content: "1";
+  position: absolute;
+  bottom: calc(var(--u) * 0.75);
+  font-size: calc(var(--t-xs) * 0.75);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.np-empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: calc(var(--u) * 2);
+  text-align: center;
+  color: var(--fg-4);
+  padding: calc(var(--u) * 6);
+}
+.np-empty-title {
+  font-family: var(--font-display);
+  font-size: var(--t-xl);
+  color: var(--fg-2);
+}
+.np-empty-note { font-size: var(--t-sm); max-width: 42ch; }
+
+/* ── Browse ───────────────────────────────────────────────── */
+
+.browse-search { margin-bottom: calc(var(--u) * 3); }
+.browse-results { display: flex; flex-direction: column; gap: calc(var(--u) * 4); }
+
+.shelf-row {
+  padding-bottom: var(--u);
+  gap: calc(var(--u) * 2);
+}
+.shelf-item {
+  /* Sized for reading from across a room, not for fitting a phone. */
+  width: calc(var(--u) * 23);
+  flex: none;
+  text-align: left;
+  scroll-snap-align: start;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.shelf-item:active { transform: scale(0.96); }
+
+.shelf-art {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--glass-well);
+  display: grid;
+  place-items: center;
+  color: var(--fg-4);
+  box-shadow: 0 calc(var(--u) * 1) calc(var(--u) * 3) rgba(0, 0, 0, 0.35);
+  margin-bottom: var(--u);
+}
+.shelf-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.shelf-title {
+  font-size: var(--t-sm);
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shelf-sub {
+  font-size: var(--t-xs);
+  color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+/* ── Narrow / portrait ────────────────────────────────────── */
+
+@media (orientation: portrait), (max-aspect-ratio: 5/4) {
+  /* Narrower here: the clock and the controls are the same width as in
+     landscape but the bar is not, so the pill has to give the ground
+     back rather than run into them. */
+  #mini-player { width: min(calc(var(--u) * 52), 40vw); }
+
+  .np-content { flex-direction: column; gap: calc(var(--u) * 3); }
+  .np-art-wrap { width: min(62vw, 40vh); }
+  .np-meta { text-align: center; max-width: none; }
+  .np-title { font-size: var(--t-xl); }
+  .np-artist { font-size: var(--t-lg); }
+  .np-controls { padding: 0 calc(var(--u) * 3) calc(var(--u) * 4); }
+  .np-buttons { gap: calc(var(--u) * 2.5); }
+}
+
+/* Below this the bar is too narrow to hold a centred pill: an absolutely
+   positioned one can't be pushed aside by the clock, so it would simply
+   sit on top of it. Back into the flow, on its own line under the two
+   ends, where flex-wrap can look after it.
+
+   Last in the file on purpose — it has to beat the portrait width above,
+   which a phone also matches. */
+@media (max-width: 820px) {
+  #topbar { flex-wrap: wrap; }
+  #mini-player {
+    position: static;
+    order: 3;
+    width: 100%;
+    margin-top: calc(var(--u) * 1.5);
+  }
+  #mini-player.in { transform: translateY(0); }
+  #mini-player:not(.in) { transform: translateY(calc(var(--u) * -1)); }
+}

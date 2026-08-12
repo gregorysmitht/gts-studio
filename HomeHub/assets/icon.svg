@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#0B1430"/>
+      <stop offset="46%"  stop-color="#28407E"/>
+      <stop offset="78%"  stop-color="#8A5570"/>
+      <stop offset="100%" stop-color="#D98A4A"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#FFE7A6"/>
+      <stop offset="100%" stop-color="#FFA83C"/>
+    </linearGradient>
+    <radialGradient id="bloom" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%"   stop-color="#FFC062" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#FFC062" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="rounded">
+      <rect x="0" y="0" width="512" height="512" rx="114"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#rounded)">
+    <rect width="512" height="512" fill="url(#sky)"/>
+    <circle cx="256" cy="330" r="210" fill="url(#bloom)"/>
+
+    <!-- Stars -->
+    <g fill="#FFFFFF">
+      <circle cx="88"  cy="76"  r="3.4" opacity="0.85"/>
+      <circle cx="152" cy="128" r="2.4" opacity="0.6"/>
+      <circle cx="396" cy="88"  r="3"   opacity="0.75"/>
+      <circle cx="444" cy="150" r="2.2" opacity="0.5"/>
+      <circle cx="300" cy="60"  r="2.6" opacity="0.65"/>
+      <circle cx="224" cy="98"  r="2"   opacity="0.45"/>
+    </g>
+
+    <!-- Sun on the horizon -->
+    <circle cx="256" cy="322" r="62" fill="url(#sun)"/>
+
+    <!-- House -->
+    <path d="M256 168 L400 286 L400 424 L112 424 L112 286 Z"
+          fill="#080C18" fill-opacity="0.92"/>
+    <path d="M256 150 L424 288" stroke="#080C18" stroke-opacity="0.92"
+          stroke-width="34" stroke-linecap="round" fill="none"/>
+    <path d="M256 150 L88 288" stroke="#080C18" stroke-opacity="0.92"
+          stroke-width="34" stroke-linecap="round" fill="none"/>
+
+    <!-- Lit window -->
+    <rect x="222" y="330" width="68" height="94" rx="14" fill="url(#sun)"/>
+  </g>
+</svg>

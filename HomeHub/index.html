@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
+<title>HomeHub</title>
+<meta name="description" content="A wall-mounted family home hub — weather, radar, and calendar at a glance."/>
+
+<!-- iPad standalone / home-screen behaviour -->
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="HomeHub"/>
+<meta name="format-detection" content="telephone=no"/>
+<meta name="theme-color" content="#0a1020"/>
+
+<link rel="manifest" href="manifest.webmanifest"/>
+<link rel="apple-touch-icon" href="assets/icon-180.png"/>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml"/>
+
+<link rel="stylesheet" href="css/tokens.css"/>
+<link rel="stylesheet" href="css/base.css"/>
+<link rel="stylesheet" href="css/home.css"/>
+<link rel="stylesheet" href="css/panel.css"/>
+<link rel="stylesheet" href="css/weather.css"/>
+<link rel="stylesheet" href="css/radar.css"/>
+<link rel="stylesheet" href="css/calendar.css"/>
+<link rel="stylesheet" href="css/boards.css"/>
+<link rel="stylesheet" href="css/settings.css"/>
+<link rel="stylesheet" href="css/music.css"/>
+</head>
+<body>
+
+<!-- ─────────── Living sky background ─────────── -->
+<div id="sky" aria-hidden="true">
+  <div class="sky-base"></div>
+  <div class="sky-glow"></div>
+  <canvas class="sky-stars"></canvas>
+  <div class="sky-weather"></div>
+  <div class="sky-grain"></div>
+  <div class="sky-scrim"></div>
+</div>
+
+<!-- ─────────── Main hub surface ─────────── -->
+<main id="hub" class="shift-root">
+  <!-- The bar's three regions are owned separately: topbar.js refills the
+       two ends on its own schedule, and playback drives the mini player
+       between them, so neither may wipe the other. -->
+  <header id="topbar">
+    <div class="topbar-left"></div>
+    <div id="mini-player"></div>
+    <div class="topbar-right"></div>
+  </header>
+  <div id="grid" class="grid"></div>
+</main>
+
+<!-- ─────────── Expanded panel host ─────────── -->
+<div id="panel-host" hidden></div>
+
+<!-- ─────────── Sheet layer (sits above the hub and any panel) ─────────── -->
+<div id="sheet-host" hidden></div>
+
+<!-- ─────────── Ambient photo mode ─────────── -->
+<div id="ambient" hidden></div>
+
+<!-- ─────────── Night dimming veil ─────────── -->
+<div id="dimmer" aria-hidden="true"></div>
+
+<!-- ─────────── Toasts ─────────── -->
+<div id="toasts" role="status" aria-live="polite"></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

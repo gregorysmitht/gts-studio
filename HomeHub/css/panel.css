@@ -1,0 +1,151 @@
+/* ============================================================
+   Expanding panels
+   ============================================================ */
+
+#panel-host {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-panel);
+}
+#panel-host[hidden] { display: none; }
+
+.panel-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  opacity: 1;
+  transition: opacity var(--dur-panel) var(--ease-out);
+}
+.panel-backdrop.entering,
+.panel-backdrop.leaving { opacity: 0; }
+
+.panel {
+  position: absolute;
+  inset: max(var(--u), env(safe-area-inset-top))
+         max(var(--u), env(safe-area-inset-right))
+         max(var(--u), env(safe-area-inset-bottom))
+         max(var(--u), env(safe-area-inset-left));
+
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  /* Smoked glass, not navy — the panel should feel like the same
+     material as the cards, just thicker. */
+  background: rgba(24, 21, 19, 0.68);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(48px) saturate(1.8);
+  -webkit-backdrop-filter: blur(48px) saturate(1.8);
+  overflow: hidden;
+
+  opacity: 1;
+  transform: scale(1);
+  transition: transform var(--dur-panel) var(--ease-spring),
+              opacity calc(var(--dur-panel) * 0.62) var(--ease-out);
+}
+
+/* Both ends of the flight: small, faded, anchored to the source widget. */
+.panel.entering,
+.panel.leaving {
+  opacity: 0;
+  transform: scale(0.84);
+}
+.panel.leaving {
+  transition: transform calc(var(--dur-panel) * 0.8) var(--ease-in-out),
+              opacity calc(var(--dur-panel) * 0.5) var(--ease-out);
+}
+
+/* ── Header ───────────────────────────────────────────────── */
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 2);
+  padding: calc(var(--u) * 2.25) calc(var(--u) * 3);
+  border-bottom: 1px solid var(--glass-line-2);
+  flex: none;
+  min-height: calc(var(--u) * 11);
+}
+
+.panel-title {
+  font-family: var(--font-display);
+  font-size: var(--t-xl);
+  font-weight: 400;
+  letter-spacing: var(--track-snug);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+  margin-left: auto;
+  flex: none;
+}
+
+/* Segmented control — iOS-style pill with a sliding active state. */
+.seg {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: var(--glass-well);
+  border: 1px solid var(--glass-line-2);
+  margin-left: auto;
+  flex: none;
+}
+
+.seg-btn {
+  min-height: calc(var(--u) * 5.5);
+  padding: 0 calc(var(--u) * 2.5);
+  border-radius: var(--r-pill);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--fg-3);
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+.seg-btn.on {
+  background: var(--glass-hi);
+  color: var(--fg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+}
+.seg-btn:active { transform: scale(0.96); }
+
+/* When both tabs and a title are present, keep the title from crowding. */
+.panel-head .seg + .panel-actions { margin-left: calc(var(--u) * 1.5); }
+
+/* ── Body ─────────────────────────────────────────────────── */
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  padding: calc(var(--u) * 3);
+}
+.panel-body.flush { padding: 0; overflow: hidden; display: flex; }
+
+/* Shared section scaffolding used across panels. */
+.section { margin-bottom: calc(var(--u) * 4); }
+.section:last-child { margin-bottom: 0; }
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--u) * 1.5);
+  margin-bottom: calc(var(--u) * 1.75);
+}
+.section-head .label { flex: none; }
+.section-head .note { font-size: var(--t-xs); color: var(--fg-4); margin-left: auto; }
+
+.panel-grid {
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--u) * 26), 1fr));
+}

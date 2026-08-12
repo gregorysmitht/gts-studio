@@ -1,0 +1,393 @@
+/* ============================================================
+   HomeHub — reset, sky, shell, shared primitives
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;               /* the hub never scrolls as a page */
+  background: #05070f;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: var(--font);
+  font-size: var(--t-md);
+  line-height: 1.35;
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* A wall panel is touched, never selected or long-pressed. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+button, input, textarea, select {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  outline: none;
+}
+button { cursor: pointer; }
+input, textarea { -webkit-user-select: text; user-select: text; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--r-sm);
+}
+
+svg { display: block; }
+canvas { display: block; }
+
+/* ─────────────────────────────────────────────────────────
+   THE SKY
+   Five stacked layers: gradient, sun bloom, stars, weather
+   veil, grain. All driven by CSS vars that sky.js rewrites
+   once a minute, so the whole thing cross-fades on its own.
+   ───────────────────────────────────────────────────────── */
+
+#sky {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sky);
+  pointer-events: none;
+  overflow: hidden;
+}
+
+#sky > * { position: absolute; inset: 0; }
+
+.sky-base {
+  background: linear-gradient(
+    to bottom,
+    var(--sky-1) 0%,
+    var(--sky-2) 52%,
+    var(--sky-3) 100%
+  );
+  transition: background var(--dur-sky) linear;
+}
+
+/* Sun/moon bloom, positioned by real solar azimuth + elevation. */
+.sky-glow {
+  background: radial-gradient(
+    circle var(--sky-glow-size) at var(--sky-glow-x) var(--sky-glow-y),
+    var(--sky-glow) 0%,
+    transparent 72%
+  );
+  transition: background var(--dur-sky) linear;
+  mix-blend-mode: screen;
+}
+
+.sky-stars {
+  width: 100%;
+  height: 100%;
+  opacity: var(--star-opacity);
+  transition: opacity var(--dur-sky) linear;
+}
+
+/* Condition veil — rain/snow/fog wash, set as a background by sky.js */
+.sky-weather {
+  opacity: 0;
+  transition: opacity var(--dur-sky) linear, background var(--dur-sky) linear;
+}
+
+/* Fine grain stops the big gradients from banding on a large panel. */
+.sky-grain {
+  opacity: 0.16;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+/* Top-and-bottom scrim guarantees contrast for type that sits
+   directly on sky (the clock, the date) at midday. */
+.sky-scrim {
+  background:
+    linear-gradient(to bottom, rgba(0,0,0,0.32) 0%, transparent calc(var(--u) * 22)),
+    linear-gradient(to top,    rgba(0,0,0,0.20) 0%, transparent calc(var(--u) * 16));
+}
+
+/* ─────────────────────────────────────────────────────────
+   SHELL
+   ───────────────────────────────────────────────────────── */
+
+#hub {
+  position: relative;
+  z-index: var(--z-hub);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: max(var(--pad-edge), env(safe-area-inset-top))
+           max(var(--pad-edge), env(safe-area-inset-right))
+           max(var(--pad-edge), env(safe-area-inset-bottom))
+           max(var(--pad-edge), env(safe-area-inset-left));
+  gap: var(--gap-lg);
+  transition: opacity var(--dur) var(--ease-out),
+              transform var(--dur-panel) var(--ease-spring),
+              filter var(--dur-panel) var(--ease-spring);
+}
+
+/* While a panel is open the hub recedes rather than disappearing —
+   the depth is what makes the expansion read as one motion. */
+#hub.receded {
+  transform: scale(0.94);
+  filter: brightness(0.6) saturate(0.8);
+  pointer-events: none;
+}
+
+/* Burn-in protection: idle.js nudges this a few px every 10 min. */
+.shift-root {
+  will-change: transform;
+}
+
+/* ─────────────────────────────────────────────────────────
+   PRIMITIVES
+   ───────────────────────────────────────────────────────── */
+
+/* Cards are furniture, not chrome: no outline, a wide soft shadow to lift
+   them off the sky, and one hairline of light along the top edge the way
+   real glass catches a room. Losing the border is most of what stops the
+   home screen reading as a dashboard. */
+.card {
+  position: relative;
+  background: var(--glass);
+  border: none;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card),
+              inset 0 1px 0 rgba(255, 248, 238, 0.11);
+  backdrop-filter: blur(var(--blur)) saturate(1.3);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3);
+  padding: var(--pad-card);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* A faint warm bloom in the upper-left, like light falling across glass. */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 90% at 8% -10%,
+              rgba(255, 240, 220, 0.09), transparent 58%);
+  pointer-events: none;
+}
+
+.card.tappable {
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
+}
+.card.tappable:active {
+  transform: scale(0.985);
+  background: var(--glass-hi);
+}
+
+/* The card currently expanding into a panel is hidden in place so
+   the flying clone appears to *be* it. */
+.card.morphing { opacity: 0; }
+
+.label {
+  font-size: var(--label-size);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--fg-3);
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1);
+  flex: none;
+  /* Tracking adds space after the final letter too; reclaim it so the
+     label's box ends where the glyphs do. */
+  margin-right: calc(var(--label-track) * -1);
+}
+
+.label .dot {
+  width: calc(var(--u) * 0.9);
+  height: calc(var(--u) * 0.9);
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: var(--track-tight);
+}
+
+.well {
+  background: var(--glass-well);
+  border: 1px solid var(--glass-line-2);
+  border-radius: var(--r-md);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.9);
+  padding: calc(var(--u) * 0.85) calc(var(--u) * 1.75);
+  border-radius: var(--r-pill);
+  background: var(--glass-hi);
+  border: 1px solid var(--glass-line);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--u) * 1.25);
+  min-height: var(--tap);
+  padding: 0 calc(var(--u) * 2.75);
+  border-radius: var(--r-pill);
+  background: var(--glass-hi);
+  border: 1px solid var(--glass-line);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--fg);
+  transition: transform var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+.btn:active { transform: scale(0.95); background: rgba(255,255,255,0.24); }
+.btn.primary { background: var(--accent); border-color: transparent; color: #04121c; }
+.btn.ghost { background: transparent; }
+.btn.icon { padding: 0; width: var(--tap); }
+
+.icon-btn {
+  width: var(--tap);
+  height: var(--tap);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: var(--fg);
+  flex: none;
+  transition: transform var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+.icon-btn:active { transform: scale(0.9); background: var(--glass-hi); }
+
+/* Scroll areas inside cards/panels: momentum on, bars hidden. */
+.scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  min-height: 0;
+}
+.scroll::-webkit-scrollbar { display: none; }
+
+.hscroll {
+  display: flex;
+  gap: var(--gap);
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+.hscroll::-webkit-scrollbar { display: none; }
+
+.divider { height: 1px; background: var(--glass-line-2); flex: none; }
+
+.spacer { flex: 1 1 auto; min-height: 0; min-width: 0; }
+
+.muted { color: var(--fg-3); }
+.dim   { color: var(--fg-4); }
+
+.empty {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: calc(var(--u) * 1.5);
+  padding: calc(var(--u) * 4) var(--pad-card);
+  text-align: center;
+  color: var(--fg-4);
+  font-size: var(--t-sm);
+  height: 100%;
+}
+.empty svg { opacity: 0.45; }
+.empty-hint { font-size: calc(var(--t-xs) * 0.92); color: var(--fg-4); }
+
+/* Skeleton shimmer while first data lands. */
+.skeleton {
+  border-radius: var(--r-sm);
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.06) 25%,
+    rgba(255,255,255,0.13) 37%,
+    rgba(255,255,255,0.06) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+/* ─────────────────────────────────────────────────────────
+   DIMMER + TOASTS
+   ───────────────────────────────────────────────────────── */
+
+#dimmer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dimmer);
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1400ms var(--ease-out);
+}
+
+#toasts {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--u) * 5);
+  transform: translateX(-50%);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--u);
+  pointer-events: none;
+}
+
+.toast {
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 3);
+  border-radius: var(--r-pill);
+  background: rgba(28, 24, 21, 0.86);
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  font-size: var(--t-sm);
+  font-weight: 550;
+  box-shadow: var(--shadow-card);
+  animation: toast-in var(--dur) var(--ease-spring);
+}
+.toast.leaving { animation: toast-out var(--dur) var(--ease-out) forwards; }
+.toast.warn { border-color: rgba(214,166,92,0.55); }
+.toast.error { border-color: rgba(217,106,90,0.55); }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(calc(var(--u) * 2)) scale(0.94); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes toast-out {
+  to { opacity: 0; transform: translateY(calc(var(--u) * 1.5)) scale(0.96); }
+}

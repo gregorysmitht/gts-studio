@@ -1,0 +1,311 @@
+/* ============================================================
+   Lists, chores, and ambient mode
+   ============================================================ */
+
+/* ── Add-a-thing row ──────────────────────────────────────── */
+
+.list-add {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+  padding: 0 calc(var(--u) * 2);
+  min-height: var(--tap);
+  border-radius: var(--r-pill);
+  background: var(--glass-well);
+  border: 1px solid var(--glass-line-2);
+  color: var(--fg-3);
+}
+.list-add.grow { flex: 1; min-width: 0; }
+.list-add:focus-within { border-color: var(--accent); }
+
+.list-input, .text-input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  font-size: var(--t-md);
+  color: var(--fg);
+  min-height: var(--tap);
+  /* Safari paints its own rounded field inside input[type=search], and
+     `background: none` does not touch it — only appearance does. Without
+     this the music search reads as a second box inside the hub's pill. */
+  appearance: none;
+  -webkit-appearance: none;
+}
+.list-input::placeholder, .text-input::placeholder { color: var(--fg-4); }
+
+/* The magnifier, the clear button and the results dropdown arrow are all
+   drawn by the engine and all clash with the hub's own search affordance. */
+.list-input::-webkit-search-decoration,
+.list-input::-webkit-search-cancel-button,
+.list-input::-webkit-search-results-button,
+.list-input::-webkit-search-results-decoration,
+.text-input::-webkit-search-decoration,
+.text-input::-webkit-search-cancel-button,
+.text-input::-webkit-search-results-button,
+.text-input::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  display: none;
+}
+
+.text-input {
+  padding: 0 calc(var(--u) * 2);
+  border-radius: var(--r-pill);
+  background: var(--glass-well);
+  border: 1px solid var(--glass-line-2);
+}
+.list-add .text-input, .list-add .list-input { background: none; border: none; padding: 0; }
+
+/* The container already turns brass on :focus-within, so the input's own
+   focus ring drew a second, differently-rounded box inside the first —
+   which is what read as a doubled search field. One affordance is enough,
+   and it is still a visible one. */
+.list-add .text-input:focus-visible,
+.list-add .list-input:focus-visible { outline: none; }
+.text-input.narrow { max-width: calc(var(--u) * 24); flex: none; }
+.text-input.time { max-width: calc(var(--u) * 18); }
+.text-input:focus { border-color: var(--accent); }
+
+/* ── List items ───────────────────────────────────────────── */
+
+.list-items { display: flex; flex-direction: column; margin-top: calc(var(--u) * 2); }
+.list-items.done { opacity: 0.55; }
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 2);
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 1.25);
+  border-bottom: 1px solid var(--glass-line-2);
+  border-radius: var(--r-md);
+}
+.list-item-text {
+  font-family: var(--font-display);
+  flex: 1;
+  min-width: 0;
+  font-size: var(--t-md);
+  overflow-wrap: anywhere;
+}
+.list-item.done .list-item-text { text-decoration: line-through; color: var(--fg-3); }
+
+.list-remove { opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+.list-item:hover .list-remove,
+.list-item:focus-within .list-remove { opacity: 1; }
+/* Touch has no hover — always show it there. */
+@media (hover: none) { .list-remove { opacity: 0.5; } }
+
+.icon-btn.ghost { background: none; border-color: transparent; color: var(--fg-4); }
+.icon-btn.ghost:active { background: var(--glass-well); }
+
+.list-done-section { margin-top: calc(var(--u) * 3); }
+
+/* ── Chores ───────────────────────────────────────────────── */
+
+.chore-columns {
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--u) * 32), 1fr));
+  align-items: start;
+}
+
+.chore-column { padding: calc(var(--u) * 2); }
+
+.chore-column-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.25);
+  padding-bottom: calc(var(--u) * 1.5);
+  margin-bottom: calc(var(--u) * 0.5);
+  border-bottom: 1px solid var(--glass-line-2);
+}
+.chore-column-name { font-size: var(--t-md); font-weight: 650; flex: 1; min-width: 0; }
+.chore-column-count {
+  font-size: var(--t-xs);
+  font-weight: 700;
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.person-chip {
+  width: calc(var(--u) * 4);
+  height: calc(var(--u) * 4);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: var(--t-xs);
+  font-weight: 750;
+  color: #0b1018;
+  flex: none;
+}
+.person-chip.big { width: calc(var(--u) * 7); height: calc(var(--u) * 7); font-size: var(--t-lg); }
+
+.chore-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.75);
+  padding: calc(var(--u) * 1.5) 0;
+  border-bottom: 1px solid var(--glass-line-2);
+}
+.chore-row:last-child { border-bottom: none; }
+.chore-row-main { min-width: 0; flex: 1; }
+.chore-row-title {
+  font-family: var(--font-display); font-size: var(--t-md); font-weight: 500; }
+.chore-row.done .chore-row-title { text-decoration: line-through; color: var(--fg-3); }
+
+.chore-streak {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--t-xs);
+  color: var(--warm);
+  font-weight: 650;
+  margin-top: 2px;
+}
+
+.chore-all { display: flex; flex-direction: column; gap: var(--u); }
+.chore-manage-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  padding: calc(var(--u) * 1.75) calc(var(--u) * 2);
+}
+.chore-manage-main { flex: 1; min-width: 0; }
+.chore-manage-meta {
+  display: flex;
+  gap: calc(var(--u) * 0.75);
+  font-size: var(--t-xs);
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+.chore-add { margin-top: var(--u); align-self: flex-start; }
+
+/* ── People ───────────────────────────────────────────────── */
+
+.people-grid {
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--u) * 22), 1fr));
+  margin-bottom: calc(var(--u) * 2);
+}
+.person-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--u);
+  padding: calc(var(--u) * 2);
+  text-align: center;
+}
+.person-name {
+  font-family: var(--font-display); font-size: var(--t-md); font-weight: 400; }
+
+.person-colors { display: flex; gap: calc(var(--u) * 0.75); flex-wrap: wrap; justify-content: center; }
+.color-dot {
+  width: calc(var(--u) * 2.75);
+  height: calc(var(--u) * 2.75);
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.color-dot.on { border-color: #fff; transform: scale(1.15); }
+.color-dot.big { width: calc(var(--u) * 4.5); height: calc(var(--u) * 4.5); flex: none; }
+.color-dot:active { transform: scale(0.9); }
+
+/* ── Ambient mode ─────────────────────────────────────────── */
+
+#ambient {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-ambient);
+  background: #000;
+  opacity: 0;
+  transition: opacity 900ms var(--ease-out);
+}
+#ambient[hidden] { display: none; }
+#ambient.in { opacity: 1; }
+#ambient.out { opacity: 0; }
+
+.ambient-stage { position: absolute; inset: 0; overflow: hidden; }
+.ambient-stage.no-photos { background: transparent; }
+
+.ambient-photo {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 2200ms var(--ease-out);
+}
+.ambient-photo.in { opacity: 1; }
+.ambient-photo.drift-a { animation: drift-a linear forwards; }
+.ambient-photo.drift-b { animation: drift-b linear forwards; }
+
+@keyframes drift-a {
+  from { transform: scale(1.02) translate(0, 0); }
+  to   { transform: scale(1.14) translate(-1.5%, -1.5%); }
+}
+@keyframes drift-b {
+  from { transform: scale(1.14) translate(1.5%, 1%); }
+  to   { transform: scale(1.02) translate(0, 0); }
+}
+
+.ambient-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.12) 42%, transparent 70%);
+}
+
+.ambient-info {
+  position: absolute;
+  left: max(calc(var(--u) * 6), env(safe-area-inset-left));
+  bottom: max(calc(var(--u) * 6), env(safe-area-inset-bottom));
+  right: calc(var(--u) * 6);
+}
+
+.ambient-clock {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--u) * 1.75);
+  font-family: var(--font-display);
+  font-size: calc(var(--u) * 15);
+  font-weight: 300;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums lining-nums;
+  text-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);
+}
+.ambient-period {
+  font-size: calc(var(--u) * 3);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+
+.ambient-date {
+  font-size: var(--t-lg);
+  font-weight: 400;
+  color: var(--fg-2);
+  margin-top: calc(var(--u) * 1.5);
+  letter-spacing: var(--track-wide);
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.6);
+}
+
+.ambient-extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 1.5);
+  margin-top: calc(var(--u) * 2.5);
+}
+.ambient-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 1);
+  padding: calc(var(--u) * 1) calc(var(--u) * 2);
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.13);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  font-size: var(--t-md);
+  font-weight: 600;
+}

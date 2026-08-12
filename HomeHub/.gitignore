@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+.netlify/
+__*.html
+dist/
+native/HomeHub/Web/
+native/HomeHub.xcodeproj/
+native/*.xcworkspace/

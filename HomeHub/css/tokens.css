@@ -1,0 +1,185 @@
+/* ============================================================
+   HomeHub — design tokens
+   Tuned for an iPad mounted on a wall and read from 6–10 feet.
+   Everything scales off --u so the whole hub can be sized up
+   or down for the room in one place (Settings → Display size).
+   ============================================================ */
+
+:root {
+  /* ── Scale ──────────────────────────────────────────────
+     --u is the base unit. Settings writes a multiplier onto
+     --scale; every size below is derived, so bumping it up
+     enlarges the entire interface coherently.               */
+  --scale: 1;
+  /* --density is the layout's own adjustment for cramped shapes (portrait,
+     short screens). It is kept separate from --scale because Settings
+     writes --scale inline, and an inline value would otherwise win over
+     any media query trying to adjust the same property. */
+  --density: 1;
+  /* --fit is a third multiplier for chrome that appears and disappears at
+     runtime and eats into the grid — currently just the mini player. It is
+     separate so it composes with the two above instead of replacing them. */
+  --fit: 1;
+  --u: calc(8px * var(--scale) * var(--density) * var(--fit));
+
+  /* ── Type ──────────────────────────────────────────────
+     Two faces, and the pairing is what keeps this from
+     reading as a dashboard: an editorial serif carries the
+     things you look at (time, temperature, titles), and the
+     sans carries the things you read (data, labels, rows).
+
+     Both resolve natively on iPad — New York and SF Pro —
+     so the whole typographic identity costs zero bytes and
+     never flashes an unstyled frame.                        */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+          "Segoe UI Variable Display", "Segoe UI", Inter, Roboto,
+          system-ui, sans-serif;
+  --font-display: ui-serif, "New York", "Iowan Old Style", "Palatino Linotype",
+          Palatino, "Hoefler Text", Garamond, Georgia, serif;
+
+  /* Distance-viewing type ramp. Nothing below 15px ships.
+     The hero sits a size below where a sans would, because the serif
+     carries far more visual weight at the same measurement. */
+  --t-hero:     calc(var(--u) * 15);   /* 120px — the temperature      */
+  --t-clock:    calc(var(--u) * 8.5);  /* 68px  — the wall clock       */
+  --t-xxl:      calc(var(--u) * 6);    /* 48px                          */
+  --t-xl:       calc(var(--u) * 4.5);  /* 36px                          */
+  --t-lg:       calc(var(--u) * 3.5);  /* 28px  — event titles          */
+  --t-md:       calc(var(--u) * 2.75); /* 22px  — body / list rows      */
+  --t-sm:       calc(var(--u) * 2.25); /* 18px  — secondary             */
+  --t-xs:       calc(var(--u) * 1.9);  /* 15px  — labels, floor         */
+
+  /* Section labels: small caps, widely tracked, low contrast —
+     the hotel-signage register. They should be findable, not
+     loud; the content is what carries weight.                 */
+  --label-size: var(--t-xs);
+  --label-track: 0.2em;
+  --label-weight: 600;
+
+  --track-tight: -0.02em;    /* large serif numerals           */
+  --track-snug:  -0.01em;    /* headings                       */
+  --track-wide:  0.02em;
+
+  /* ── Rhythm ─────────────────────────────────────────────
+     Looser than a dashboard would be. The empty space is
+     doing work here: it's most of what reads as calm.       */
+  --gap:      calc(var(--u) * 2.6);
+  --gap-lg:   calc(var(--u) * 3.5);
+  --pad-card: calc(var(--u) * 3);
+  --pad-edge: calc(var(--u) * 4.5);
+
+  /* Generous radii — soft, furniture-like, never crisp UI chrome. */
+  --r-sm:  calc(var(--u) * 1.75);
+  --r-md:  calc(var(--u) * 2.75);
+  --r-lg:  calc(var(--u) * 4.5);
+  --r-xl:  calc(var(--u) * 5.5);
+  --r-pill: 999px;
+
+  /* Minimum comfortable target for a finger on a wall. */
+  --tap: calc(var(--u) * 8);
+
+  /* ── Sky (written every minute by js/core/sky.js) ────── */
+  --sky-1: #0a1020;   /* zenith            */
+  --sky-2: #131c33;   /* mid               */
+  --sky-3: #1c2742;   /* horizon           */
+  --sky-glow: rgba(255, 210, 150, 0);   /* sun/moon bloom colour */
+  --sky-glow-x: 50%;
+  --sky-glow-y: 120%;
+  --sky-glow-size: 60%;
+  --star-opacity: 0;
+  --sky-lum: 0.05;    /* 0–1, how bright the sky currently is  */
+
+  /* ── Foreground ─────────────────────────────────────────
+     Warm white rather than pure white. Against a sky, #FFF
+     reads clinical; a few degrees of warmth reads like
+     lamplight. Sky luminance is capped in sky.js so these
+     stay legible without ever flipping to dark.             */
+  --fg:       rgba(253, 250, 245, 0.97);
+  --fg-2:     rgba(253, 250, 245, 0.74);
+  --fg-3:     rgba(253, 250, 245, 0.54);
+  --fg-4:     rgba(253, 250, 245, 0.34);
+  --fg-faint: rgba(253, 250, 245, 0.13);
+
+  /* ── Glass ──────────────────────────────────────────────
+     Cards sit on sky; wells sit inside cards. Warm-tinted and
+     borderless — depth comes from a wide soft shadow and a
+     single hairline of light along the top edge, the way real
+     glass catches a room.                                    */
+  --glass:        rgba(255, 250, 242, 0.09);
+  --glass-hi:     rgba(255, 250, 242, 0.15);
+  --glass-well:   rgba(18, 14, 10, 0.18);
+  --glass-line:   rgba(255, 246, 232, 0.10);
+  --glass-line-2: rgba(255, 246, 232, 0.06);
+  --blur: 40px;
+
+  --shadow-card: 0 calc(var(--u) * 2.5) calc(var(--u) * 8) rgba(0, 0, 0, 0.20),
+                 0 calc(var(--u) * 0.5) calc(var(--u) * 2) rgba(0, 0, 0, 0.12);
+  --shadow-panel: 0 calc(var(--u) * 6) calc(var(--u) * 18) rgba(0, 0, 0, 0.42);
+
+  /* ── Accents ────────────────────────────────────────────
+     Brass and sand, not electric blue. The functional colours
+     (rain, storm) stay legible but are pulled back so they
+     read as information rather than as alerts.               */
+  --accent:      #DDB27C;   /* brass — interactive, highlights */
+  --accent-soft: #C9A17A;
+  --warm:        #E8A765;   /* daily high                      */
+  --cool:        #8FB6C9;   /* daily low                       */
+  --rain:        #7FB4D4;
+  --thunder:     #E8C26A;
+  --snow:        #C9DCE4;
+  --good:        #8FC4A4;
+  --mid-warn:    #E0B871;
+  --bad:         #E09070;
+  --severe:      #D96A5A;
+  --extreme:     #B98BC4;
+
+  /* Alert severity ramp (NWS). Muted to match, but still
+     unmistakably escalating — a tornado warning has to shout
+     even on a display designed to be calm. */
+  --sev-extreme:  #D4547A;
+  --sev-severe:   #DE7A55;
+  --sev-moderate: #D6A65C;
+  --sev-minor:    #8FB6C9;
+
+  /* ── Motion ─────────────────────────────────────────────
+     --ease-spring is the iOS-ish overshoot used for panel
+     expansion; --ease-out for everything ordinary.          */
+  --ease-spring: cubic-bezier(0.32, 0.72, 0.24, 1.02);
+  --ease-out:    cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0.05, 0.36, 1);
+  --dur-fast:  180ms;
+  --dur:       320ms;
+  --dur-panel: 480ms;
+  --dur-sky:   2400ms;
+
+  --z-sky: 0;
+  --z-hub: 1;
+  --z-panel: 40;
+  --z-sheet: 50;
+  --z-ambient: 60;
+  --z-dimmer: 80;
+  --z-toast: 90;
+}
+
+/* ── Short screens ────────────────────────────────────────────
+   The home grid is tuned for a 12.9" iPad in landscape (1024pt
+   tall). On anything shorter the whole composition steps down a
+   notch instead of letting card contents clip — every size in this
+   file derives from --u, so one number moves the lot.
+
+   These live here rather than in home.css so the portrait rule,
+   which sets --density itself, still wins on a tall narrow panel. */
+@media (max-height: 1000px) { :root { --density: 0.94; } }
+@media (max-height: 920px)  { :root { --density: 0.86; } }
+@media (max-height: 840px)  { :root { --density: 0.80; } }
+@media (max-height: 780px)  { :root { --density: 0.74; } }
+
+/* Respect the OS setting — a wall display shouldn't fight it. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 1ms;
+    --dur: 1ms;
+    --dur-panel: 1ms;
+    --dur-sky: 1ms;
+  }
+}

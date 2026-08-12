@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- CFBundleIdentifier is what makes this a bundle at all. Without it
+       the app builds and signs perfectly happily, and then the device
+       refuses it as "not a valid bundle" with no hint at build time —
+       PRODUCT_BUNDLE_IDENTIFIER in project.yml is only a build setting
+       until this line copies it into the product. -->
+  <key>CFBundleIdentifier</key>
+  <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+  <key>CFBundleExecutable</key>
+  <string>$(EXECUTABLE_NAME)</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+
+  <key>CFBundleDisplayName</key>
+  <string>HomeHub</string>
+  <key>CFBundleName</key>
+  <string>HomeHub</string>
+  <key>CFBundleShortVersionString</key>
+  <string>$(MARKETING_VERSION)</string>
+  <key>CFBundleVersion</key>
+  <string>$(CURRENT_PROJECT_VERSION)</string>
+
+  <!-- Wall-mounted: whichever way it's hung, and never rotating away. -->
+  <key>UISupportedInterfaceOrientations~ipad</key>
+  <array>
+    <string>UIInterfaceOrientationLandscapeLeft</string>
+    <string>UIInterfaceOrientationLandscapeRight</string>
+    <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationPortraitUpsideDown</string>
+  </array>
+  <key>UIRequiresFullScreen</key>
+  <true/>
+  <key>UIStatusBarHidden</key>
+  <true/>
+  <key>UIViewControllerBasedStatusBarAppearance</key>
+  <false/>
+  <key>UIUserInterfaceStyle</key>
+  <string>Dark</string>
+
+  <!-- Shown in the permission prompts. Say plainly what it's for; a vague
+       string here is a common App Review rejection and, more to the point,
+       is the sentence the family actually reads. -->
+  <key>NSCalendarsUsageDescription</key>
+  <string>HomeHub shows your family's upcoming events on the wall display.</string>
+  <key>NSCalendarsFullAccessUsageDescription</key>
+  <string>HomeHub shows your family's upcoming events on the wall display. It only reads them.</string>
+  <key>NSRemindersUsageDescription</key>
+  <string>HomeHub shows your family's reminders on the wall display.</string>
+  <key>NSRemindersFullAccessUsageDescription</key>
+  <string>HomeHub shows your family's reminders on the wall display, and ticks one off when someone taps it.</string>
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>HomeHub uses your location to show local weather and centre the radar.</string>
+  <key>NSAppleMusicUsageDescription</key>
+  <string>HomeHub plays your Apple Music on the wall display and shows what's playing.</string>
+
+  <!-- Music keeps playing when the hub is not the frontmost app, and the
+       hub keeps showing what's playing while the screen is dimmed. -->
+  <key>UIBackgroundModes</key>
+  <array>
+    <string>audio</string>
+  </array>
+
+  <key>UILaunchScreen</key>
+  <dict>
+    <key>UIColorName</key>
+    <string>LaunchBackground</string>
+  </dict>
+
+  <key>UIApplicationSceneManifest</key>
+  <dict>
+    <key>UIApplicationSupportsMultipleScenes</key>
+    <false/>
+  </dict>
+</dict>
+</plist>

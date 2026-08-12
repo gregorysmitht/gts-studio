@@ -1,0 +1,59 @@
+# XcodeGen spec — `brew install xcodegen && cd native && xcodegen`
+#
+# Generating the project keeps a 3,000-line .pbxproj out of the repo and
+# means the Xcode project can be regenerated rather than merged. If you
+# would rather not install XcodeGen, README.md has the ten-step manual
+# version; the Swift sources are identical either way.
+
+name: HomeHub
+options:
+  bundleIdPrefix: studio.gts
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.9"
+    DEVELOPMENT_TEAM: ""          # ← your 10-character Team ID
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  HomeHub:
+    type: application
+    platform: iOS
+    # iPad only: the layout is designed for a wall-mounted 11" or 12.9".
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: studio.gts.homehub
+        TARGETED_DEVICE_FAMILY: "2"
+        # Assets.xcassets carries both: the Home Screen icon, and the
+        # LaunchBackground colour Info.plist names for the launch screen.
+        # Without the latter the app opens on white, which on a dark wall
+        # display is a visible flash every launch.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_FILE: HomeHub/Info.plist
+        CODE_SIGN_ENTITLEMENTS: HomeHub/HomeHub.entitlements
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+    sources:
+      - path: HomeHub
+        excludes:
+          - "Web/**"
+      # Folder reference: the web app keeps its directory structure inside
+      # the bundle, which the custom scheme handler serves verbatim.
+      - path: HomeHub/Web
+        type: folder
+    entitlements:
+      path: HomeHub/HomeHub.entitlements
+      properties:
+        com.apple.developer.weatherkit: true
+    dependencies:
+      - sdk: WeatherKit.framework
+      - sdk: EventKit.framework
+      - sdk: WebKit.framework
+      # MusicKit needs no entitlement of its own, but the App ID must have
+      # the MusicKit service enabled in the developer portal — see README.
+      - sdk: MusicKit.framework
+      - sdk: MediaPlayer.framework
