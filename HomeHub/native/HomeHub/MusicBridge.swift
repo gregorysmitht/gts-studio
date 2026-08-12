@@ -216,19 +216,26 @@ final class MusicBridge {
             "auth": Self.authorizationStatus(),
         ]
 
-        if let entry = player.queue.currentEntry {
-            out["track"] = track(from: entry)
-        } else {
+        /* Nothing playing: say so and touch the queue no further. Every
+           one of these properties is a read across to the music daemon,
+           and when that connection is wedged — "applicationQueuePlayer
+           _establishConnectionIfNeeded timeout [ping did not pong]" in
+           the device log — each one blocks the main thread. Enumerating
+           an empty queue to discover it is empty is the worst version of
+           that trade. */
+        guard let entry = player.queue.currentEntry else {
             out["track"] = NSNull()
+            out["queue"] = []
+            return out
         }
+        out["track"] = track(from: entry)
 
         /* Only what fits on screen; the rest of the queue is not shown.
            Written out with an index rather than a drop/dropFirst/prefix
            chain — the collection slicing was harder to read than it was
            worth, and this is the same three entries. */
         let entries = Array(player.queue.entries)
-        let currentId = player.queue.currentEntry?.id
-        let start = entries.firstIndex { $0.id == currentId }.map { $0 + 1 } ?? 0
+        let start = entries.firstIndex { $0.id == entry.id }.map { $0 + 1 } ?? 0
         out["queue"] = entries[start..<min(start + 3, entries.count)]
             .map { entry -> [String: Any] in
                 [

@@ -132,10 +132,10 @@ export async function recentlyPlayed() {
 let stopPoll = null;
 
 /**
- * The bridge pushes on every state change, which covers everything the
- * hub does itself. The slow poll exists for changes it can't see —
- * someone skipping a track from a phone, or the queue advancing on its
- * own — and stays slow because `livePosition()` handles the scrubber.
+ * The bridge pushes on every state change, which covers everything —
+ * what the hub starts, and what someone starts from a phone, because
+ * the Swift side observes the system player rather than only its own
+ * commands. Nothing here needs to ask.
  */
 export function startMusic() {
   if (!musicAvailable()) return;
@@ -144,12 +144,33 @@ export function startMusic() {
 
   const tick = async () => {
     try { apply(await nativeCall('music.now')); }
-    catch { /* transient; the next tick will catch up */ }
+    catch { /* transient; the next resync will catch up */ }
   };
 
   tick();
-  const id = setInterval(tick, 5000);
-  stopPoll = () => clearInterval(id);
+
+  /* No polling loop. This used to ask the bridge for the player's state
+     every five seconds, for as long as the hub was switched on — some
+     eleven thousand round trips a day for something the bridge already
+     pushes the moment it changes.
+
+     That is expensive in a way a five-second timer does not look. Every
+     `music.now` reads ApplicationMusicPlayer's queue and state, and
+     MusicBridge is @MainActor, so each one runs on the app's main
+     thread. When the music daemon's connection is wedged — which the
+     device log announces as "applicationQueuePlayer
+     _establishConnectionIfNeeded timeout [ping did not pong]" — those
+     reads block, the main thread stalls, and WebKit stalls with it. The
+     whole hub goes treacly because of a poll for information nothing
+     was waiting on.
+
+     What is left: one read at boot, and a resync whenever the hub comes
+     back to the foreground, which is when a push could actually have
+     been missed. */
+  const resync = () => { if (document.visibilityState === 'visible') tick(); };
+  document.addEventListener('visibilitychange', resync);
+  stopPoll = () => document.removeEventListener('visibilitychange', resync);
+
   musicAuthStatus();
 }
 
