@@ -218,14 +218,22 @@ final class MusicBridge {
     private func track(from entry: ApplicationMusicPlayer.Queue.Entry) -> [String: Any] {
         var album = ""
         var duration: Any = NSNull()
+        var artwork = entry.artwork
 
         /* The queue entry only carries display strings; the underlying item
            is where the album title and duration live. The `?` matters —
            `item` is optional, and matching a non-optional pattern against
-           it does not compile. */
+           it does not compile.
+
+           The song's own artwork comes first, and the entry's is only the
+           fallback. A queue built from a playlist gives every entry the
+           *playlist's* cover, so the whole record played behind one
+           picture and the wall never changed. Music videos keep the entry
+           artwork, which is the right answer for them anyway. */
         if case let .song(song)? = entry.item {
             album = song.albumTitle ?? ""
             if let seconds = song.duration { duration = seconds }
+            artwork = song.artwork ?? artwork
         }
 
         return [
@@ -233,7 +241,7 @@ final class MusicBridge {
             "title": entry.title,
             "artist": entry.subtitle ?? "",
             "album": album,
-            "artworkUrl": artworkURL(entry.artwork, size: 1200),
+            "artworkUrl": artworkURL(artwork, size: 1200),
             "duration": duration,
         ]
     }
@@ -244,17 +252,35 @@ final class MusicBridge {
         guard let artwork else { return NSNull() }
         /* Not every size is served for every item — playlist artwork in
            particular is fussier than song and album artwork — so fall
-           back through a couple of common ones before giving up. */
-        let url = artwork.url(width: size, height: size)
-            ?? artwork.url(width: 600, height: 600)
-            ?? artwork.url(width: 300, height: 300)
-        guard let url else { return NSNull() }
+           back through a few before giving up. The last resort is the
+           artwork's own maximum, which is the one size it is guaranteed
+           to have: editorial playlist covers are frequently not square,
+           and asking a 1680×944 cover for 400×400 can come back empty. */
+        var candidates = [size, 600, 300]
+        if artwork.maximumWidth > 0 && artwork.maximumHeight > 0 {
+            candidates.append(0)   // sentinel: use the artwork's own size
+        }
+        var url: URL?
+        for candidate in candidates {
+            url = candidate == 0
+                ? artwork.url(width: artwork.maximumWidth, height: artwork.maximumHeight)
+                : artwork.url(width: candidate, height: candidate)
+            if url != nil { break }
+        }
+        guard let url else {
+            // Shows in Xcode's console on a ⌘R run, which is the only
+            // place anyone would be looking when a cover is missing.
+            NSLog("[HomeHub] artwork present but produced no URL (max %dx%d)",
+                  artwork.maximumWidth, artwork.maximumHeight)
+            return NSNull()
+        }
         /* Library items — especially the smart playlists inherited from an
            old iTunes library — come back with private schemes a web view
            cannot fetch, which renders as a broken-image glyph. Nothing is
            friendlier than that, so say there is no artwork and let the UI
            draw its own placeholder. */
         guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else {
+            NSLog("[HomeHub] artwork URL the web view cannot fetch: %@", url.scheme ?? "no scheme")
             return NSNull()
         }
         return url.absoluteString

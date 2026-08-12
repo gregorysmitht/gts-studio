@@ -338,9 +338,7 @@ function shelf(title, items, forcedType) {
     h('div.shelf-row.hscroll',
       ...items.map((item) =>
         h('button.shelf-item', {
-          onclick: () => playItem(forcedType ?? item.type, item.id)
-            .then(() => toast(`Playing ${item.title}`))
-            .catch(reportError),
+          onclick: (event) => start(event.currentTarget, forcedType ?? item.type, item),
         },
           h('div.shelf-art', artOrNote(item.artworkUrl, 32)),
           h('div.shelf-title', item.title),
@@ -348,6 +346,39 @@ function shelf(title, items, forcedType) {
         )),
     ),
   );
+}
+
+/**
+ * Tapping something has to say so, immediately.
+ *
+ * Starting a playlist means a catalog lookup, loading its track list and
+ * handing a queue to the system player — a second or two on a good day.
+ * The tile used to do nothing at all for that whole stretch and then
+ * raise a toast, which reads as a tap that missed. So: the tile marks
+ * itself the moment it is pressed, and on success the panel switches to
+ * Now Playing, where the cover fills the wall. That is the same answer
+ * tapping a record in Music gives, and it is impossible to miss.
+ */
+async function start(tile, type, item) {
+  if (tile.classList.contains('starting')) return;   // no double-taps
+  const shelfRow = tile.closest('.shelf-row');
+  shelfRow?.querySelectorAll('.shelf-item.starting')
+    .forEach((el) => el.classList.remove('starting'));
+  tile.classList.add('starting');
+
+  try {
+    await playItem(type, item.id);
+    tile.classList.remove('starting');
+    tile.classList.add('started');
+    toast(`Playing ${item.title}`);
+    /* Long enough to register as confirmation on the tile itself, short
+       enough that the Now Playing screen still feels like a response to
+       the tap rather than a separate event. */
+    setTimeout(() => setPanelTab('playing'), 450);
+  } catch (err) {
+    tile.classList.remove('starting');
+    reportError(err);
+  }
 }
 
 /* ── Authorisation prompt, used by Settings ───────────────── */

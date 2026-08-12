@@ -229,6 +229,12 @@
     { id: 'pl-3', type: 'playlist', title: 'Dinner Party',    subtitle: '61 songs', artworkUrl: cover('#5A3B44', '#C08497', MARKS.arc) },
     { id: 'pl-4', type: 'playlist', title: 'Homework Hour',   subtitle: '35 songs', artworkUrl: cover('#334A63', '#8FA8C4', MARKS.dot) },
     { id: 'pl-5', type: 'playlist', title: 'Saturday Chores', subtitle: '54 songs', artworkUrl: cover('#63432F', '#D89B62', MARKS.wave) },
+    /* One with no cover at all, deliberately. Real playlists turn up
+       without artwork more often than anything else does — smart
+       playlists off an old iTunes library especially — and the shelf has
+       to draw a note rather than a broken-image glyph. Without this in
+       the fixtures that path was never once exercised. */
+    { id: 'pl-6', type: 'playlist', title: 'Old Smart Playlist', subtitle: '17 songs', artworkUrl: null },
   ];
 
   const asItem = (t) => ({
@@ -294,6 +300,9 @@
      or from somewhere else, so every mutation pushes as well as replying.
      The hub gets the same value twice; applying it twice is a no-op. */
   const MUTATORS = /^music\.(play|pause|next|previous|seek|shuffle|repeat|playItem)$/;
+
+  /** Per-method round-trip time, in ms. See __setLatency below. */
+  const LATENCY = {};
 
   const METHODS = {
     'calendar.status': () => ({ status: auth }),
@@ -371,7 +380,14 @@
       log.push({ method, params });
       const fn = METHODS[method];
       if (!fn) return Promise.reject(new Error(`Unknown bridge method: ${method}`));
-      // Async, like the real WKScriptMessageHandlerWithReply round trip.
+      /* Async, like the real WKScriptMessageHandlerWithReply round trip.
+
+         20ms is honest for most calls and badly misleading for a few.
+         Starting a playlist on device is a catalog lookup, a track list
+         and a handoff to the system player — one to three seconds — and
+         anything meant to cover that gap is invisible at 20ms. Whole
+         loading states can look correct here and be untested. */
+      const delay = LATENCY[method] ?? 20;
       return new Promise((resolve, reject) => setTimeout(() => {
         // try/catch matters: a synchronous throw inside a setTimeout
         // callback escapes the promise entirely, so it never settles and
@@ -383,10 +399,12 @@
         } catch (err) {
           reject(err);
         }
-      }, 20));
+      }, delay));
     },
     /* Test hooks — the Swift bridge has no equivalent. */
     __log: log,
+    /** Make a method take as long as it really does, so waiting states show. */
+    __setLatency: (method, ms) => { LATENCY[method] = ms; },
     __state: () => ({ auth, brightness, awake, music: snapshot() }),
     __setAuth: (v) => { auth = v; },
     __setReminderAuth: (v) => { reminderAuth = v; },
