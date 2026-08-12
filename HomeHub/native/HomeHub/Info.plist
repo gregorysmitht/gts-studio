@@ -59,6 +59,13 @@
   <string>HomeHub uses your location to show local weather and centre the radar.</string>
   <key>NSAppleMusicUsageDescription</key>
   <string>HomeHub plays your Apple Music on the wall display and shows what's playing.</string>
+  <!-- "Add photos" is a plain web file input, and iOS offers Take Photo
+       alongside Photo Library whenever the input accepts images. Picking
+       from the library needs no string — WKWebView uses the
+       out-of-process picker — but tapping Take Photo without this one
+       does not prompt, it terminates the app on the spot. -->
+  <key>NSCameraUsageDescription</key>
+  <string>HomeHub can take a photo to add straight to the screensaver.</string>
 
   <!-- Music keeps playing when the hub is not the frontmost app, and the
        hub keeps showing what's playing while the screen is dimmed. -->
