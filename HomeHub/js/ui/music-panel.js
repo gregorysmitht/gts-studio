@@ -130,10 +130,15 @@ function paintTrack() {
     art.dataset.src = artworkUrl;
     art.classList.remove('loaded');
     art.onload = () => art.classList.add('loaded');
+    // Say so rather than leaving an empty square: a cover that arrives
+    // and fails to fetch looks exactly like one that never arrived.
+    art.onerror = () => console.warn(`[music] now-playing artwork failed: ${artworkUrl}`);
     art.src = artworkUrl;
     // The backdrop is the same image, blown up and blurred, so the whole
     // wall takes the colour of the record.
     $('.np-backdrop').style.backgroundImage = `url("${artworkUrl}")`;
+  } else if (!artworkUrl) {
+    console.info(`[music] no artwork for "${title}"`);
   }
   fill($('.np-title'), title ?? '');
   fill($('.np-artist'), artist ?? '');
@@ -167,17 +172,34 @@ function paintTransport() {
 /** Advance the scrubber locally rather than polling the bridge. */
 function startScrubLoop() {
   cancelAnimationFrame(rafId);
+
+  /* Looked up once, not four times a frame. At 60fps that was 240
+     querySelector calls a second for the lifetime of the screen, on a
+     device that is meant to sit on a wall all day. */
+  const bar = $('.np-track-fill');
+  const knob = $('.np-track-knob');
+  const elapsed = $('.np-elapsed');
+  const remaining = $('.np-remaining');
+  if (!bar) return;
+
+  let lastSecond = -1;
   const step = () => {
-    const fill_ = $('.np-track-fill');
-    if (!fill_) return;   // panel closed
+    if (!bar.isConnected) return;   // panel closed
     const duration = player.track?.duration ?? 0;
     const at = livePosition();
     const pct = duration ? Math.min(100, (at / duration) * 100) : 0;
 
-    fill_.style.width = `${pct}%`;
-    $('.np-track-knob').style.left = `${pct}%`;
-    $('.np-elapsed').textContent = formatTime(at);
-    $('.np-remaining').textContent = `-${formatTime(Math.max(0, duration - at))}`;
+    bar.style.width = `${pct}%`;
+    knob.style.left = `${pct}%`;
+
+    // The clocks only change once a second; writing them every frame is
+    // layout work for text that is identical 59 times out of 60.
+    const second = Math.floor(at);
+    if (second !== lastSecond) {
+      lastSecond = second;
+      elapsed.textContent = formatTime(at);
+      remaining.textContent = `-${formatTime(Math.max(0, duration - at))}`;
+    }
 
     /* The mini player drives its own hairline on a one-second timer, so
        there is nothing to do for it here — it has to keep moving while
@@ -322,10 +344,18 @@ async function loadShelves(host) {
  * shelf of broken-image glyphs reads as a broken app rather than as an
  * album without a cover.
  */
-function artOrNote(url, size) {
-  if (!url) return icon('music', { size });
+function artOrNote(url, size, label = '') {
+  /* Two very different failures look identical here — a cover the
+     bridge never sent, and a cover it sent that the web view could not
+     fetch — and telling them apart from a screenshot is impossible.
+     Both say so now, so one look at the console settles which. */
+  if (!url) {
+    console.info(`[music] no artwork for ${label || 'item'}`);
+    return icon('music', { size });
+  }
   const img = h('img', { src: url, alt: '', loading: 'lazy' });
   img.addEventListener('error', () => {
+    console.warn(`[music] artwork failed to load for ${label || 'item'}: ${url}`);
     if (img.parentNode) img.replaceWith(icon('music', { size }));
   });
   return img;
@@ -340,7 +370,7 @@ function shelf(title, items, forcedType) {
         h('button.shelf-item', {
           onclick: (event) => start(event.currentTarget, forcedType ?? item.type, item),
         },
-          h('div.shelf-art', artOrNote(item.artworkUrl, 32)),
+          h('div.shelf-art', artOrNote(item.artworkUrl, 32, `${item.type} "${item.title}"`)),
           h('div.shelf-title', item.title),
           h('div.shelf-sub', item.subtitle ?? item.artist ?? ''),
         )),

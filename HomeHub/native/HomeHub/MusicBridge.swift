@@ -26,6 +26,16 @@ final class MusicBridge {
 
     private let player = ApplicationMusicPlayer.shared
     private var observers: [Task<Void, Never>] = []
+    private var lastSignature = ""
+
+    /* Covers the queue could not supply, by catalog id. A queue entry's
+       Song is a lightweight stub — enough for a title, not always enough
+       for a picture — and an entry the Music app or Control Center put
+       there may carry no artwork at all. One lookup per track is
+       nothing: a track lasts minutes. Empty string means "asked, and
+       there genuinely isn't one", so we ask only once. */
+    private var artCache: [String: String] = [:]
+    private var artPending: Set<String> = []
 
     // MARK: - Authorisation
 
@@ -59,15 +69,17 @@ final class MusicBridge {
     /// family nothing. Asking MusicSubscription directly turns that into
     /// a sentence they can act on.
     static func subscription() async -> [String: Any] {
-        do {
-            for try await sub in MusicSubscription.subscriptionUpdates {
-                return [
-                    "known": true,
-                    "canPlayCatalog": sub.canPlayCatalogContent,
-                    "canSubscribe": sub.canBecomeSubscriber,
-                ]
-            }
-        } catch { /* fall through — unknown is honest here */ }
+        // No try/catch: subscriptionUpdates does not throw, and wrapping
+        // it in one produced a catch block the compiler could see was
+        // unreachable. An empty sequence still falls through to unknown,
+        // which is the honest answer.
+        for await sub in MusicSubscription.subscriptionUpdates {
+            return [
+                "known": true,
+                "canPlayCatalog": sub.canPlayCatalogContent,
+                "canSubscribe": sub.canBecomeSubscriber,
+            ]
+        }
         return ["known": false, "canPlayCatalog": false, "canSubscribe": false]
     }
 
@@ -81,21 +93,57 @@ final class MusicBridge {
         observers.append(Task { [weak self] in
             for await _ in ApplicationMusicPlayer.shared.state.objectWillChange.values {
                 guard let self else { return }
-                self.onChange?(self.snapshot())
+                self.pushIfChanged()
             }
         })
 
         observers.append(Task { [weak self] in
             for await _ in ApplicationMusicPlayer.shared.queue.objectWillChange.values {
                 guard let self else { return }
-                self.onChange?(self.snapshot())
+                self.pushIfChanged()
             }
         })
+    }
+
+    /**
+     Push only when something a viewer could notice has changed.
+
+     `state.objectWillChange` fires on every playback tick, because
+     `playbackTime` is part of the state. Answering each one meant
+     building a snapshot — copying the queue, resolving artwork URLs —
+     serialising it to JSON and calling into the web view, many times a
+     second, for as long as anything was playing. That is what was
+     making the whole hub crawl, music screen or not.
+
+     Nothing is lost by coalescing: the web side extrapolates the
+     playhead locally from a stamped position, which is precisely why
+     `livePosition()` exists, and every seek and transport call returns a
+     fresh snapshot as its own result.
+     */
+    private func pushIfChanged() {
+        let now = playerSignature
+        guard now != lastSignature else { return }
+        lastSignature = now
+        onChange?(snapshot())
+    }
+
+    /// Cheap on purpose — read off the player, with no artwork or queue
+    /// serialisation, because this runs on every tick.
+    private var playerSignature: String {
+        let state = player.state
+        return [
+            String(describing: state.playbackStatus),
+            String(describing: player.queue.currentEntry?.id),
+            String(describing: state.shuffleMode),
+            String(describing: state.repeatMode),
+            String(player.queue.entries.count),
+        ].joined(separator: "|")
     }
 
     func stopObserving() {
         observers.forEach { $0.cancel() }
         observers = []
+        lastSignature = ""
     }
 
     // MARK: - Transport
@@ -230,10 +278,22 @@ final class MusicBridge {
            *playlist's* cover, so the whole record played behind one
            picture and the wall never changed. Music videos keep the entry
            artwork, which is the right answer for them anyway. */
+        var catalogId: MusicItemID?
         if case let .song(song)? = entry.item {
             album = song.albumTitle ?? ""
             if let seconds = song.duration { duration = seconds }
             artwork = song.artwork ?? artwork
+            catalogId = song.id
+        }
+
+        var art = artworkURL(artwork, size: 1200)
+        if art is NSNull, let catalogId {
+            let key = catalogId.rawValue
+            if let cached = artCache[key], !cached.isEmpty {
+                art = cached
+            } else if artCache[key] == nil {
+                findArtwork(for: catalogId)
+            }
         }
 
         return [
@@ -241,9 +301,40 @@ final class MusicBridge {
             "title": entry.title,
             "artist": entry.subtitle ?? "",
             "album": album,
-            "artworkUrl": artworkURL(artwork, size: 1200),
+            "artworkUrl": art,
             "duration": duration,
         ]
+    }
+
+    /**
+     Fetch a cover the queue did not carry, then say so.
+
+     Deliberately fire-and-forget rather than making `snapshot()` async:
+     the snapshot is built on every transport call and from the player
+     observer, and making all of that wait on the network to draw a
+     picture would be the wrong trade. The web view gets the track
+     immediately with no cover, and a second push a moment later with
+     one.
+     */
+    private func findArtwork(for id: MusicItemID) {
+        let key = id.rawValue
+        guard !artPending.contains(key) else { return }
+        artPending.insert(key)
+
+        Task { [weak self] in
+            var found = ""
+            if let song = try? await MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: id)
+                .response().items.first,
+               let url = self?.artworkURL(song.artwork, size: 1200) as? String {
+                found = url
+            }
+            guard let self else { return }
+            self.artPending.remove(key)
+            // Cached either way: an empty string is "asked, there isn't
+            // one", which stops this being retried on every snapshot.
+            self.artCache[key] = found
+            if !found.isEmpty { self.onChange?(self.snapshot()) }
+        }
     }
 
     /// MusicKit renders artwork at whatever size is asked for, so the wall
