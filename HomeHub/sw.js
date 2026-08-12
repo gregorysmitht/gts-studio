@@ -37,6 +37,7 @@ const SHELL = [
   './js/core/native.js',
   './js/core/sheet.js',
   './js/core/palette.js',
+  './js/core/imaging.js',
   './js/data/conditions.js',
   './js/data/weather.js',
   './js/data/airquality.js',
@@ -66,6 +67,7 @@ const SHELL = [
   './js/ui/settings.js',
   './js/ui/music-widget.js',
   './js/ui/music-panel.js',
+  './js/ui/photo-grid.js',
 ];
 
 self.addEventListener('install', (event) => {

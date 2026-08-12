@@ -114,18 +114,33 @@ export function toast(message, kind = '') {
 }
 
 /**
- * Long-press helper — used for "hold to delete" affordances so a wall
- * display doesn't need tiny X buttons everywhere.
+ * Long-press helper — used for "hold to delete" and "hold to drag"
+ * affordances so a wall display doesn't need tiny buttons everywhere.
+ *
+ * `slop` is what makes it usable with a finger. A held thumb wanders a
+ * few pixels however still its owner is trying to be, so cancelling on
+ * any movement at all means the press never fires on a touchscreen.
  */
-export function onLongPress(el, handler, ms = 550) {
+export function onLongPress(el, handler, { ms = 550, slop = 10 } = {}) {
   let timer = null;
-  const cancel = () => { clearTimeout(timer); timer = null; el.classList.remove('holding'); };
+  let origin = null;
+  const cancel = () => {
+    clearTimeout(timer);
+    timer = null;
+    origin = null;
+    el.classList.remove('holding');
+  };
   el.addEventListener('pointerdown', (e) => {
     if (e.button) return;
+    origin = { x: e.clientX, y: e.clientY };
     el.classList.add('holding');
     timer = setTimeout(() => { cancel(); handler(e); }, ms);
   });
-  for (const ev of ['pointerup', 'pointercancel', 'pointerleave', 'pointermove']) {
+  el.addEventListener('pointermove', (e) => {
+    if (!origin) return;
+    if (Math.hypot(e.clientX - origin.x, e.clientY - origin.y) > slop) cancel();
+  });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) {
     el.addEventListener(ev, cancel);
   }
 }

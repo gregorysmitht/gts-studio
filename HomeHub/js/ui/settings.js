@@ -23,6 +23,7 @@ import {
   loadReminderLists, isListShown, toggleList,
 } from '../data/reminders.js';
 import { ensureMusicAccess } from './music-panel.js';
+import { photoGrid, addPhotos } from './photo-grid.js';
 
 export function openSettings(section = 'location') {
   openPanel({
@@ -572,24 +573,38 @@ function timeField(label, value, onChange) {
 /* ── Ambient photos ───────────────────────────────────────── */
 
 function renderAmbient(body) {
+  const addButton = h('button.btn.primary', {
+    onclick: () => filePicker.click(),
+  }, icon('photo', { size: 20 }), 'Add photos');
+
   const filePicker = h('input', {
     type: 'file', accept: 'image/*', multiple: true,
     style: { display: 'none' },
     onchange: async (e) => {
       const files = [...e.target.files];
-      for (const file of files) await photos.add(file, file.name);
-      toast(`Added ${files.length} photo${files.length > 1 ? 's' : ''}`);
+      // Clear it now: picking the same file twice in a row fires no
+      // change event otherwise, and "nothing happened" reads as broken.
+      e.target.value = '';
+      if (!files.length) return;
+
+      /* Resizing a dozen phone photos takes a few seconds, and a button
+         that sits there doing nothing for a few seconds gets pressed
+         again. Count up on the button itself. */
+      addButton.disabled = true;
+      const progress = (n) => fill(addButton,
+        icon('photo', { size: 20 }), `Adding ${n} of ${files.length}…`);
+      progress(1);
+      const added = await addPhotos(files, (done) => progress(Math.min(done + 1, files.length)));
+      addButton.disabled = false;
+      if (added) toast(`Added ${added} photo${added > 1 ? 's' : ''}`);
       renderAmbient(body);
     },
   });
 
-  const countHost = h('div.photo-count.dim', 'Counting…');
-  photos.count().then((n) => fill(countHost, `${n} photo${n === 1 ? '' : 's'} stored on this iPad`));
-
   fill(body,
     group('Ambient mode',
-      'After a few quiet minutes the hub fades into a slow photo slideshow with the time on top. ' +
-      'Touch anywhere to come straight back.',
+      'After a few quiet minutes the hub fades into a photo slideshow with the time, the ' +
+      'weather and what is left of the day laid over it. Touch anywhere to come straight back.',
 
       switchRow('Turn on ambient mode', state.ambient.enabled, (on) => {
         state.ambient.enabled = on;
@@ -611,22 +626,56 @@ function renderAmbient(body) {
       }),
     ),
 
-    group('Photos', 'Stored locally on this iPad — nothing is uploaded anywhere.',
-      countHost,
+    group('What it shows',
+      'The time, the date and the weather are always there. These two are the rest of it.',
+
+      switchRow("Today's schedule", state.ambient.showAgenda !== false, (on) => {
+        state.ambient.showAgenda = on; save('ambient');
+      }),
+      switchRow('Reminders', state.ambient.showReminders !== false, (on) => {
+        state.ambient.showReminders = on; save('ambient');
+      }),
+    ),
+
+    group('Screen care',
+      'A panel showing the same thing in the same pixels for years can keep a ghost of it. ' +
+      'None of this is meant to be noticeable: the information drifts, changes corner now and ' +
+      'then, and the screen takes a short rest every so often.',
+
+      numberField('Change corner every (minutes)', state.ambient.moveMinutes, 1, 60, (v) => {
+        state.ambient.moveMinutes = v; save('ambient');
+      }),
+
+      switchRow('Rest the screen', state.ambient.rest !== false, (on) => {
+        state.ambient.rest = on; save('ambient');
+      }),
+      h('div.field-row',
+        numberField('Rest every (minutes)', state.ambient.restMinutes, 10, 240, (v) => {
+          state.ambient.restMinutes = v; save('ambient');
+        }),
+        numberField('Rest for (seconds)', state.ambient.restSeconds, 5, 300, (v) => {
+          state.ambient.restSeconds = v; save('ambient');
+        }),
+      ),
+    ),
+
+    group('Photos',
+      'Stored on this iPad and resized to fit its screen. Nothing is uploaded anywhere.',
       h('div.field-row',
         filePicker,
-        h('button.btn.primary', { onclick: () => filePicker.click() },
-          icon('photo', { size: 20 }), 'Add photos'),
-        h('button.btn.ghost', {
+        addButton,
+        h('button.btn.ghost.danger', {
           onclick: async () => {
+            if (!confirm('Remove every photo from this iPad?')) return;
             await photos.clear();
             toast('Photos cleared');
             renderAmbient(body);
           },
         }, 'Remove all'),
       ),
+      photoGrid(),
       h('p.howto-text.dim',
-        'With no photos added, ambient mode shows a full-screen clock over the live sky instead.'),
+        'With no photos added, ambient mode shows the time and the day over the live sky instead.'),
     ),
   );
 }

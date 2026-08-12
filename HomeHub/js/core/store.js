@@ -43,6 +43,12 @@ const DEFAULTS = {
     seconds: 22,          // per photo
     kenBurns: true,
     urls: [],             // remote photos; local ones live in IndexedDB
+    showAgenda: true,     // the rest of today, on the ambient panel
+    showReminders: true,  // overdue and due today
+    moveMinutes: 6,       // how often the panel changes corner
+    rest: true,           // periodic black rest, for the panel's sake
+    restMinutes: 60,
+    restSeconds: 25,
   },
 
   night: {
@@ -170,53 +176,176 @@ export function nextColor(used = []) {
   return PALETTE[counts.indexOf(Math.min(...counts))];
 }
 
+/**
+ * Is the clock inside the configured quiet hours? Handles windows that
+ * wrap past midnight (22:00 → 06:30).
+ *
+ * It lives here rather than in idle.js — which is what acts on it — so
+ * that ambient mode can ask the question without the two importing each
+ * other. The bundler refuses a cycle, and it would be right to.
+ */
+export function isNightNow(now = new Date()) {
+  if (!state.night.enabled) return false;
+  const toMinutes = (hhmm) => {
+    const [h, m] = String(hhmm || '0:00').split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const start = toMinutes(state.night.start);
+  const end = toMinutes(state.night.end);
+  return start <= end ? minutes >= start && minutes < end : minutes >= start || minutes < end;
+}
+
 /* ── Local photo storage (IndexedDB) ──────────────────────────
    Photos picked from the iPad live here as blobs so ambient mode
-   works offline and survives reloads. */
+   works offline and survives reloads.
+
+   Two stores, not one. Everything that wants to *list* photos — the
+   settings grid, the slideshow deciding what comes next — needs the
+   name and the order and a picture small enough to show at thumbnail
+   size. None of them need four megabytes of original. Keeping the full
+   images in their own store means listing the library reads a few
+   hundred kilobytes instead of the whole thing.
+
+     photoMeta  { id, thumb, name, added, order, w, h }
+     photoFull  { id, blob } */
 
 const DB_NAME = 'homehub-photos';
+const DB_VERSION = 2;
+const META = 'photoMeta';
+const FULL = 'photoFull';
+
 let dbPromise = null;
 
 function db() {
   dbPromise ||= new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore('photos', { keyPath: 'id' });
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (event) => migrate(req.result, req.transaction, event.oldVersion);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
   return dbPromise;
 }
 
-async function tx(mode, fn) {
+/**
+ * v1 kept one store of `{ id, blob, name, added }`. Split it, and give
+ * every existing photo an `order` of its `added` timestamp — `id` was
+ * already timestamp-prefixed, so that preserves exactly the sequence
+ * they have been displaying in. Thumbnails are left null and filled in
+ * the first time the grid renders; generating them here would mean
+ * decoding the whole library inside an upgrade transaction.
+ */
+function migrate(conn, upgradeTx, oldVersion) {
+  if (!conn.objectStoreNames.contains(META)) conn.createObjectStore(META, { keyPath: 'id' });
+  if (!conn.objectStoreNames.contains(FULL)) conn.createObjectStore(FULL, { keyPath: 'id' });
+  if (oldVersion >= 1 && conn.objectStoreNames.contains('photos')) {
+    const old = upgradeTx.objectStore('photos');
+    const meta = upgradeTx.objectStore(META);
+    const full = upgradeTx.objectStore(FULL);
+    old.openCursor().onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (!cursor) {
+        /* Reclaim the space, but never at the cost of the upgrade: if
+           this throws the copies are already written, and a stale store
+           is a much smaller problem than a database that won't open. */
+        try { conn.deleteObjectStore('photos'); } catch (err) {
+          console.warn('[store] kept the old photo store', err);
+        }
+        return;
+      }
+      const { id, blob, name, added } = cursor.value;
+      meta.put({ id, thumb: null, name, added, order: added ?? 0, w: 0, h: 0 });
+      full.put({ id, blob });
+      cursor.continue();
+    };
+  }
+}
+
+async function tx(names, mode, fn) {
   const conn = await db();
+  const list = Array.isArray(names) ? names : [names];
   return new Promise((resolve, reject) => {
-    const t = conn.transaction('photos', mode);
-    const store = t.objectStore('photos');
-    const result = fn(store);
+    const t = conn.transaction(list, mode);
+    const result = fn(...list.map((n) => t.objectStore(n)));
     t.oncomplete = () => resolve(result?.result ?? result);
     t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error);
   });
 }
 
+const byOrder = (a, b) => (a.order ?? a.added ?? 0) - (b.order ?? b.added ?? 0);
+
 export const photos = {
-  async add(blob, name) {
+  /**
+   * Store one picked file. `prepared` is the `{ full, thumb, w, h }` from
+   * imaging.prepare — passed in rather than imported so this module stays
+   * free of anything that needs a canvas.
+   */
+  async add(prepared, name, order) {
     const id = uid();
-    await tx('readwrite', (s) => s.put({ id, blob, name, added: Date.now() }));
+    const added = Date.now();
+    await tx([META, FULL], 'readwrite', (meta, full) => {
+      meta.put({ id, thumb: prepared.thumb, name, added, order: order ?? added, w: prepared.w, h: prepared.h });
+      full.put({ id, blob: prepared.full });
+    });
     emit('photos');
     return id;
   },
-  async all() {
-    return tx('readonly', (s) => s.getAll());
+
+  /** Everything known about every photo, in display order — no full blobs. */
+  async list() {
+    const rows = await tx(META, 'readonly', (s) => s.getAll());
+    return (rows ?? []).sort(byOrder);
   },
-  async remove(id) {
-    await tx('readwrite', (s) => s.delete(id));
+
+  /** The one full-size image, for the slideshow to show right now. */
+  async blob(id) {
+    const row = await tx(FULL, 'readonly', (s) => s.get(id));
+    return row?.blob ?? null;
+  },
+
+  /** Backfill for photos migrated from v1, which have no thumbnail yet. */
+  async setThumb(id, thumb, w, h) {
+    await tx(META, 'readwrite', (s) => {
+      const get = s.get(id);
+      get.onsuccess = () => {
+        if (!get.result) return;
+        s.put({ ...get.result, thumb, w, h });
+      };
+    });
+  },
+
+  /** Rewrite display order from a sequence of ids. Unlisted ids are left alone. */
+  async reorder(ids) {
+    await tx(META, 'readwrite', (s) => {
+      ids.forEach((id, index) => {
+        const get = s.get(id);
+        get.onsuccess = () => {
+          if (!get.result) return;
+          s.put({ ...get.result, order: index });
+        };
+      });
+    });
     emit('photos');
   },
-  async count() {
-    return tx('readonly', (s) => s.count());
+
+  async remove(id) {
+    await tx([META, FULL], 'readwrite', (meta, full) => {
+      meta.delete(id);
+      full.delete(id);
+    });
+    emit('photos');
   },
+
+  async count() {
+    return tx(META, 'readonly', (s) => s.count());
+  },
+
   async clear() {
-    await tx('readwrite', (s) => s.clear());
+    await tx([META, FULL], 'readwrite', (meta, full) => {
+      meta.clear();
+      full.clear();
+    });
     emit('photos');
   },
 };

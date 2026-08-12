@@ -140,6 +140,17 @@ canvas { display: block; }
   pointer-events: none;
 }
 
+/* Ambient mode is transparent so the live sky can show through behind
+   the photos. That means the hub has to stand down itself rather than
+   being covered up — 900ms to match the overlay's own fade, so the two
+   read as one dissolve rather than a swap. */
+body.ambient-on #hub,
+body.ambient-on #panel-host {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 900ms var(--ease-out);
+}
+
 /* Burn-in protection: idle.js nudges this a few px every 10 min. */
 .shift-root {
   will-change: transform;

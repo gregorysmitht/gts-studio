@@ -1,5 +1,6 @@
 /* Home-screen weather: the current conditions plus the next few hours,
-   and a separate seven-day card. Both expand into the full panel. */
+   and a separate five-day card. Both expand into the full panel, where
+   the outlook runs to ten days for anyone who wants that far ahead. */
 
 import { h, fill } from '../core/dom.js';
 import { hourLabel, weekday, isToday, clockTime } from '../core/time.js';
@@ -151,7 +152,7 @@ function skeleton() {
   );
 }
 
-/* ── Seven-day outlook ────────────────────────────────────── */
+/* ── Five-day outlook ─────────────────────────────────────── */
 
 export function createForecastWidget() {
   const card = h('article.card.fc-card', { id: 'w-forecast' });
@@ -161,11 +162,17 @@ export function createForecastWidget() {
 }
 
 /**
- * Seven columns rather than seven rows: the card is wide and short, and
- * a column per day leaves room for type big enough to read across a
- * room. Each column carries a vertical bar showing that day's range
- * within the week's range, so the shape of the week is visible at a
- * glance without reading a single number.
+ * Columns rather than rows: the card is wide and short, and a column per
+ * day leaves room for type big enough to read across a room. Each
+ * column carries a vertical bar showing that day's range within the
+ * run's range, so the shape of the week is visible at a glance without
+ * reading a single number.
+ *
+ * Five days, not seven. Seven fitted, but only just — in portrait this
+ * card gets three of six grid columns, and at that width the day names
+ * and temperatures were being squeezed for the sake of two days nobody
+ * plans around from a hallway. The panel behind this card still shows
+ * ten.
  */
 export function renderForecast(card) {
   const model = live.weather;
@@ -173,7 +180,7 @@ export function renderForecast(card) {
     return fill(card, h('div.label', 'Forecast'), h('div.skeleton', { style: { flex: '1' } }));
   }
 
-  const days = model.daily.slice(0, 7);
+  const days = model.daily.slice(0, 5);
   const lows = days.map((d) => d.lo).filter((v) => v != null);
   const highs = days.map((d) => d.hi).filter((v) => v != null);
   const min = Math.min(...lows);
@@ -182,7 +189,7 @@ export function renderForecast(card) {
 
   fill(card,
     h('div.section-head',
-      h('div.label', 'Next 7 days'),
+      h('div.label', 'Next 5 days'),
       h('div.note', `${temp(min)} – ${temp(max)}`),
     ),
     h('div.fc-cols', ...days.map((day) => dayColumn(day, { max, span, now: model.current.temp }))),
@@ -191,8 +198,8 @@ export function renderForecast(card) {
 
 function dayColumn(day, { max, span, now }) {
   const today = isToday(day.date);
-  // The track spans the whole week: its top is the week's high, its
-  // bottom the week's low. Each day's bar sits where its range falls.
+  // The track spans the whole run: its top is the run's high, its
+  // bottom its low. Each day's bar sits where its range falls.
   const top = ((max - day.hi) / span) * 100;
   const height = Math.max(8, ((day.hi - day.lo) / span) * 100);
 

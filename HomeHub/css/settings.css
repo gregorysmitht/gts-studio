@@ -180,4 +180,95 @@
 .source-row-value { font-size: var(--t-xs); color: var(--fg-3); margin-top: 2px; }
 .source-ok { color: var(--good); display: grid; place-items: center; flex: none; }
 
-.photo-count { font-size: var(--t-sm); margin-bottom: var(--u); }
+/* ── Photo library ────────────────────────────────────────── */
+
+.photo-manager { margin-top: calc(var(--u) * 2); }
+.photo-hint { font-size: var(--t-xs); margin-bottom: calc(var(--u) * 1.5); }
+
+.photo-grid {
+  display: grid;
+  gap: calc(var(--u) * 1.5);
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--u) * 16), 1fr));
+}
+
+.photo-tile {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  /* The tile is the drag handle, so the browser must not read a slow
+     drag on it as a scroll — but only once we have taken it over. Until
+     the hold fires, the panel behind it still has to scroll normally,
+     which is why this is `manipulation` and not `none`. */
+  touch-action: manipulation;
+  transition: transform var(--dur) var(--ease-spring),
+              box-shadow var(--dur-fast) var(--ease-out);
+}
+.photo-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The half second before it lifts, so a hold reads as doing something. */
+.photo-tile.holding { transform: scale(0.96); }
+
+.photo-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+.photo-thumb.pending {
+  display: grid;
+  place-items: center;
+  color: var(--fg-4);
+  background: var(--glass-well);
+}
+
+.photo-ordinal {
+  position: absolute;
+  left: calc(var(--u) * 0.75);
+  bottom: calc(var(--u) * 0.75);
+  min-width: calc(var(--u) * 2.75);
+  height: calc(var(--u) * 2.75);
+  padding: 0 calc(var(--u) * 0.5);
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  background: rgba(12, 10, 8, 0.66);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: var(--t-xs);
+  font-weight: 650;
+  pointer-events: none;
+}
+
+.photo-remove {
+  position: absolute;
+  top: calc(var(--u) * 0.75);
+  right: calc(var(--u) * 0.75);
+  width: calc(var(--u) * 3.25);
+  height: calc(var(--u) * 3.25);
+  border: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(12, 10, 8, 0.66);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--fg);
+  transition: background var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
+}
+.photo-remove:active { transform: scale(0.9); background: var(--severe); }
+
+/* While one tile is up, the others slide out of its way — so they must
+   not also be reacting to the pointer passing over them. */
+.photo-grid.reordering .photo-remove { opacity: 0; pointer-events: none; }
+
+.photo-tile.lifted {
+  z-index: 2;
+  touch-action: none;
+  box-shadow: 0 calc(var(--u) * 2) calc(var(--u) * 5) rgba(0, 0, 0, 0.5);
+  /* No transform transition while lifted: it is following a finger, and
+     easing here shows up as the photo lagging behind the touch. */
+  transition: box-shadow var(--dur-fast) var(--ease-out);
+}

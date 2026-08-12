@@ -12,7 +12,7 @@ native app.
 ## What it does
 
 **Home screen.** A big clock, the current conditions, the next six hours, a
-seven-day outlook, what's next on the calendar, air quality, the shopping list,
+five-day outlook, what's next on the calendar, air quality, the shopping list,
 and today's chores — all readable from across a room.
 
 **Tap anything to open it.**
@@ -50,8 +50,23 @@ playback runs through the system player — what the wall starts also shows up i
 Control Center and can play out to a HomePod.
 
 **Ambient mode** fades into a slow full-screen photo slideshow after a few quiet
-minutes, with the time, date, weather, and next event over the top. Touch
-anywhere to come straight back. It doubles as burn-in protection.
+minutes. The photograph fills the wall and everything worth reading collects
+into one frosted panel over it: the time and date, the temperature with today's
+high and low, any warning in force, when rain or storms are expected, what is
+left of today's schedule, and anything overdue. The idea is that nobody should
+have to walk over and tap the screen to find out whether they need to leave.
+Touch anywhere to come straight back.
+
+Overnight the panel keeps the time and the weather and drops the rest — a
+hallway at 3am has no use for a list of errands.
+
+**Screen care.** That panel is also what protects the display. It drifts
+continuously on two slow sine waves with coprime periods, changes corner every
+few minutes, and every so often the whole screen rests: everything fades to
+black for a few seconds bar one dim line of time, which lands somewhere
+different each time so the only lit pixels are never the same twice. More rest
+overnight, when there is nobody to interrupt. All of it is adjustable in
+Settings → Photos → Screen care.
 
 ---
 
@@ -136,9 +151,19 @@ the hub doesn't start out empty. Delete them and they stay deleted.
 
 ### Photos
 
-Settings → Photos → **Add photos** picks images from the iPad and stores them
-locally in IndexedDB. Nothing is uploaded anywhere. With no photos added,
-ambient mode shows a full-screen clock over the live sky instead.
+Settings → Photos → **Add photos** picks any number of images at once from the
+iPad. They appear straight away as a grid of thumbnails, numbered in the order
+they will play. Touch and hold one to pick it up and drag it somewhere else in
+the run; tap the × on a photo to remove just that one. (Arrow keys move the
+focused photo too, for anyone the drag gesture does not work for.)
+
+Each photo is stored twice: once resized to 2560px on the long edge, which is
+as much as the iPad's screen can show, and once as a thumbnail. That is what
+lets the grid and the slideshow list a large library without pulling several
+gigabytes of original photographs into memory. Nothing is uploaded anywhere.
+
+With no photos added, ambient mode shows the same panel over the live sky
+instead.
 
 ---
 
@@ -239,6 +264,7 @@ things are already wired up:
 | Screen Wake Lock | Keeping the display awake on the wall | ✅ in use |
 | Time zone + locale (`Intl`) | Clock format, week start, date wording | ✅ in use |
 | Photo picker + IndexedDB | Ambient slideshow, stored locally | ✅ in use |
+| Canvas + `createImageBitmap` | Resizing photos on the way in | ✅ in use |
 | `prefers-reduced-motion` | Honouring the accessibility setting | ✅ in use |
 
 And what simply isn't available to any web page on iPadOS:
@@ -301,8 +327,9 @@ js/
     sky.js              the living background
     net.js              fetch with retry, caching, stale-while-error, polling
     format.js           units and display formatting
+    imaging.js          resizing and thumbnailing photos on the way in
     panel.js            expanding panel system
-    idle.js             wake lock, night dimming, burn-in shift, ambient trigger
+    idle.js             wake lock, night dimming, hub pixel shift, ambient trigger
     native.js           the iPad bridge — capabilities, calls, pushed events
     sheet.js            modal sheets, in their own layer above any panel
     palette.js          every data-driven colour: severity, temperature, radar
@@ -319,7 +346,9 @@ js/
     weather-widget.js  weather-panel.js
     calendar-widget.js calendar-panel.js
     air-widget.js  map.js  radar.js
-    lists.js  chores.js  ambient.js  settings.js
+    lists.js  chores.js  settings.js
+    ambient.js         the screensaver, its info panel, and screen care
+    photo-grid.js      the photo library: thumbnails, reorder, delete
     music-widget.js    the mini player bar
     music-panel.js     Now Playing + Browse
 

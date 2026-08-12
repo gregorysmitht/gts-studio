@@ -9,7 +9,7 @@
 */
 
 import { $ } from './dom.js';
-import { state, on } from './store.js';
+import { state, on, isNightNow } from './store.js';
 import { enterAmbient, exitAmbient, isAmbient } from '../ui/ambient.js';
 import { nativeHas, setBrightness, getBrightness, setKeepAwake } from './native.js';
 
@@ -53,19 +53,9 @@ function resetIdle() {
 
 /* ── Night dimming ────────────────────────────────────────── */
 
-const toMinutes = (hhmm) => {
-  const [h, m] = String(hhmm || '0:00').split(':').map(Number);
-  return (h || 0) * 60 + (m || 0);
-};
-
-/** Handles windows that wrap past midnight (22:00 → 06:30). */
-export function isNightNow(now = new Date()) {
-  if (!state.night.enabled) return false;
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  const start = toMinutes(state.night.start);
-  const end = toMinutes(state.night.end);
-  return start <= end ? minutes >= start && minutes < end : minutes >= start || minutes < end;
-}
+/* `isNightNow` moved to store.js: ambient mode needs to ask the same
+   question, and it cannot import this file without making a cycle. */
+export { isNightNow } from './store.js';
 
 let brightnessRestored = null;
 
