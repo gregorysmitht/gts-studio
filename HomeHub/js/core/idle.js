@@ -58,6 +58,12 @@ function resetIdle() {
 export { isNightNow } from './store.js';
 
 let brightnessRestored = null;
+/* What we last told the panel, so a minute that changed nothing costs
+   nothing. This runs sixty times an hour for the life of the hub, and
+   DisplayBridge is @MainActor — writing the same brightness back over
+   and over is main-thread work for no visible effect, which is the same
+   mistake the music poll was making. */
+let brightnessSet = null;
 
 /**
  * In the browser this can only lay a black veil over the page — the
@@ -76,7 +82,10 @@ function applyNight() {
     if (night && brightnessRestored == null) {
       getBrightness().then((level) => { brightnessRestored = level ?? 1; });
     }
-    if (target != null) setBrightness(target).catch(() => {});
+    if (target != null && target !== brightnessSet) {
+      brightnessSet = target;
+      setBrightness(target).catch(() => { brightnessSet = null; });
+    }
     if (!night) brightnessRestored = null;
     return;
   }
