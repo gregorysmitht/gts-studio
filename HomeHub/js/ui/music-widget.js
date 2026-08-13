@@ -109,6 +109,21 @@ function render(bar) {
     );
   }
 
+  /* The cover often lands a beat after the track does (the bridge looks
+     it up in the catalog and pushes again). The rebuild guard above
+     rightly skips same-track pushes — so patch the art in place, or the
+     pill shows the fallback note for the whole song. */
+  const wrap = bar.querySelector('.mini-art-wrap');
+  if (artworkUrl && wrap) {
+    const img = wrap.querySelector('img.mini-art');
+    if (!img) {
+      fill(wrap, h('img.mini-art', { src: artworkUrl, alt: '', dataset: { src: artworkUrl } }));
+    } else if (img.dataset.src !== artworkUrl) {
+      img.dataset.src = artworkUrl;
+      img.src = artworkUrl;
+    }
+  }
+
   fill($('.mini-play'), icon(player.state === 'playing' ? 'pause' : 'play', { size: 26 }));
   bar.classList.toggle('paused', player.state !== 'playing');
   startTicking(bar);

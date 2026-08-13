@@ -13,18 +13,24 @@
      "center-right". It used to be absolutely centred on the screen,
      which was prettier right up until a long date line (morning's
      "· GOOD MORNING") physically ran underneath it. In flow, a wide
-     neighbour shrinks the pill instead of colliding with it. */
+     neighbour shrinks the pill instead of colliding with it.
+
+     `position: relative` is not decoration: the progress hairline
+     inside is absolutely positioned, and without this it anchors to
+     the whole top bar and draws itself under the date line. */
+  position: relative;
   margin: 0 auto;
   /* Never squeezed past recognisability: art, pause and a sliver of
      title. Below this the date line ellipsizes instead (home.css). */
-  min-width: calc(var(--px) * 210);
-  flex: 0 1 auto;
+  min-width: calc(var(--px) * 240);
+  max-width: calc(var(--px) * 430);
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: calc(var(--px) * 14);
-  /* Handoff pill: 9px all round with 20px on the text end. */
-  padding: calc(var(--px) * 9) calc(var(--px) * 20) calc(var(--px) * 9) calc(var(--px) * 9);
-  border-radius: var(--r-pill);
+  padding: calc(var(--px) * 10) calc(var(--px) * 20) calc(var(--px) * 10) calc(var(--px) * 10);
+  /* A rounded rectangle, not a pill — roomier, more of an object. */
+  border-radius: calc(var(--px) * 18);
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
@@ -55,11 +61,11 @@
   text-align: left;
 }
 
-/* 46px round thumb (handoff §music pill). */
+/* Square art with soft corners — reads as a record, not an avatar. */
 .mini-art-wrap {
-  width: calc(var(--px) * 46);
-  height: calc(var(--px) * 46);
-  border-radius: 50%;
+  width: calc(var(--px) * 52);
+  height: calc(var(--px) * 52);
+  border-radius: calc(var(--px) * 12);
   overflow: hidden;
   flex: none;
   display: grid;
@@ -94,9 +100,9 @@
    halves away, leaving a stub in the middle that reads as a glitch. */
 .mini-progress {
   position: absolute;
-  bottom: calc(var(--u) * 0.75);
-  left: calc(var(--u) * 3);
-  right: calc(var(--u) * 3);
+  bottom: calc(var(--px) * 5);
+  left: calc(var(--px) * 74);
+  right: calc(var(--px) * 20);
   height: 3px;
   border-radius: 3px;
   overflow: hidden;
@@ -180,6 +186,8 @@
   place-items: center;
   color: var(--fg-4);
   background: repeating-linear-gradient(45deg, #232a42, #232a42 14px, #1c2236 14px, #1c2236 28px);
+  /* Grows into the resting gallery and back without a jump. */
+  transition: width 900ms var(--ease-in-out), box-shadow 900ms var(--ease-in-out);
 }
 .np-art {
   width: 100%;
@@ -214,29 +222,86 @@
   margin-top: calc(var(--px) * 8);
 }
 
-/* ── Transport ────────────────────────────────────────────────
-   Fades away when nobody has touched the wall for a while; any
-   activity brings it straight back. */
+/* ── Transport, and the resting gallery ───────────────────────
+   Untouched for a few seconds, the screen stops being a player and
+   becomes the artwork: chrome collapses away, the record grows to the
+   middle of the wall, the title sits under it like a caption, and a
+   quiet clock keeps the corner honest. Any touch brings it all back. */
 
 .np-controls {
   display: flex;
   flex-direction: column;
   gap: calc(var(--px) * 30);
-  transition: opacity 900ms var(--ease-out), transform 900ms var(--ease-out);
+  max-height: calc(var(--px) * 400);
+  transition: opacity 900ms var(--ease-out), transform 900ms var(--ease-out),
+              max-height 900ms var(--ease-in-out);
 }
 
 .panel.resting .np-controls {
   opacity: 0;
   transform: translateY(calc(var(--u) * 2));
   pointer-events: none;
+  max-height: 0;
+  overflow: hidden;
 }
 .panel.resting .panel-head {
   opacity: 0;
   pointer-events: none;
 }
 .panel .panel-head { transition: opacity 900ms var(--ease-out); }
-.panel.resting .np-queue { opacity: 0; }
-.np-queue { transition: opacity 900ms var(--ease-out); }
+
+.np-queue-host {
+  max-height: calc(var(--px) * 120);
+  transition: opacity 900ms var(--ease-out), max-height 900ms var(--ease-in-out);
+}
+.panel.resting .np-queue-host {
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* The gallery composition: one centred column, art dominant. */
+.panel.resting .np-content {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  align-content: center;
+  gap: calc(var(--px) * 36);
+}
+.panel.resting .np-art-wrap {
+  width: min(56vh, 44vw);
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.7),
+              0 0 180px rgba(90, 110, 180, 0.28);
+}
+.panel.resting .np-right { align-items: center; gap: 0; }
+.panel.resting .np-meta { text-align: center; }
+.panel.resting .np-title { font-size: calc(var(--px) * 44); }
+
+/* The corner clock, lit only while resting. */
+.np-clock {
+  position: absolute;
+  left: calc(var(--px) * 40);
+  bottom: calc(var(--px) * 34);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 900ms var(--ease-out);
+}
+.panel.resting .np-clock { opacity: 1; }
+.np-clock-time {
+  font-family: var(--font-display);
+  font-size: calc(var(--px) * 30);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.np-clock-date {
+  margin-top: calc(var(--px) * 4);
+  font-size: calc(var(--px) * 12);
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(231, 234, 244, 0.45);
+}
 
 .np-scrub { display: flex; flex-direction: column; gap: calc(var(--px) * 10); }
 .np-times {

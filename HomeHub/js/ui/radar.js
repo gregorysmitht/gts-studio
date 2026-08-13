@@ -142,14 +142,24 @@ export function mountRadar(container, { onAlertTap } = {}) {
 
   let index = null;
 
-  async function loadFrames() {
+  async function loadFrames({ keepPosition = false } = {}) {
     try {
+      /* Hold the scrub position across refreshes as an offset from the
+         newest observed frame, so a re-index under the user's finger
+         doesn't yank the timeline back to Now. */
+      const offset = keepPosition && view.frames.length
+        ? view.index - view.nowIndex
+        : 0;
+
       index = await loadRadarIndex();
       view.frames = index.frames;
       view.nowIndex = index.nowIndex;
-      view.index = index.nowIndex;
+      view.index = Math.max(0, Math.min(view.frames.length - 1, index.nowIndex + offset));
       renderTimeline();
       showFrame(view.index);
+      /* One line per refresh so a Safari-console look on the device
+         shows the exact tile URLs if anything still misrenders. */
+      console.info('[radar] overlay', frameTemplate(index, view.frames[view.nowIndex] ?? view.frames[0], { scheme: view.scheme }));
       // Warm the neighbouring frames so the loop starts smoothly.
       for (const frame of view.frames.slice(Math.max(0, view.nowIndex - 3), view.nowIndex + 3)) {
         map.preload(frameTemplate(index, frame, { scheme: view.scheme }));
@@ -161,6 +171,17 @@ export function mountRadar(container, { onAlertTap } = {}) {
         'Live radar could not be reached. Check the network connection.'));
     }
   }
+
+  /* A wall display leaves this panel open for hours, and RainViewer
+     only keeps about two hours of frames — an index loaded once goes
+     stale and every expired tile comes back as the "Zoom Level Not
+     Supported" placeholder. Re-index continuously, and again whenever
+     the iPad wakes from an overnight idle. */
+  const reindexTimer = setInterval(() => loadFrames({ keepPosition: true }), 5 * 60e3);
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') loadFrames({ keepPosition: true });
+  };
+  document.addEventListener('visibilitychange', onVisible);
 
   function showFrame(i) {
     if (!index || !view.frames.length) return;
@@ -265,6 +286,8 @@ export function mountRadar(container, { onAlertTap } = {}) {
   return {
     destroy() {
       clearTimeout(timer);
+      clearInterval(reindexTimer);
+      document.removeEventListener('visibilitychange', onVisible);
       map.destroy();
     },
     refresh() {

@@ -40,7 +40,7 @@
       ['cal-work',   'Client call',          1, 10, 0, 1, 10, 45, 'Zoom'],
       ['cal-family', 'Farmers market',       3, 9, 0, 3, 11, 0, 'Atherton Mill'],
     ];
-    return raw
+    const list = raw
       .filter(([calId]) => !ids?.length || ids.includes(calId))
       .map(([calId, title, d1, h1, m1, d2, h2, m2, location], i) => {
         const cal = CALENDARS.find((c) => c.id === calId);
@@ -57,8 +57,31 @@
           color: cal.color,
           recurring: false,
         };
-      })
-      .filter((e) => e.end > +from && e.start < +to);
+      });
+
+    /* Two real-device shapes the tidy tuples above hid: an all-day
+       event (must render, "All day", first) and the same event carried
+       by two subscribed calendars (must render once). */
+    const family = CALENDARS.find((c) => c.id === 'cal-family');
+    const school = CALENDARS.find((c) => c.id === 'cal-school');
+    list.push({
+      id: 'mock-allday', uid: 'mock-allday',
+      title: "Nana's birthday",
+      start: at(0, 0), end: at(1, 0),
+      allDay: true, location: '', description: '',
+      calendarId: family.id, calendarName: family.name, color: family.color,
+      recurring: false,
+    });
+    list.push({
+      id: 'mock-dupe', uid: 'mock-dupe',
+      title: 'Soccer practice',
+      start: at(0, 16, 0), end: at(0, 17, 30),
+      allDay: false, location: 'Freedom Park — Field 3', description: '',
+      calendarId: school.id, calendarName: school.name, color: school.color,
+      recurring: false,
+    });
+
+    return list.filter((e) => e.end > +from && e.start < +to);
   }
 
   /* ── Reminders ──────────────────────────────────────────────

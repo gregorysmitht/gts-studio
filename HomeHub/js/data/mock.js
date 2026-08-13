@@ -243,6 +243,30 @@ export function mockStorms(place = PLACE) {
       distanceMiles: 690,
       demo: true,
     },
+    /* Far out in the Atlantic — exists to prove distant systems render
+       as one quiet line under the day's real warnings, not as a stack
+       of stat cards above them. */
+    {
+      id: 'demo-al05',
+      name: 'Cristobal',
+      classification: 'TD',
+      category: 0,
+      windKt: 30,
+      windMph: 35,
+      pressure: 1014,
+      lat: 14.2,
+      lon: -38.5,
+      movementDir: 285,
+      movementSpeed: 16,
+      basin: 'AT5',
+      lastUpdate: new Date(Date.now() - 55 * 60e3),
+      advisoryUrl: null,
+      coneGraphic: null,
+      label: 'Tropical Depression',
+      color: '#7FB4D4',
+      distanceMiles: 2547,
+      demo: true,
+    },
   ];
 }
 
@@ -303,6 +327,38 @@ export function mockEvents() {
     allDay: true,
     location: '',
     description: 'Bins to the curb by 7 AM.',
+    calendarId: CAL.family.id,
+    calendarName: CAL.family.name,
+    color: CAL.family.color,
+    demo: true,
+  });
+
+  /* Today's fixtures for two real-device bugs: an all-day event (the
+     wall must show it, "All day", first) and the same event carried by
+     two calendars at once (the wall must say it once). */
+  events.push({
+    id: 'demo-ev-allday-today',
+    uid: 'demo-ev-allday-today',
+    title: "Nana's birthday",
+    start: at(0, 0),
+    end: at(1, 0),
+    allDay: true,
+    location: '',
+    description: '',
+    calendarId: CAL.family.id,
+    calendarName: CAL.family.name,
+    color: CAL.family.color,
+    demo: true,
+  });
+  events.push({
+    id: 'demo-ev-dupe',
+    uid: 'demo-ev-dupe',
+    title: 'Varsity Volleyball Pre-Season Meeting',
+    start: at(0, 16, 0),
+    end: at(0, 17, 30),
+    allDay: false,
+    location: 'Freedom Park — Field 3',
+    description: '',
     calendarId: CAL.family.id,
     calendarName: CAL.family.name,
     color: CAL.family.color,

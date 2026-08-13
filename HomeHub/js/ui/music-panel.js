@@ -10,6 +10,7 @@
    buttons. */
 
 import { h, fill, $, toast } from '../core/dom.js';
+import { clockParts, fullDate } from '../core/time.js';
 import { icon } from './icons.js';
 import { openPanel, onPanelClose, onTabClose, setPanelTab } from '../core/panel.js';
 import { on } from '../core/store.js';
@@ -41,6 +42,7 @@ export function openMusicPanel({ source, tab = 'playing' } = {}) {
       // seconds and interrupt anyone scrolling the browse list.
       paintTransport();
       paintTrack();
+      paintQueue();
       paintBrowseBar();
     });
     onPanelClose(stop);
@@ -103,12 +105,22 @@ function renderNowPlaying(body, panel) {
         ),
       ),
     ),
-    queueBar(),
+    /* A stable slot: the queue itself is repainted on every push, so
+       track changes move the Up Next thumbs along. */
+    h('div.np-queue-host'),
+    /* Only lit while the controls are resting: the room's clock, so the
+       full-art screen still answers the wall's first question. */
+    h('div.np-clock',
+      h('div.np-clock-time.num'),
+      h('div.np-clock-date'),
+    ),
   );
 
   fill(body, stage);
   paintTrack();
   paintTransport();
+  paintQueue();
+  paintNpClock();
   startScrubLoop();
   armFade(panel ?? stage);
 
@@ -121,22 +133,36 @@ function renderNowPlaying(body, panel) {
 
 const nextRepeat = (mode) => ({ off: 'all', all: 'one', one: 'off' }[mode] ?? 'off');
 
-/* "UP NEXT · two thumbs · Queue · 12 tracks" (handoff 2b). Only when the
-   bridge actually reports a queue — the web player often can't see it. */
-function queueBar() {
+/* "UP NEXT · two thumbs · Queue · N tracks" (handoff 2b). Repainted on
+   every push, so the thumbs move along when the track does. Only when
+   the bridge actually reports a queue. */
+function paintQueue() {
+  const host = $('.np-queue-host');
+  if (!host) return;
   const queue = player.queue ?? [];
-  if (!queue.length) return null;
-  return h('div.np-queue',
+  if (!queue.length) return fill(host);
+  fill(host, h('div.np-queue',
     h('span.np-queue-label', 'Up next'),
     ...queue.slice(0, 2).flatMap((track) => [
       h('div.np-queue-art', artOrNote(track.artworkUrl, 18, `queued "${track.title}"`)),
       h('div.np-queue-meta',
         h('div.np-queue-title', track.title),
-        h('div.np-queue-artist', track.artist ?? ''),
+        h('div.np-queue-artist', track.subtitle ?? track.artist ?? ''),
       ),
     ]),
     queue.length > 2 ? h('span.np-queue-count', `Queue · ${queue.length} tracks`) : null,
-  );
+  ));
+}
+
+/* The resting clock. Cheap to keep honest: the scrub loop already runs
+   once a second and calls this when the minute turns. */
+function paintNpClock() {
+  const time = $('.np-clock-time');
+  const date = $('.np-clock-date');
+  if (!time) return;
+  const { hour, minute, period } = clockParts(new Date());
+  fill(time, `${hour}:${minute}${period ? ` ${period}` : ''}`);
+  fill(date, fullDate(new Date()));
 }
 
 function reportError(err) {
@@ -233,6 +259,8 @@ function startScrubLoop() {
       lastSecond = second;
       elapsed.textContent = formatTime(at);
       remaining.textContent = `-${formatTime(Math.max(0, duration - at))}`;
+      // The resting wall clock only needs the minute boundary.
+      if (new Date().getSeconds() === 0) paintNpClock();
     }
 
     /* The mini player drives its own hairline on a one-second timer, so

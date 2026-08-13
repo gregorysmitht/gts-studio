@@ -45,9 +45,17 @@ export function renderCalendarWidget(card) {
   }
 
   const now = Date.now();
-  const today = eventsOnDay(events, new Date())
-    .filter((ev) => !ev.allDay)
-    .sort((a, b) => +a.start - +b.start);
+  /* Deduped: a family event often lives on two subscribed calendars at
+     once, and the wall should not say it twice. All-day events stay in
+     (a birthday is the day's most important row); eventsOnDay already
+     sorts them first. */
+  const seen = new Set();
+  const today = eventsOnDay(events, new Date()).filter((ev) => {
+    const key = `${ev.title}|${+ev.start}|${+ev.end}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
   const reminders = remindersAvailable() ? openReminders() : [];
   const overdue = reminders.filter(isOverdue);
   const dueToday = reminders.filter((r) => !isOverdue(r) && r.due && isToday(r.due));
@@ -56,13 +64,15 @@ export function renderCalendarWidget(card) {
     return fill(card, header(0, 0), emptyState(events));
   }
 
-  /* The pin: the running event, else the soonest still ahead. Falls
-     through to tomorrow's first once today is out of events. */
-  let pinned = today.find(isNow) ?? today.find((ev) => +ev.start > now) ?? null;
+  /* The pin: the running event, else the soonest still ahead. All-day
+     events never pin — there is nothing to count down to. Falls through
+     to tomorrow's first once today is out of events. */
+  const timed = today.filter((ev) => !ev.allDay);
+  let pinned = timed.find(isNow) ?? timed.find((ev) => +ev.start > now) ?? null;
   let pinnedTomorrow = false;
   if (!pinned) {
     pinned = upcoming(events, { limit: 1, days: 2 })
-      .filter((ev) => !isToday(ev.start))[0] ?? null;
+      .filter((ev) => !isToday(ev.start) && !ev.allDay)[0] ?? null;
     pinnedTomorrow = !!pinned;
   }
 
@@ -142,7 +152,7 @@ function eventRow(ev, now) {
   const done = +ev.end < now;
   return h(`button.up-row.no-expand${done ? '.done' : ''}`, {
     onclick: (e) => { e.stopPropagation(); openEventModal(ev); },
-    'aria-label': `${ev.title}, ${clockTime(ev.start)}`,
+    'aria-label': `${ev.title}, ${ev.allDay ? 'all day' : clockTime(ev.start)}`,
   },
     done
       ? h('span.up-tick', '✓')
@@ -151,7 +161,7 @@ function eventRow(ev, now) {
       h('div.up-title', ev.title),
       !done && ev.location ? h('div.up-sub', ev.location) : null,
     ),
-    h('span.up-time', clockTime(ev.start)),
+    h('span.up-time', ev.allDay ? 'All day' : clockTime(ev.start)),
   );
 }
 

@@ -184,6 +184,16 @@ export function renderForecast(card) {
 
   fill(card,
     h('div.label', 'Next 5 days'),
+    /* Column captions, sharing the row's exact widths so each caption
+       sits over its number: low left of the bar, high right of it,
+       rain chance on the end. */
+    h('div.fc-head',
+      h('span.fc-day'),
+      h('span.fc-lo', 'L'),
+      h('div.fc-bar-space'),
+      h('span.fc-hi', 'H'),
+      h('span.fc-pop', 'Rain'),
+    ),
     h('div.fc-rows', ...days.map((day) => dayRow(day, { min, span }))),
   );
 }
@@ -194,15 +204,17 @@ function dayRow(day, { min, span }) {
   const right = 100 - ((day.hi - min) / span) * 100;
   const wet = (day.precipChance ?? 0) >= 70;
 
+  /* Reads as the bar it decorates: low on the left end, high on the
+     right end, the rain odds after everything. */
   return h(`div.fc-row${today ? '.today' : ''}`,
     h('span.fc-day', today ? 'Today' : weekday(day.date)),
-    h(`span.fc-pop${wet ? '.wet' : ''}`, day.precipChance >= 5 ? percent(day.precipChance) : ''),
+    h('span.fc-lo.num', temp(day.lo)),
     h('div.fc-bar',
       h('div.fc-bar-fill', {
         style: { left: `${left.toFixed(0)}%`, right: `${right.toFixed(0)}%` },
       }),
     ),
-    h('span.fc-lo.num', temp(day.lo)),
     h('span.fc-hi.num', temp(day.hi)),
+    h(`span.fc-pop${wet ? '.wet' : ''}`, day.precipChance >= 5 ? percent(day.precipChance) : ''),
   );
 }

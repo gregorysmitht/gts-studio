@@ -278,12 +278,28 @@
   justify-content: space-around;
 }
 
-.fc-row {
+.fc-row, .fc-head {
   display: flex;
   align-items: center;
   gap: calc(var(--px) * 16);
   min-width: 0;
 }
+
+/* Column captions over the numbers they describe. */
+.fc-head {
+  flex: none;
+  font-size: calc(var(--px) * 12);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.fc-head .fc-lo, .fc-head .fc-hi, .fc-head .fc-pop {
+  color: var(--hh-label);
+  opacity: 1;
+  font-size: inherit;
+  font-weight: inherit;
+}
+.fc-head .fc-bar-space { flex: 1; min-width: calc(var(--px) * 60); }
 .fc-day {
   font-size: calc(var(--px) * 17);
   font-weight: 500;
@@ -300,6 +316,7 @@
   color: var(--hh-text);
   opacity: 0.4;
   white-space: nowrap;
+  text-align: right;
 }
 .fc-pop.wet { color: var(--hh-rain-blue); opacity: 1; }
 
@@ -326,6 +343,8 @@
   color: var(--hh-text);
   opacity: 0.5;
   min-width: calc(var(--px) * 36);
+  /* Left of the bar now: right-aligned so the numbers butt up against
+     the track they label. */
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -400,12 +419,15 @@
 .up-pin.activity .up-pin-badge { color: #9fc0ea; }
 .up-pin.now .up-pin-badge { color: #e3b98a; }
 
-/* The list distributes vertically; hairlines between rows. */
+/* Top-anchored, not distributed: space-between looked composed with a
+   full day of rows and broken with two — the last row sat pinned to the
+   card's foot across a void, reading as a stray future event. A short
+   day is a short list. */
 .up-rows {
   display: flex;
   flex-direction: column;
   flex: 1;
-  justify-content: space-between;
+  justify-content: flex-start;
   min-height: 0;
   overflow: hidden;
 }
@@ -555,8 +577,12 @@
 
   .grid {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1.25fr 0.9fr;
+    grid-template-rows: auto 1.15fr 1fr;
   }
+
+  /* The caption row costs height the portrait card doesn't have. */
+  .fc-card { padding-top: calc(var(--px) * 14); }
+  .fc-rows { gap: calc(var(--px) * 8); }
   .wx-card  { grid-column: 1; grid-row: 1; }
   .cal-card { grid-column: 1; grid-row: 2; }
   .fc-card  { grid-column: 1; grid-row: 3; }

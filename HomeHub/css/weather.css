@@ -585,3 +585,43 @@
 /* Refresh button spin. */
 .icon-btn.spinning svg { animation: spin 900ms linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Distant tropical systems: one line each ─────────────────
+   Being watched, not a local threat — they must not outrank a warning
+   that is in effect on this street today. */
+
+.storm-lines {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--r-md);
+  background: var(--glass-well);
+  border: 1px solid var(--glass-line-2);
+  padding: calc(var(--u) * 0.5) calc(var(--u) * 2);
+}
+.storm-line {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+  padding: calc(var(--u) * 1.5) 0;
+  border-bottom: 1px solid var(--glass-line-2);
+  min-width: 0;
+}
+.storm-line:last-child { border-bottom: none; }
+.storm-line-icon { color: var(--storm, var(--fg-3)); flex: none; display: grid; place-items: center; }
+.storm-line-name { font-weight: 650; white-space: nowrap; }
+.storm-line-label {
+  color: var(--fg-3);
+  font-size: var(--t-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+}
+.storm-line-dist {
+  color: var(--fg-3);
+  font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex: none;
+}

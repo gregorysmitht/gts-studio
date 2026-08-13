@@ -238,7 +238,25 @@ final class MusicBridge {
         let start = entries.firstIndex { $0.id == entry.id }.map { $0 + 1 } ?? 0
         out["queue"] = entries[start..<min(start + 3, entries.count)]
             .map { entry -> [String: Any] in
-                [
+                /* Same story as the current track: a queue entry from a
+                   playlist carries the playlist's cover (or none), and
+                   the underlying song is a stub whose artwork lives in
+                   the catalog. Reuse the cache; a miss kicks off the
+                   same fire-and-forget lookup, which pushes a fresh
+                   snapshot when it lands. */
+                var art = artworkURL(entry.artwork, size: 200)
+                if case let .song(song)? = entry.item {
+                    if let own = song.artwork { art = artworkURL(own, size: 200) }
+                    if art is NSNull {
+                        let key = song.id.rawValue
+                        if let cached = artCache[key], !cached.isEmpty {
+                            art = cached
+                        } else if artCache[key] == nil {
+                            findArtwork(for: song.id)
+                        }
+                    }
+                }
+                return [
                     // Every id crosses into JavaScript, so it has to be a
                     // String: JSONSerialization rejects anything else and
                     // the push would silently vanish.
@@ -246,7 +264,7 @@ final class MusicBridge {
                     "type": "song",
                     "title": entry.title,
                     "subtitle": entry.subtitle ?? "",
-                    "artworkUrl": artworkURL(entry.artwork, size: 200),
+                    "artworkUrl": art,
                 ]
             }
 

@@ -358,9 +358,12 @@ export function composeLines() {
   if (state.ambient.showAgenda !== false) {
     const today = restOfToday();
     for (const ev of today) {
-      const running = isNow(ev);
-      const soon = running || +ev.start - now <= SOON;
-      add(running ? RANK.eventNow : soon ? RANK.eventSoon : RANK.eventLater,
+      /* An all-day event is technically "in progress" from midnight to
+         midnight, which would let a birthday outrank overdue work and a
+         storm window all day long. It is context, not urgency. */
+      const running = !ev.allDay && isNow(ev);
+      const soon = running || (!ev.allDay && +ev.start - now <= SOON);
+      add(ev.allDay ? RANK.eventLater : running ? RANK.eventNow : soon ? RANK.eventSoon : RANK.eventLater,
         eventLine(ev, running ? 'Now' : clockTime(ev.start)));
     }
     /* Once today is done, "nothing else today" is a weak thing to leave

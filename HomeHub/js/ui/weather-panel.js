@@ -406,20 +406,53 @@ function renderAlerts(body) {
     ));
   }
 
-  fill(body,
-    storms.length
-      ? h('div.section',
-          h('div.section-head', h('div.label', 'Tropical systems')),
-          h('div.storm-cards', ...storms.map(stormCard)),
-        )
-      : null,
+  /* Today's warnings first, always — a heat advisory in effect matters
+     more than a depression 3,000 miles out. Distant systems compress to
+     one line each; only something close enough to plan around keeps the
+     full stat card. */
+  const NEARBY_MILES = 750;
+  const near = storms.filter((s) => s.distanceMiles == null || s.distanceMiles <= NEARBY_MILES);
+  const far = storms.filter((s) => s.distanceMiles != null && s.distanceMiles > NEARBY_MILES);
 
+  fill(body,
     alerts.length
       ? h('div.section',
           h('div.section-head', h('div.label', `${alerts.length} active alert${alerts.length > 1 ? 's' : ''}`)),
           h('div.alert-cards', ...alerts.map(alertCard)),
         )
       : null,
+
+    near.length
+      ? h('div.section',
+          h('div.section-head', h('div.label', 'Tropical systems')),
+          h('div.storm-cards', ...near.map(stormCard)),
+        )
+      : null,
+
+    far.length
+      ? h('div.section',
+          h('div.section-head',
+            h('div.label', 'Distant systems'),
+            h('div.note', 'being watched, no local threat'),
+          ),
+          h('div.storm-lines', ...far.map(stormLine)),
+        )
+      : null,
+  );
+}
+
+/** A distant system in one line: name, class, how far. */
+function stormLine(storm) {
+  return h('div.storm-line', { style: { '--storm': storm.color } },
+    h('span.storm-line-icon', icon('hurricane', { size: 20 })),
+    h('span.storm-line-name', storm.name),
+    h('span.storm-line-label', storm.label),
+    h('span.storm-line-dist',
+      `${Math.round(storm.distanceMiles).toLocaleString()} mi away`,
+      storm.movementDir != null && storm.movementSpeed
+        ? ` · ${windDir(storm.movementDir)} at ${storm.movementSpeed} mph`
+        : null,
+    ),
   );
 }
 

@@ -33,7 +33,7 @@ const SKIP = new Set(['dbg', 'alert-debug', 'fade-probe', 'ambient-shot',
      and hardcodes the pre-handoff layout. */
   'topbar-fit']);
 
-const CONCURRENCY = 3;
+const CONCURRENCY = 4;
 const TIMEOUT_S = 150;
 
 const args = process.argv.slice(2);
