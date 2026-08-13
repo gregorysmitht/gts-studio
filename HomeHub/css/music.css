@@ -217,10 +217,17 @@
   text-wrap: balance;
 }
 .np-artist {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--px) * 8);
   font-size: calc(var(--px) * 22);
   color: rgba(231, 234, 244, 0.6);
   margin-top: calc(var(--px) * 8);
+  min-width: 0;
 }
+.np-artist span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-artist.no-album .np-artist-dot,
+.np-artist.no-album .np-album-name { display: none; }
 
 /* ── Transport, and the resting gallery ───────────────────────
    Untouched for a few seconds, the screen stops being a player and
@@ -244,11 +251,24 @@
   max-height: 0;
   overflow: hidden;
 }
+/* Gone, not just dimmed: an invisible header still held its strip of
+   lighter panel above the stage, which read as a grey bar across the
+   top of the artwork. Collapse it so the gallery owns every pixel. */
 .panel.resting .panel-head {
   opacity: 0;
   pointer-events: none;
+  max-height: 0;
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+  overflow: hidden;
 }
-.panel .panel-head { transition: opacity 900ms var(--ease-out); }
+.panel .panel-head {
+  max-height: calc(var(--u) * 16);
+  transition: opacity 900ms var(--ease-out), max-height 900ms var(--ease-in-out),
+              padding 900ms var(--ease-in-out), min-height 900ms var(--ease-in-out);
+}
 
 .np-queue-host {
   max-height: calc(var(--px) * 120);
@@ -275,13 +295,35 @@
 }
 .panel.resting .np-right { align-items: center; gap: 0; }
 .panel.resting .np-meta { text-align: center; }
-.panel.resting .np-title { font-size: calc(var(--px) * 44); }
+/* The caption, set like a gallery card: the work, the artist, and the
+   record as a small tracked footnote. */
+.panel.resting .np-title { font-size: calc(var(--px) * 46); }
+.panel.resting .np-artist {
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--px) * 9);
+  margin-top: calc(var(--px) * 14);
+}
+.panel.resting .np-artist-name {
+  font-size: calc(var(--px) * 20);
+  font-weight: 500;
+  color: rgba(231, 234, 244, 0.72);
+}
+.panel.resting .np-artist-dot { display: none; }
+.panel.resting .np-album-name {
+  font-size: calc(var(--px) * 12);
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(231, 234, 244, 0.42);
+}
 
-/* The corner clock, lit only while resting. */
+/* The corner clock — top right, lit only while resting. */
 .np-clock {
   position: absolute;
-  left: calc(var(--px) * 40);
-  bottom: calc(var(--px) * 34);
+  right: calc(var(--px) * 44);
+  top: calc(var(--px) * 36);
+  text-align: right;
   opacity: 0;
   pointer-events: none;
   transition: opacity 900ms var(--ease-out);
@@ -289,19 +331,31 @@
 .panel.resting .np-clock { opacity: 1; }
 .np-clock-time {
   font-family: var(--font-display);
-  font-size: calc(var(--px) * 30);
+  font-size: calc(var(--px) * 32);
   font-weight: 500;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums lining-nums;
 }
 .np-clock-date {
-  margin-top: calc(var(--px) * 4);
+  margin-top: calc(var(--px) * 5);
   font-size: calc(var(--px) * 12);
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: rgba(231, 234, 244, 0.45);
 }
+.np-clock-temp {
+  margin-top: calc(var(--px) * 8);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: calc(var(--px) * 7);
+  font-size: calc(var(--px) * 17);
+  font-weight: 500;
+  color: rgba(231, 234, 244, 0.7);
+  font-variant-numeric: tabular-nums;
+}
+.np-clock-temp .wx-icon { width: calc(var(--px) * 20); height: calc(var(--px) * 20); }
 
 .np-scrub { display: flex; flex-direction: column; gap: calc(var(--px) * 10); }
 .np-times {

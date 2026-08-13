@@ -11,7 +11,9 @@
 
 import { h, fill, $, toast } from '../core/dom.js';
 import { clockParts, fullDate } from '../core/time.js';
-import { icon } from './icons.js';
+import { temp } from '../core/format.js';
+import { live } from '../data/hub.js';
+import { icon, weatherIcon } from './icons.js';
 import { openPanel, onPanelClose, onTabClose, setPanelTab } from '../core/panel.js';
 import { on } from '../core/store.js';
 import {
@@ -67,7 +69,13 @@ function renderNowPlaying(body, panel) {
       h('div.np-right',
         h('div.np-meta',
           h('div.np-title'),
-          h('div.np-artist'),
+          /* Artist and record as separate spans: one line with a dot in
+             the player, a stacked caption in the resting gallery. */
+          h('div.np-artist',
+            h('span.np-artist-name'),
+            h('span.np-artist-dot', '·'),
+            h('span.np-album-name'),
+          ),
         ),
         h('div.np-controls',
           h('div.np-scrub',
@@ -113,6 +121,7 @@ function renderNowPlaying(body, panel) {
     h('div.np-clock',
       h('div.np-clock-time.num'),
       h('div.np-clock-date'),
+      h('div.np-clock-temp'),
     ),
   );
 
@@ -163,6 +172,12 @@ function paintNpClock() {
   const { hour, minute, period } = clockParts(new Date());
   fill(time, `${hour}:${minute}${period ? ` ${period}` : ''}`);
   fill(date, fullDate(new Date()));
+
+  const tempEl = $('.np-clock-temp');
+  const now = live.weather?.current;
+  if (tempEl && now) {
+    fill(tempEl, weatherIcon(now.condition, { size: 20, night: now.night }), temp(now.temp));
+  }
 }
 
 function reportError(err) {
@@ -187,8 +202,10 @@ function paintTrack() {
     console.info(`[music] no artwork for "${title}"`);
   }
   fill($('.np-title'), title ?? '');
-  /* One line, artist and record together, per the handoff. */
-  fill($('.np-artist'), [artist, album].filter(Boolean).join(' · '));
+  fill($('.np-artist-name'), artist ?? '');
+  fill($('.np-album-name'), album ?? '');
+  /* No record name → no dangling dot. */
+  $('.np-artist')?.classList.toggle('no-album', !album);
 
   // Mini player too, if it's on screen.
   const miniArt = $('.mini-art');
