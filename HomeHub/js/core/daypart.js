@@ -20,14 +20,6 @@ export function daypart(date = new Date()) {
   return 'night';
 }
 
-/** The date line's suffix — only two dayparts greet (handoff 3a/3c). */
-export function greetingSuffix(date = new Date()) {
-  const part = daypart(date);
-  if (part === 'morning') return ' · GOOD MORNING';
-  if (part === 'evening') return ' · GOOD EVENING';
-  return '';
-}
-
 export function startDaypart() {
   const apply = () => {
     const part = daypart();

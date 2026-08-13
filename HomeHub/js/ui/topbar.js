@@ -5,7 +5,6 @@
 
 import { h, fill, $ } from '../core/dom.js';
 import { clockParts, fullDate } from '../core/time.js';
-import { greetingSuffix } from '../core/daypart.js';
 import { icon } from './icons.js';
 import { on } from '../core/store.js';
 import { isDemo } from '../data/hub.js';
@@ -36,17 +35,17 @@ function startTicking() {
 function renderClock() {
   const el = $('.topbar-clock');
   if (el) fill(el, ...clockNodes());
-  /* The date line carries the daypart greeting (handoff 3a/3c), so the
-     minute tick refreshes it too — midnight and the 5pm→6pm boundary
-     both change this text. */
+  /* The minute tick refreshes the date too — midnight changes it. */
   const date = $('.topbar-date');
   if (date) fill(date, dateLine());
 }
 
-/* "THURSDAY, AUGUST 13 · GOOD MORNING" — the greeting is part of the
-   date line, morning and evening only, per the handoff. */
+/* Just the date. The handoff appended "· GOOD MORNING" here; it was
+   tried and asked off — the same words for six hours at a stretch, on
+   the line that holds the room's calendar. The daypart still drives
+   the palette; it just no longer speaks. */
 function dateLine() {
-  return fullDate(new Date()) + greetingSuffix();
+  return fullDate(new Date());
 }
 
 function clockNodes() {

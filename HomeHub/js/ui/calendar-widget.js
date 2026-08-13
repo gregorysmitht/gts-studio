@@ -6,11 +6,11 @@
    just its remainder. */
 
 import { h, fill, toast } from '../core/dom.js';
-import { clockTime, isToday } from '../core/time.js';
+import { clockTime, isToday, relativeDay } from '../core/time.js';
 import { icon } from './icons.js';
 import { makeExpandable } from '../core/panel.js';
 import { live } from '../data/hub.js';
-import { eventsOnDay, upcoming, isNow } from '../data/calendar.js';
+import { eventsOnDay, upcoming, groupByDay, isNow } from '../data/calendar.js';
 import { nextPrecipWindow } from '../data/weather.js';
 import { openCalendarPanel } from './calendar-panel.js';
 import { openEventModal } from './event-modal.js';
@@ -92,6 +92,26 @@ export function renderCalendarWidget(card) {
     ...dueToday.map((r) => ({ at: r.due ? +r.due : Infinity, el: reminderRow(r, {}) })),
   ].sort((a, b) => a.at - b.at);
   rows.push(...entries.map((e) => e.el));
+
+  /* Then the days ahead, grouped under their own headers, until the
+     card runs out of room — trimToWholeRows cuts at the last day that
+     fits whole. A wall with three events today has space to say what
+     Saturday holds. */
+  const ahead = upcoming(events, { limit: 14, days: 21 })
+    .filter((ev) => !isToday(ev.start) && ev !== pinned)
+    .filter((ev) => {
+      const key = `${ev.title}|${+ev.start}|${+ev.end}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  for (const { day, events: dayEvents } of groupByDay(ahead)) {
+    rows.push(h('div.up-section',
+      h('span.label', relativeDay(day)),
+      h('span.note', String(dayEvents.length)),
+    ));
+    rows.push(...dayEvents.map((ev) => eventRow(ev, now)));
+  }
 
   fill(card,
     header(remaining, overdue.length),
