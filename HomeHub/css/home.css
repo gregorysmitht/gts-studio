@@ -138,8 +138,8 @@
 
 /* ─────────────────────────────────────────────────────────
    GRID
-   Landscape iPad: weather is the anchor, calendar runs full
-   height beside it, small tiles stack down the right edge.
+   Landscape iPad: weather is the anchor, its forecast sits
+   beneath it, and the calendar runs full height beside them.
    ───────────────────────────────────────────────────────── */
 
 .grid {
@@ -148,15 +148,14 @@
   display: grid;
   gap: var(--gap);
   grid-template-columns: repeat(12, 1fr);
-  grid-template-rows: 1.5fr 0.95fr 1.15fr;
+  grid-template-rows: 1.75fr 1fr;
 }
 
-.wx-card    { grid-column: 1 / 6;   grid-row: 1 / 3; }
-.cal-card   { grid-column: 6 / 10;  grid-row: 1 / 4; }
-.air-card   { grid-column: 10 / 13; grid-row: 1 / 2; }
-.list-card  { grid-column: 10 / 13; grid-row: 2 / 3; }
-.chore-card { grid-column: 10 / 13; grid-row: 3 / 4; }
-.fc-card    { grid-column: 1 / 6;   grid-row: 3 / 4; }
+/* Two columns now, not three: the sky on the left, the family on the
+   right. Weather over its forecast, calendar full height beside them. */
+.wx-card    { grid-column: 1 / 7;  grid-row: 1 / 2; }
+.fc-card    { grid-column: 1 / 7;  grid-row: 2 / 3; }
+.cal-card   { grid-column: 7 / 13; grid-row: 1 / 3; }
 
 /* ── Current weather card ─────────────────────────────────── */
 
@@ -694,24 +693,26 @@
    Portrait / narrow: restack into a single readable column
    ───────────────────────────────────────────────────────── */
 
-/* Portrait: a tall, narrow board. Six cards only fit here if the whole
-   interface comes down a notch, and the weather card takes two rows so
-   the temperature keeps its presence. */
+/* Portrait: a tall, narrow board. Three cards stack full-width — the
+   temperature up top, the schedule in the middle where eye level lands
+   on a hung iPad, the week along the bottom. No density cut needed any
+   more; three cards have the room six never did. */
 @media (orientation: portrait), (max-aspect-ratio: 5/4) {
-  :root { --density: 0.85; }
+  /* A softer cut than the 0.85 the six-card board needed: three cards
+     fit at full size, but the top bar still has to seat the music pill
+     between its two ends on a 1024-wide screen. */
+  :root { --density: 0.9; }
 
   .grid {
-    grid-template-columns: repeat(6, 1fr);
-    grid-template-rows: 1.3fr 1.3fr 0.95fr 1.25fr 0.95fr;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1.55fr 1.3fr 0.75fr;
   }
-  .wx-card    { grid-column: 1 / 7; grid-row: 1 / 3; }
-  .cal-card   { grid-column: 1 / 4; grid-row: 3 / 5; }
-  .fc-card    { grid-column: 4 / 7; grid-row: 3 / 4; }
-  .air-card   { grid-column: 4 / 7; grid-row: 4 / 5; }
-  .list-card  { grid-column: 1 / 4; grid-row: 5 / 6; }
-  .chore-card { grid-column: 4 / 7; grid-row: 5 / 6; }
+  /* The base spans (1/7, 7/13) would mint implicit columns beside the
+     single 1fr track and quietly halve every card, so pin the column. */
+  .wx-card    { grid-column: 1 / -1; grid-row: 1 / 2; }
+  .cal-card   { grid-column: 1 / -1; grid-row: 2 / 3; }
+  .fc-card    { grid-column: 1 / -1; grid-row: 3 / 4; }
 
-  .fc-col .wx-icon { width: calc(var(--u) * 3.75); height: calc(var(--u) * 3.75); }
   .topbar-date { white-space: nowrap; }
 }
 
@@ -724,7 +725,7 @@
     grid-auto-rows: minmax(calc(var(--u) * 26), auto);
     overflow-y: auto;
   }
-  .wx-card, .cal-card, .fc-card, .air-card, .list-card, .chore-card {
+  .wx-card, .cal-card, .fc-card {
     grid-column: 1 / -1;
     grid-row: auto;
   }

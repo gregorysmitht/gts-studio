@@ -4,31 +4,27 @@ import { $, fill } from '../core/dom.js';
 import { on } from '../core/store.js';
 import { createWeatherWidget, createForecastWidget, renderWeather, renderForecast } from './weather-widget.js';
 import { createCalendarWidget, renderCalendarWidget } from './calendar-widget.js';
-import { createAirWidget, renderAir } from './air-widget.js';
-import { createListsWidget } from './lists.js';
-import { createChoresWidget } from './chores.js';
 
 let widgets = {};
 
+/* Three cards, not six. Air quality, lists and chores came off the wall:
+   they were the three smallest tiles, read the least, and cost the two
+   cards a family actually walks up for — weather and the schedule —
+   a third of the screen between them. Their panels and data still
+   exist; they just need a new front door when one is wanted. */
 export function mountHome() {
   const grid = $('#grid');
 
   widgets = {
     weather: createWeatherWidget(),
     calendar: createCalendarWidget(),
-    air: createAirWidget(),
     forecast: createForecastWidget(),
-    lists: createListsWidget(),
-    chores: createChoresWidget(),
   };
 
   fill(grid,
     widgets.weather,
     widgets.calendar,
-    widgets.air,
     widgets.forecast,
-    widgets.lists,
-    widgets.chores,
   );
 
   /* Each feed repaints only the cards that show it. */
@@ -36,12 +32,10 @@ export function mountHome() {
     renderWeather(widgets.weather);
     renderForecast(widgets.forecast);
   });
-  on('air', () => renderAir(widgets.air));
   on('calendar', () => renderCalendarWidget(widgets.calendar));
   on('reminders', () => renderCalendarWidget(widgets.calendar));
   on('settings', () => {
     renderWeather(widgets.weather);
     renderForecast(widgets.forecast);
-    renderAir(widgets.air);
   });
 }
