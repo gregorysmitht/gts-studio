@@ -14,7 +14,8 @@ import { clockParts, fullDate } from '../core/time.js';
 import { temp } from '../core/format.js';
 import { live } from '../data/hub.js';
 import { icon, weatherIcon } from './icons.js';
-import { openPanel, onPanelClose, onTabClose, setPanelTab } from '../core/panel.js';
+import { openPanel, closePanel, onPanelClose, onTabClose, setPanelTab } from '../core/panel.js';
+import { enterAmbient } from './ambient.js';
 import { on } from '../core/store.js';
 import {
   player, livePosition, formatTime, hasTrack,
@@ -64,6 +65,11 @@ function renderNowPlaying(body, panel) {
      palette with a bottom ambient glow rather than a blurred blow-up
      of the record — flatter, per the handoff. */
   const stage = h('div.np-stage',
+    /* The record colours the room: the same artwork, blown up and
+       heavily blurred, breathes behind the composition. A scrim keeps
+       the type honest on bright covers. */
+    h('div.np-backdrop'),
+    h('div.np-backdrop-scrim'),
     h('div.np-content',
       h('div.np-art-wrap', h('img.np-art', { alt: '' })),
       h('div.np-right',
@@ -123,6 +129,12 @@ function renderNowPlaying(body, panel) {
       h('div.np-clock-date'),
       h('div.np-clock-temp'),
     ),
+    /* The way out to the photo screensaver, for when the room would
+       rather look at the holiday than the record. */
+    h('button.np-saver-btn.no-expand', {
+      onclick: () => { closePanel().then(() => enterAmbient()); },
+      'aria-label': 'Switch to the photo screensaver',
+    }, icon('moon', { size: 20 })),
   );
 
   fill(body, stage);
@@ -198,6 +210,8 @@ function paintTrack() {
     // and fails to fetch looks exactly like one that never arrived.
     art.onerror = () => console.warn(`[music] now-playing artwork failed: ${artworkUrl}`);
     art.src = artworkUrl;
+    const backdrop = $('.np-backdrop');
+    if (backdrop) backdrop.style.backgroundImage = `url("${artworkUrl}")`;
   } else if (!artworkUrl) {
     console.info(`[music] no artwork for "${title}"`);
   }
@@ -674,7 +688,20 @@ async function start(tile, type, item) {
   }
 }
 
-/* ── Authorisation prompt, used by Settings ───────────────── */
+/* ── The music screensaver ────────────────────────────────────
+   While something is playing, the idle timeout lands here instead of
+   the photo slideshow: the full-screen player opens (or stays), and
+   its own six-second fade takes it to the resting gallery. The button
+   in the gallery's corner is the way across to the photos. */
+
+export function enterMusicSaver() {
+  if (!hasTrack() || player.state !== 'playing') return false;
+  /* Already on the wall: reopening would rebuild the stage and wake the
+     controls — the opposite of a screensaver settling in. */
+  if ($('.panel .np-stage')) return true;
+  openMusicPanel({ tab: 'playing' });
+  return true;
+}
 
 export async function ensureMusicAccess() {
   const status = await musicAuthStatus();

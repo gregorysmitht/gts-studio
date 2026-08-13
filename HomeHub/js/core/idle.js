@@ -11,6 +11,7 @@
 import { $ } from './dom.js';
 import { state, on, isNightNow } from './store.js';
 import { enterAmbient, exitAmbient, isAmbient } from '../ui/ambient.js';
+import { enterMusicSaver } from '../ui/music-panel.js';
 import { nativeHas, setBrightness, getBrightness, setKeepAwake } from './native.js';
 
 const ACTIVITY = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
@@ -47,7 +48,12 @@ function resetIdle() {
   if (!state.ambient.enabled) return;
   const delay = Math.max(1, state.ambient.idleMinutes) * 60e3;
   idleTimer = setTimeout(() => {
-    if (!isAmbient()) enterAmbient();
+    if (isAmbient()) return;
+    /* Music playing → the full-screen player is the screensaver: it
+       opens (or stays put) and its own fade settles into the resting
+       gallery. The button in its corner crosses to the photos. */
+    if (enterMusicSaver()) return;
+    enterAmbient();
   }, delay);
 }
 

@@ -161,6 +161,31 @@
   gap: calc(var(--px) * 20);
 }
 
+/* The record colouring the room: the artwork blown far past the frame
+   and heavily blurred, so the ground shifts with every album. Kept low
+   in the active player; it breathes up when the gallery takes over. */
+.np-backdrop {
+  position: absolute;
+  inset: calc(var(--px) * -80);
+  background-size: cover;
+  background-position: center;
+  filter: blur(calc(var(--px) * 90)) saturate(1.5) brightness(0.85);
+  transform: scale(1.2);
+  opacity: 0.3;
+  transition: opacity 900ms var(--ease-in-out),
+              background-image var(--dur-panel) var(--ease-out);
+  pointer-events: none;
+}
+.panel.resting .np-backdrop { opacity: 0.55; }
+/* Keeps the type honest over a bright cover. */
+.np-backdrop-scrim {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 90% at 50% 40%, transparent 30%, rgba(11, 14, 24, 0.55) 100%),
+              rgba(11, 14, 24, 0.30);
+  pointer-events: none;
+}
+
 .np-content {
   position: relative;
   flex: 1;
@@ -271,6 +296,7 @@
 }
 
 .np-queue-host {
+  position: relative;   /* above the absolute backdrop */
   max-height: calc(var(--px) * 120);
   transition: opacity 900ms var(--ease-out), max-height 900ms var(--ease-in-out);
 }
@@ -356,6 +382,24 @@
   font-variant-numeric: tabular-nums;
 }
 .np-clock-temp .wx-icon { width: calc(var(--px) * 20); height: calc(var(--px) * 20); }
+
+/* Bottom right: the way across to the photo screensaver. Quiet always,
+   present in both states — a passer-by should find it, not notice it. */
+.np-saver-btn {
+  position: absolute;
+  right: calc(var(--px) * 44);
+  bottom: calc(var(--px) * 34);
+  width: calc(var(--px) * 48);
+  height: calc(var(--px) * 48);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(11, 14, 24, 0.35);
+  color: rgba(231, 234, 244, 0.55);
+  display: grid;
+  place-items: center;
+  z-index: 2;
+}
+.np-saver-btn:active { background: rgba(255, 255, 255, 0.12); color: var(--hh-text); }
 
 .np-scrub { display: flex; flex-direction: column; gap: calc(var(--px) * 10); }
 .np-times {
