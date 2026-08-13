@@ -63,21 +63,24 @@ export function renderWeather(card) {
   card.classList.toggle('has-alert', !!(model.alerts ?? []).length);
 
   fill(card,
+    /* No "Now" label: next to a live temperature the size of a fist it
+       said nothing. The temperature, the conditions and today's range
+       read as one statement down the left; the glyph is the visual on
+       the right, not a second column of text. */
     h('div.wx-top',
       h('div.wx-now',
-        h('div.label', h('span.dot'), 'Now'),
         h('div.wx-temp.num', temp(now.temp)),
+        h('div.wx-summary', now.summary || CONDITION_LABEL[now.condition]),
         h('div.wx-hilo',
-          today ? h('span.hi', icon('chevronUp', { size: 18, stroke: 2.6 }), temp(today.hi)) : null,
-          today ? h('span.lo', icon('chevronDown', { size: 18, stroke: 2.6 }), temp(today.lo)) : null,
+          today ? h('span.hi', h('span.hl', 'H'), temp(today.hi)) : null,
+          today ? h('span.lo', h('span.hl', 'L'), temp(today.lo)) : null,
+          now.feelsLike != null && Math.abs(now.feelsLike - now.temp) >= 3
+            ? h('span.wx-feels', `Feels ${temp(now.feelsLike)}`)
+            : null,
         ),
       ),
       h('div.wx-glyph',
         weatherIcon(now.condition, { size: 116, night: now.night }),
-        h('div.wx-summary', now.summary || CONDITION_LABEL[now.condition]),
-        now.feelsLike != null && Math.abs(now.feelsLike - now.temp) >= 3
-          ? h('div.wx-feels', `Feels like ${temp(now.feelsLike)}`)
-          : null,
       ),
     ),
 
@@ -140,9 +143,11 @@ function hourColumn(hour, index) {
     h('div.wx-hour-label', index === 0 ? 'Now' : hourLabel(hour.time)),
     weatherIcon(hour.condition, { size: 40, night: hour.night }),
     h('div.wx-hour-temp.num', temp(hour.temp)),
+    /* Dry hours say nothing: a row of eight em-dashes was pure noise.
+       The element stays for the column rhythm; only wet hours speak. */
     h(`div.wx-hour-precip${stormy ? '.storm' : wet ? '.wet' : '.dry'}`,
       stormy ? icon('bolt', { size: 14, stroke: 2.4 }) : null,
-      wet || stormy ? percent(Math.max(hour.precipChance, hour.thunderChance)) : '—',
+      wet || stormy ? percent(Math.max(hour.precipChance, hour.thunderChance)) : '',
     ),
   );
 }

@@ -193,60 +193,69 @@
 
 .wx-hilo {
   display: flex;
+  align-items: baseline;
   gap: calc(var(--u) * 2.5);
   margin-top: calc(var(--u) * 1.5);
   font-size: var(--t-md);
   font-weight: 500;
   letter-spacing: var(--track-wide);
+  font-variant-numeric: tabular-nums lining-nums;
 }
-.wx-hilo span { display: inline-flex; align-items: center; gap: calc(var(--u) * 0.25); }
+.wx-hilo span { display: inline-flex; align-items: baseline; gap: calc(var(--u) * 0.5); }
 .wx-hilo .hi { color: var(--warm); }
 .wx-hilo .lo { color: var(--cool); }
+/* Tracked caps rather than chevron glyphs — the letters read as part of
+   the masthead type system; the arrows read as UI chrome. */
+.wx-hilo .hl {
+  font-size: var(--t-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--fg-3);
+}
 
 .wx-glyph {
   margin-left: auto;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  text-align: right;
+  align-items: center;
   min-width: 0;
 }
 .wx-glyph .wx-icon { filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.3)); }
 
+/* Under the temperature, not beside the glyph: "80° Partly Cloudy" is
+   one statement and reads as one column of type. */
 .wx-summary {
   font-family: var(--font-display);
-  font-size: var(--t-lg);
+  font-size: var(--t-xl);
   font-weight: 400;
   letter-spacing: var(--track-snug);
-  margin-top: calc(var(--u) * 0.75);
+  margin-top: calc(var(--u) * 1.25);
   line-height: 1.12;
 }
 .wx-feels {
   font-size: var(--t-xs);
   color: var(--fg-3);
-  margin-top: calc(var(--u) * 0.75);
   letter-spacing: var(--track-wide);
 }
 
+/* A plain line, not a pill. Stacked under the alert bar the two outlined
+   pills competed; now the alert is the only bordered thing on the card,
+   which is exactly the hierarchy a warning deserves. */
 .wx-timing {
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 1.25);
   margin-top: auto;
-  padding: calc(var(--u) * 1.25) calc(var(--u) * 1.75);
-  border-radius: var(--r-pill);
-  background: var(--glass-well);
-  border: 1px solid var(--glass-line-2);
+  padding: calc(var(--u) * 1) calc(var(--u) * 0.25);
   font-size: var(--t-sm);
   flex: none;
   overflow: hidden;
 }
-.wx-timing.storm { border-color: rgba(232, 194, 106, 0.32); color: var(--thunder); }
-.wx-timing.rain  { border-color: rgba(127, 180, 212, 0.32); color: var(--rain); }
+.wx-timing.storm { color: var(--thunder); }
+.wx-timing.rain  { color: var(--rain); }
 .wx-timing.clear { color: var(--good); }
 /* Something happening within the hour — brass, because it's the line
    most worth noticing on the whole screen. */
-.wx-timing.now { border-color: rgba(221, 178, 124, 0.42); color: var(--accent); }
+.wx-timing.now { color: var(--accent); }
 
 .wx-timing-label {
   font-size: var(--t-xs);
@@ -310,6 +319,8 @@
   gap: 2px;
   font-size: var(--t-xs);
   font-weight: 650;
+  /* Empty when dry — but still one line tall, so the columns keep rank. */
+  min-height: calc(var(--t-xs) * 1.2);
 }
 .wx-hour-precip.dry { color: var(--fg-4); }
 .wx-hour-precip.wet { color: var(--rain); }
