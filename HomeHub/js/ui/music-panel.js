@@ -41,6 +41,7 @@ export function openMusicPanel({ source, tab = 'playing' } = {}) {
       // seconds and interrupt anyone scrolling the browse list.
       paintTransport();
       paintTrack();
+      paintBrowseBar();
     });
     onPanelClose(stop);
   });
@@ -188,6 +189,20 @@ function paintTransport() {
   }
 }
 
+/* Keep the browse foot bar honest without rebuilding the tab. */
+function paintBrowseBar() {
+  const bar = $('.browse-now');
+  if (!bar || !player.track) return;
+  fill($('.browse-now-title'),
+    [player.track.title, player.track.artist].filter(Boolean).join(' — '));
+  fill($('.browse-now-state'), icon(player.state === 'playing' ? 'pause' : 'play', { size: 16 }));
+  const remaining = $('.browse-now-time');
+  const duration = player.track.duration ?? 0;
+  if (remaining && duration) {
+    fill(remaining, `-${formatTime(Math.max(0, duration - livePosition()))}`);
+  }
+}
+
 /** Advance the scrubber locally rather than polling the bridge. */
 function startScrubLoop() {
   cancelAnimationFrame(rafId);
@@ -272,13 +287,40 @@ function emptyState() {
   );
 }
 
-/* ── Browse ───────────────────────────────────────────────── */
+/* ── Browse (handoff 4a) & search results (4b) ───────────────
+   One body, two states. Idle: search pill, mood chips, Recently
+   played grid, Your playlists grid, now-playing bar. Typing: the
+   4b results grid replaces the browse sections live. */
+
+/* Each chip is a curated catalog search — the mood is the query. */
+const MOODS = [
+  ['For tonight', 'evening acoustic'],
+  ['Dinner', 'dinner jazz'],
+  ['Focus', 'focus instrumental'],
+  ['Kids', 'kids songs'],
+  ['Rainy day', 'rainy day'],
+  ['Wind down', 'wind down sleep'],
+];
 
 function renderBrowse(body) {
-  const results = h('div.browse-results');
-  const input = h('input.text-input', {
+  const results = h('div.browse-body');
+  const chips = h('div.browse-chips',
+    ...MOODS.map(([label, term]) =>
+      h('button.chip.no-expand', {
+        onclick: (e) => {
+          const on = e.currentTarget.classList.contains('on');
+          chips.querySelectorAll('.chip.on').forEach((c) => c.classList.remove('on'));
+          input.value = '';
+          if (on) return runSearch('', body, results);
+          e.currentTarget.classList.add('on');
+          runSearch(term, body, results, { immediate: true });
+        },
+      }, label)),
+  );
+
+  const input = h('input.search-input', {
     type: 'search',
-    placeholder: 'Search songs, albums, playlists…',
+    placeholder: 'Search artists, songs, albums…',
     autocapitalize: 'off',
     // iPadOS otherwise floats an autocorrect bubble ("sun-kissed ×")
     // under the field, over the results. Artist names are not words.
@@ -287,64 +329,116 @@ function renderBrowse(body) {
     // Boolean, not the string 'false' — which is truthy, and quietly
     // turned spellchecking back on.
     spellcheck: false,
-    oninput: () => scheduleSearch(input.value, results),
+    oninput: () => {
+      chips.querySelectorAll('.chip.on').forEach((c) => c.classList.remove('on'));
+      runSearch(input.value, body, results);
+    },
   });
+  const clear = h('button.search-clear.no-expand', {
+    onclick: () => { input.value = ''; runSearch('', body, results); input.focus(); },
+  }, '✕ clear');
 
   fill(body,
-    h('div.list-add.grow.browse-search', icon('search', { size: 22 }), input),
+    h('div.browse-top',
+      h('label.search-pill',
+        icon('search', { size: 20 }),
+        input,
+        clear,
+      ),
+      connectionStatus(),
+    ),
+    chips,
     results,
+    browseNowBar(),
   );
 
-  loadShelves(results);
+  loadHome(results);
+}
+
+function connectionStatus() {
+  const el = h('div.music-status',
+    h('span.music-status-dot'),
+    h('span.music-status-text', 'Apple Music'),
+  );
+  musicAuthStatus().then((status) => {
+    const ok = status === 'granted';
+    el.classList.toggle('ok', ok);
+    fill(el.querySelector('.music-status-text'),
+      ok ? 'Apple Music connected' : musicBlockedReason() || 'Apple Music');
+  }).catch(() => {});
+  return el;
+}
+
+/* The pinned bar at the foot of browse: what's playing, one tap back
+   to the full-screen player. */
+function browseNowBar() {
+  if (!hasTrack()) return null;
+  const t = player.track;
+  return h('button.browse-now.no-expand', {
+    onclick: () => setPanelTab('playing'),
+    'aria-label': 'Open Now Playing',
+  },
+    h('div.browse-now-art', artOrNote(t.artworkUrl, 16, `"${t.title}"`)),
+    h('div.browse-now-title', [t.title, t.artist].filter(Boolean).join(' — ')),
+    h('span.browse-now-time.num'),
+    h('span.browse-now-state', icon(player.state === 'playing' ? 'pause' : 'play', { size: 16 })),
+  );
 }
 
 let searchTimer = null;
-function scheduleSearch(term, host) {
+function runSearch(term, body, host, { immediate } = {}) {
   clearTimeout(searchTimer);
-  if (!term.trim()) return loadShelves(host);
+  body.classList.toggle('searching', !!term.trim());
+  if (!term.trim()) return loadHome(host);
   searchTimer = setTimeout(async () => {
     try {
-      const { songs, albums, playlists: found } = await search(term);
-      fill(host,
-        shelf('Songs', songs, 'song'),
-        shelf('Albums', albums, 'album'),
-        shelf('Playlists', found, 'playlist'),
-      );
-      if (!songs?.length && !albums?.length && !found?.length) {
-        fill(host, h('div.empty', 'No matches'));
-      }
+      const found = await search(term);
+      if (body.isConnected) renderResults(host, term, found);
     } catch (err) {
       fill(host, h('div.empty', err.message));
     }
-  }, 350);
+  }, immediate ? 0 : 250);
 }
 
-async function loadShelves(host) {
+/* ── 4a: browse home ─────────────────────────────────────── */
+
+async function loadHome(host) {
   fill(host, h('div.empty', 'Loading…'));
 
   /* allSettled, not all: these are two independent requests, and with
      Promise.all a single failure replaced the entire tab — search box
-     included — with one error line. Whatever came back should still be
-     shown, and the search above keeps working regardless. */
+     included — with one error line. */
   const [recent, mine] = await Promise.allSettled([recentlyPlayed(), playlists()]);
 
-  const shelves = [];
+  const sections = [];
   if (recent.status === 'fulfilled' && recent.value.length) {
-    shelves.push(shelf('Recently played', recent.value, null));
+    sections.push(
+      h('section.browse-section',
+        h('div.section-head', h('div.label', 'Recently played')),
+        h('div.recent-grid',
+          ...recent.value.slice(0, 5).map((item, i) => recentTile(item, i === 0)),
+        ),
+      ),
+    );
   }
   if (mine.status === 'fulfilled' && mine.value.length) {
-    shelves.push(shelf('Your playlists', mine.value, 'playlist'));
+    sections.push(
+      h('section.browse-section.grow',
+        h('div.section-head',
+          h('div.label', 'Your playlists'),
+          h('div.note', `${mine.value.length} playlists`),
+        ),
+        h('div.pl-grid', ...mine.value.slice(0, 6).map(playlistCard)),
+      ),
+    );
   }
-  if (shelves.length) return fill(host, ...shelves);
+  if (sections.length) return fill(host, ...sections);
 
   const failed = [recent, mine].find((r) => r.status === 'rejected');
-
   /* Prefer the reason we understand. MusicKit reports a missing
      subscription and a missing permission the same way — as a bare
-     MusicDataRequest error — so the framework's own message is the least
-     useful thing we could put on a wall. */
+     MusicDataRequest error. */
   const known = musicBlockedReason();
-
   fill(host, h('div.empty',
     icon('music', { size: 34 }),
     h('div', known || (failed ? failed.reason.message : 'Nothing to show yet')),
@@ -353,6 +447,129 @@ async function loadShelves(host) {
       failed ? 'Searching still works — try an artist or album above.'
              : 'Search for a song, album or playlist above.'),
   ));
+}
+
+function recentTile(item, first) {
+  return h('button.recent-tile.no-expand', {
+    onclick: (event) => start(event.currentTarget, item.type ?? 'album', item),
+  },
+    h('div.recent-art.play-art',
+      artOrNote(item.artworkUrl, 30, `${item.type} "${item.title}"`),
+      first ? h('span.recent-fab', icon('play', { size: 16 })) : null,
+    ),
+    h('div.recent-title', item.title),
+    h('div.recent-sub', item.subtitle ?? item.artist ?? ''),
+  );
+}
+
+function playlistCard(item) {
+  return h('button.pl-card.no-expand', {
+    onclick: (event) => start(event.currentTarget, 'playlist', item),
+  },
+    h('div.pl-art.play-art', artOrNote(item.artworkUrl, 26, `playlist "${item.title}"`)),
+    h('div.pl-meta',
+      h('div.pl-name', item.title),
+      item.subtitle ? h('div.pl-sub', item.subtitle) : null,
+    ),
+    h('span.pl-play', icon('play', { size: 16 })),
+  );
+}
+
+/* ── 4b: results as you type ─────────────────────────────── */
+
+function renderResults(host, term, { songs = [], albums = [], playlists: lists = [] }) {
+  if (!songs.length && !albums.length && !lists.length) {
+    return fill(host, h('div.empty', 'No matches'));
+  }
+
+  /* Top result: the artist, if the songs agree on one that matches the
+     query; otherwise the first album or playlist. The bridge has no
+     artist entity, so the card is assembled from what came back. */
+  const artist = topArtist(term, songs);
+  const topItem = artist ?? albums[0] ?? lists[0] ?? null;
+
+  fill(host,
+    h('div.search-cols',
+      h('div.search-left',
+        topItem ? h('section.browse-section',
+          h('div.label', 'Top result'),
+          topResultCard(topItem),
+        ) : null,
+        albums.length ? h('section.browse-section',
+          h('div.label', 'Albums'),
+          h('div.album-grid', ...albums.slice(0, 3).map(albumTile)),
+        ) : null,
+        lists.length ? h('section.browse-section',
+          h('div.label', 'Playlists'),
+          h('div.album-grid', ...lists.slice(0, 3).map(albumTile)),
+        ) : null,
+      ),
+      h('div.search-right',
+        h('div.section-head',
+          h('div.label', 'Songs'),
+          songs.length > 6 ? h('div.note', `${songs.length} results`) : null,
+        ),
+        songs.length
+          ? h('div.song-list', ...songs.slice(0, 6).map(songRow))
+          : h('div.empty', 'No songs'),
+        /* No second now-playing bar here: the browse body already pins
+           one at its foot, and it survives the switch into results. */
+      ),
+    ),
+  );
+}
+
+function topArtist(term, songs) {
+  const q = term.trim().toLowerCase();
+  const match = songs.filter((s) => (s.artist ?? '').toLowerCase().includes(q));
+  if (!match.length) return null;
+  const name = match[0].artist;
+  if (!match.every((s) => s.artist === name)) return null;
+  return { type: 'song', id: match[0].id, title: name, subtitle: 'Artist',
+           artworkUrl: match[0].artworkUrl, isArtist: true };
+}
+
+function topResultCard(item) {
+  return h('div.top-result',
+    h(`div.top-result-art.play-art${item.isArtist ? '.round' : ''}`,
+      artOrNote(item.artworkUrl, 34, `"${item.title}"`)),
+    h('div.top-result-main',
+      h('div.top-result-name', item.title),
+      h('div.top-result-sub', item.subtitle ?? ''),
+      h('div.top-result-actions',
+        h('button.tr-btn.primary.no-expand', {
+          onclick: (event) => start(event.currentTarget.closest('.top-result'), item.type, item),
+        }, icon('play', { size: 14 }), 'Play'),
+      ),
+    ),
+  );
+}
+
+function albumTile(item) {
+  return h('button.album-tile.no-expand', {
+    onclick: (event) => start(event.currentTarget, item.type ?? 'album', item),
+  },
+    h('div.album-art.play-art', artOrNote(item.artworkUrl, 26, `${item.type} "${item.title}"`)),
+    h('div.album-name', item.title),
+    item.subtitle ? h('div.album-sub', item.subtitle) : null,
+  );
+}
+
+function songRow(item) {
+  const playing = player.track?.id === item.id;
+  return h(`button.song-row.no-expand${playing ? '.playing' : ''}`, {
+    onclick: (event) => start(event.currentTarget, 'song', item),
+  },
+    h('div.song-art.play-art',
+      artOrNote(item.artworkUrl, 20, `song "${item.title}"`),
+      playing ? h('span.song-playing-glyph', icon('play', { size: 12 })) : null,
+    ),
+    h('div.song-main',
+      h('div.song-title', item.title),
+      h('div.song-sub', [item.artist, item.album].filter(Boolean).join(' · ')),
+    ),
+    playing ? h('span.song-tag', 'Playing') : null,
+  );
 }
 
 /**
@@ -380,23 +597,6 @@ function artOrNote(url, size, label = '') {
   return img;
 }
 
-function shelf(title, items, forcedType) {
-  if (!items?.length) return null;
-  return h('section.shelf',
-    h('div.section-head', h('div.label', title)),
-    h('div.shelf-row.hscroll',
-      ...items.map((item) =>
-        h('button.shelf-item', {
-          onclick: (event) => start(event.currentTarget, forcedType ?? item.type, item),
-        },
-          h('div.shelf-art', artOrNote(item.artworkUrl, 32, `${item.type} "${item.title}"`)),
-          h('div.shelf-title', item.title),
-          h('div.shelf-sub', item.subtitle ?? item.artist ?? ''),
-        )),
-    ),
-  );
-}
-
 /**
  * Tapping something has to say so, immediately.
  *
@@ -410,9 +610,8 @@ function shelf(title, items, forcedType) {
  */
 async function start(tile, type, item) {
   if (tile.classList.contains('starting')) return;   // no double-taps
-  const shelfRow = tile.closest('.shelf-row');
-  shelfRow?.querySelectorAll('.shelf-item.starting')
-    .forEach((el) => el.classList.remove('starting'));
+  tile.closest('.browse-body')?.querySelectorAll('.starting, .started')
+    .forEach((el) => el.classList.remove('starting', 'started'));
   tile.classList.add('starting');
 
   try {
