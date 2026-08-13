@@ -43,16 +43,6 @@ function clockNodes() {
   ];
 }
 
-/** The hospitality register: a room greets you before it informs you. */
-function greeting(now = new Date()) {
-  const hour = now.getHours();
-  if (hour < 5) return 'Good night';
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  if (hour < 21) return 'Good evening';
-  return 'Good night';
-}
-
 /* The two ends are refilled, never the bar itself: the mini player lives
    between them and would be destroyed by a wholesale rebuild every time
    the weather updated. */
@@ -61,8 +51,10 @@ function render() {
   const right = $('.topbar-right');
   if (!left || !right) return;
 
+  /* No greeting. It was the same four words for hours at a stretch, on a
+     screen whose whole job is to say something worth reading, and it
+     pushed the clock down to make room for it. */
   fill(left,
-    h('div.topbar-greeting', greeting()),
     h('div.topbar-clock', ...clockNodes()),
     h('div.topbar-date', fullDate(new Date())),
   );

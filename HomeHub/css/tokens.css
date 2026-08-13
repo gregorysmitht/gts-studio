@@ -23,25 +23,36 @@
   --u: calc(8px * var(--scale) * var(--density) * var(--fit));
 
   /* ── Type ──────────────────────────────────────────────
-     Two faces, and the pairing is what keeps this from
-     reading as a dashboard: an editorial serif carries the
-     things you look at (time, temperature, titles), and the
-     sans carries the things you read (data, labels, rows).
+     Two faces, both geometric, and the contrast is scale and
+     weight rather than serif against sans.
 
-     Both resolve natively on iPad — New York and SF Pro —
-     so the whole typographic identity costs zero bytes and
-     never flashes an unstyled frame.                        */
+     Avenir Next carries the things you look at — the time,
+     the temperature, titles. It is Frutiger's answer to
+     Futura, so it has the circular geometry that reads as
+     sportswear editorial, with humanist proportions and real
+     lining numerals that keep it from feeling like a shop
+     window. Futura itself is the fallback and is the closer
+     reference; it sits second because its numerals are
+     characterful in a way that fights a clock.
+
+     The editorial serif this replaced was doing the premium
+     work honestly enough, but a serif on a clock reads
+     broadsheet, not modern.
+
+     Both resolve natively on iPad, so the whole typographic
+     identity still costs zero bytes and never flashes an
+     unstyled frame.                                         */
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-          "Segoe UI Variable Display", "Segoe UI", Inter, Roboto,
+          "Segoe UI Variable Display", "Segoe UI", Roboto,
           system-ui, sans-serif;
-  --font-display: ui-serif, "New York", "Iowan Old Style", "Palatino Linotype",
-          Palatino, "Hoefler Text", Garamond, Georgia, serif;
+  --font-display: "Avenir Next", Avenir, Futura, "Helvetica Neue",
+          system-ui, sans-serif;
 
   /* Distance-viewing type ramp. Nothing below 15px ships.
-     The hero sits a size below where a sans would, because the serif
-     carries far more visual weight at the same measurement. */
-  --t-hero:     calc(var(--u) * 15);   /* 120px — the temperature      */
-  --t-clock:    calc(var(--u) * 8.5);  /* 68px  — the wall clock       */
+     The hero went UP a size when the serif left: a sans of the same
+     measurement reads smaller, because none of its width is serifs. */
+  --t-hero:     calc(var(--u) * 16.5); /* 132px — the temperature      */
+  --t-clock:    calc(var(--u) * 9.5);  /* 76px  — the wall clock       */
   --t-xxl:      calc(var(--u) * 6);    /* 48px                          */
   --t-xl:       calc(var(--u) * 4.5);  /* 36px                          */
   --t-lg:       calc(var(--u) * 3.5);  /* 28px  — event titles          */
@@ -53,11 +64,14 @@
      the hotel-signage register. They should be findable, not
      loud; the content is what carries weight.                 */
   --label-size: var(--t-xs);
-  --label-track: 0.2em;
-  --label-weight: 600;
+  --label-track: 0.22em;
+  --label-weight: 700;
 
-  --track-tight: -0.02em;    /* large serif numerals           */
-  --track-snug:  -0.01em;    /* headings                       */
+  /* Tighter than a serif wanted. Set large and close is most of what
+     separates editorial from merely large, and geometric letterforms
+     have the even sidebearings to take it without colliding. */
+  --track-tight: -0.038em;   /* the big numerals               */
+  --track-snug:  -0.018em;   /* headings                       */
   --track-wide:  0.02em;
 
   /* ── Rhythm ─────────────────────────────────────────────

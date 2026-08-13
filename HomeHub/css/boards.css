@@ -353,11 +353,15 @@
   text-transform: uppercase;
   color: var(--fg-3);
 }
+/* Same masthead treatment as the top bar, so the two clocks in this
+   house are recognisably the same object. */
 .ambient-date {
-  font-size: var(--t-sm);
+  font-size: var(--t-xs);
+  font-weight: 600;
   color: var(--fg-2);
-  margin-top: calc(var(--u) * 0.5);
-  letter-spacing: var(--track-wide);
+  margin-top: calc(var(--u) * 0.75);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 
 /* One line, not a block: glyph, temperature, range, conditions. */

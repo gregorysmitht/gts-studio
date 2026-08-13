@@ -20,15 +20,6 @@
 
 .topbar-left { min-width: 0; flex: none; }
 
-.topbar-greeting {
-  font-size: var(--label-size);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: calc(var(--u) * 1.25);
-}
-
 .topbar-clock {
   display: flex;
   align-items: baseline;
@@ -38,7 +29,10 @@
 .clock-time {
   font-family: var(--font-display);
   font-size: var(--t-clock);
-  font-weight: 400;
+  /* Hairline. Avenir Next has no 300, so this resolves to Ultra Light,
+     which is the point: set this large, weight is not what carries it,
+     and light type on a dark ground optically thickens anyway. */
+  font-weight: 300;
   letter-spacing: var(--track-tight);
   font-variant-numeric: tabular-nums lining-nums;
   text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35);
@@ -51,12 +45,16 @@
   text-transform: uppercase;
 }
 
+/* Tracked caps under a hairline clock — the masthead move. Sentence
+   case at body size read like a caption sitting under a headline; this
+   reads as part of the same object. */
 .topbar-date {
-  margin-top: calc(var(--u) * 1);
-  font-size: var(--t-md);
-  font-weight: 400;
-  color: var(--fg-2);
-  letter-spacing: var(--track-wide);
+  margin-top: calc(var(--u) * 1.25);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--fg-3);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
   text-shadow: 0 1px 16px rgba(0, 0, 0, 0.3);
 }
 
@@ -186,8 +184,8 @@
   font-family: var(--font-display);
   font-size: var(--t-hero);
   font-weight: 300;
-  line-height: 0.84;
-  letter-spacing: -0.025em;
+  line-height: 0.86;
+  letter-spacing: var(--track-tight);
   font-variant-numeric: lining-nums;
   margin-top: calc(var(--u) * 1);
 }
