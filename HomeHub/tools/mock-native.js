@@ -67,42 +67,52 @@
      states the views have to lay out differently. */
 
   const R_LISTS = [
-    { id: 'rl-home',    name: 'Home',     color: '#8FA98A', source: 'iCloud' },
-    { id: 'rl-errands', name: 'Errands',  color: '#DDB27C', source: 'iCloud' },
-    { id: 'rl-school',  name: 'School',   color: '#7B96B8', source: 'iCloud' },
+    { id: 'rl-home',      name: 'Home',      color: '#8FA98A', source: 'iCloud' },
+    { id: 'rl-errands',   name: 'Errands',   color: '#DDB27C', source: 'iCloud' },
+    { id: 'rl-school',    name: 'School',    color: '#7B96B8', source: 'iCloud' },
+    /* The lists a family links to the hub's Lists/Chores features. */
+    { id: 'rl-groceries', name: 'Groceries', color: '#8FC79A', source: 'iCloud' },
+    { id: 'rl-chores',    name: 'Chores',    color: '#C39ED6', source: 'iCloud' },
   ];
 
+  const rMidnight = new Date(); rMidnight.setHours(0, 0, 0, 0);
+  const rAt = (d, h) => (h == null ? null : +rMidnight + d * 86400e3 + h * 3600e3);
+  /* Mutable so reminders.add / reminders.complete behave like EventKit. */
+  const R_ITEMS = [
+    ['rl-home',      'Change the AC filter',            -2, 9,  1],
+    ['rl-school',    'Sign the field trip form',        -1, 17, 1],
+    ['rl-errands',   'Pick up dry cleaning',             0, 16, 5],
+    ['rl-home',      'Water the front planters',         0, 18, 0],
+    ['rl-school',    'Volleyball registration deadline', 2, 12, 1],
+    ['rl-errands',   'Order more coffee',                4, null, 0],
+    ['rl-home',      'Book the chimney sweep',        null, null, 0],
+    ['rl-groceries', 'Milk',                          null, null, 0],
+    ['rl-groceries', 'Sourdough loaf',                null, null, 0],
+    ['rl-groceries', 'Peanut butter',                 null, null, 0],
+    ['rl-chores',    'Empty the dishwasher',             0, 8,  0],
+    ['rl-chores',    'Take out the bins',                0, 19, 0],
+    ['rl-chores',    'Mow the back yard',                2, 10, 0],
+  ].map(([listId, title, day, hour, priority], i) => {
+    const list = R_LISTS.find((l) => l.id === listId);
+    return {
+      id: `rem-${i}`,
+      title,
+      due: day == null ? null : rAt(day, hour ?? 0),
+      hasTime: hour != null,
+      notes: '',
+      priority,
+      flagged: priority > 0 && priority <= 4,
+      listId: list.id,
+      listName: list.name,
+      color: list.color,
+      completed: false,
+    };
+  });
+
   function reminders(to, ids) {
-    const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
-    const at = (d, h) => (h == null ? null : +midnight + d * 86400e3 + h * 3600e3);
-    const raw = [
-      ['rl-home',    'Change the AC filter',            -2, 9,  1],
-      ['rl-school',  'Sign the field trip form',        -1, 17, 1],
-      ['rl-errands', 'Pick up dry cleaning',             0, 16, 5],
-      ['rl-home',    'Water the front planters',         0, 18, 0],
-      ['rl-school',  'Volleyball registration deadline', 2, 12, 1],
-      ['rl-errands', 'Order more coffee',                4, null, 0],
-      ['rl-home',    'Book the chimney sweep',        null, null, 0],
-    ];
-    return raw
-      .filter(([listId]) => !ids?.length || ids.includes(listId))
-      .map(([listId, title, day, hour, priority], i) => {
-        const list = R_LISTS.find((l) => l.id === listId);
-        const due = day == null ? null : at(day, hour ?? 0);
-        return {
-          id: `rem-${i}`,
-          title,
-          due,
-          hasTime: hour != null,
-          notes: '',
-          priority,
-          flagged: priority > 0 && priority <= 4,
-          listId: list.id,
-          listName: list.name,
-          color: list.color,
-          completed: false,
-        };
-      })
+    return R_ITEMS
+      .filter((r) => !r.completed)
+      .filter((r) => !ids?.length || ids.includes(r.listId))
       .filter((r) => r.due == null || r.due <= +to);
   }
 
@@ -313,7 +323,22 @@
     'reminders.request': () => { reminderAuth = 'granted'; return { status: reminderAuth }; },
     'reminders.lists': () => ({ lists: R_LISTS }),
     'reminders.items': ({ to, listIds }) => ({ reminders: reminders(to, listIds) }),
-    'reminders.complete': ({ done }) => ({ ok: true, completed: !!done }),
+    'reminders.complete': ({ id, done }) => {
+      const item = R_ITEMS.find((r) => r.id === id);
+      if (item) item.completed = done !== false;
+      return { ok: true, completed: done !== false };
+    },
+    'reminders.add': ({ listId, title }) => {
+      const list = R_LISTS.find((l) => l.id === listId);
+      if (!list) throw new Error('That Reminders list no longer exists');
+      const item = {
+        id: `rem-new-${R_ITEMS.length}`, title, due: null, hasTime: false,
+        notes: '', priority: 0, flagged: false,
+        listId: list.id, listName: list.name, color: list.color, completed: false,
+      };
+      R_ITEMS.push(item);
+      return { ok: true, id: item.id };
+    },
 
     'weather.forecast': () => forecast(),
     'display.brightness': () => ({ level: brightness }),

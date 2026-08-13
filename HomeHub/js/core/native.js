@@ -143,6 +143,11 @@ export async function completeReminder(id, done = true) {
   return nativeCall('reminders.complete', { id, done });
 }
 
+/** A grocery typed on the wall lands on every phone. */
+export async function createReminder(listId, title) {
+  return nativeCall('reminders.add', { listId, title });
+}
+
 /* ── Weather ──────────────────────────────────────────────── */
 
 /**

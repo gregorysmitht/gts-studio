@@ -8,6 +8,10 @@ import { h, fill, toast } from '../core/dom.js';
 import { icon } from './icons.js';
 import { makeExpandable, openPanel } from '../core/panel.js';
 import { state, save, uid, on, personById, nextColor, PALETTE } from '../core/store.js';
+import {
+  remindersAvailable, listItems, listName, tickOff, addReminder, isOverdue,
+} from '../data/reminders.js';
+import { isToday } from '../core/time.js';
 
 const dateKey = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -126,6 +130,24 @@ export function renderChores(card) {
 /* ── Panel ────────────────────────────────────────────────── */
 
 export function openChoresPanel({ source } = {}) {
+  /* Linked to a Reminders list: the whole feature becomes a window onto
+     that list. iOS owns the schedule — a repeating reminder rolls to its
+     next occurrence when completed — so the local repeat/streak
+     machinery stands down while a link is set. */
+  const linked = remindersAvailable() ? state.choresLink : null;
+  if (linked) {
+    openPanel({
+      id: 'chores',
+      title: 'Chores',
+      source,
+      tabs: [
+        { id: 'today', label: 'Today', render: (body) => renderLinkedToday(body, linked) },
+        { id: 'upcoming', label: 'Upcoming', render: (body) => renderLinkedUpcoming(body, linked) },
+      ],
+    });
+    return;
+  }
+
   openPanel({
     id: 'chores',
     title: 'Chores',
@@ -140,6 +162,75 @@ export function openChoresPanel({ source } = {}) {
         icon('plus', { size: 24 })),
     ],
   });
+}
+
+/* ── Linked mode (state.choresLink) ───────────────────────── */
+
+function linkedRows(body, linked, items, renderer) {
+  return items.map((r) => h('div.list-item',
+    h('button.check', {
+      onclick: () => {
+        tickOff(r.id, true)
+          .then(() => renderer(body, linked))
+          .catch((err) => toast(err.message, 'warn'));
+      },
+      'aria-label': `Mark ${r.title} done`,
+    }),
+    h('div.chore-linked-main',
+      h('span.list-item-text', r.title),
+      isOverdue(r) ? h('span.chore-linked-tag', 'Overdue') : null,
+    ),
+  ));
+}
+
+/* Due today or already late — the board for right now. Completing a
+   repeating reminder makes EventKit schedule the next occurrence, so
+   recurring chores maintain themselves. */
+function renderLinkedToday(body, linked) {
+  const due = listItems(linked).filter((r) => isOverdue(r) || (r.due && isToday(r.due)));
+
+  const input = h('input.list-input', {
+    type: 'text',
+    placeholder: 'Add a chore…',
+    autocapitalize: 'sentences',
+    enterkeyhint: 'done',
+    onkeydown: (e) => {
+      if (e.key !== 'Enter') return;
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      addReminder(linked, text)
+        .then(() => renderLinkedToday(body, linked))
+        .catch((err) => toast(err.message, 'warn'));
+    },
+  });
+
+  fill(body,
+    h('div.list-add', icon('plus', { size: 24 }), input),
+    due.length
+      ? h('div.list-items', ...linkedRows(body, linked, due, renderLinkedToday))
+      : h('div.empty', icon('check', { size: 44, stroke: 1.6 }), 'All done today'),
+    h('div.list-sync-note',
+      icon('refresh', { size: 16 }),
+      `Synced with Reminders · ${listName(linked) ?? 'Chores'}`,
+      h('span.list-sync-hint', 'Repeats are set in the Reminders app'),
+    ),
+  );
+}
+
+/* Everything else on the list — later this week, and undated someday
+   chores. */
+function renderLinkedUpcoming(body, linked) {
+  const later = listItems(linked).filter((r) => !isOverdue(r) && !(r.due && isToday(r.due)));
+  fill(body,
+    later.length
+      ? h('div.list-items', ...linkedRows(body, linked, later, renderLinkedUpcoming))
+      : h('div.empty', icon('clipboard', { size: 44, stroke: 1.6 }), 'Nothing scheduled ahead'),
+    h('div.list-sync-note',
+      icon('refresh', { size: 16 }),
+      `Synced with Reminders · ${listName(linked) ?? 'Chores'}`,
+    ),
+  );
 }
 
 function renderToday(body) {

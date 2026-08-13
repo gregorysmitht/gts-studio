@@ -17,7 +17,9 @@
   flex: none;
 }
 
-.topbar-left { min-width: 0; flex: none; }
+/* Shrinkable: when the bar is tight the greeting gives way (ellipsis)
+   rather than running under the music pill. */
+.topbar-left { min-width: 0; flex: 0 1 auto; overflow: hidden; }
 
 .topbar-clock {
   display: flex;
@@ -48,6 +50,9 @@
   opacity: 0.45;
   letter-spacing: 0.2em;
   text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .topbar-right {

@@ -123,6 +123,12 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
                 throw BridgeError.badParams("reminders.complete needs an id")
             }
             return try reminders.complete(id: id, done: p["done"] as? Bool ?? true)
+        case "reminders.add":
+            guard let listId = p["listId"] as? String,
+                  let title = p["title"] as? String, !title.isEmpty else {
+                throw BridgeError.badParams("reminders.add needs a listId and a title")
+            }
+            return try reminders.add(listId: listId, title: title)
 
         case "weather.forecast":
             guard let lat = p["lat"] as? Double, let lon = p["lon"] as? Double else {

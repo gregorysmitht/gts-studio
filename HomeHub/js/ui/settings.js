@@ -207,6 +207,32 @@ function renderDevice(body) {
         )
       : null,
 
+    /* Which Reminders list feeds which part of the hub. Created on the
+       phone, picked here — from then on the hub reads it live, ticking
+       syncs back, and typing on the wall creates real reminders. */
+    remindersAvailable()
+      ? group('Connected lists',
+          'Create a list in the Reminders app, then pick it here. ' +
+          'Groceries and To Do drive the Lists screen; Chores gets ' +
+          'iOS repeat rules for free.',
+          linkPicker('Groceries', () => state.listLinks?.groceries, (id) => {
+            state.listLinks = { ...state.listLinks, groceries: id };
+            save('settings');
+            emit('reminders');
+          }),
+          linkPicker('To Do', () => state.listLinks?.todo, (id) => {
+            state.listLinks = { ...state.listLinks, todo: id };
+            save('settings');
+            emit('reminders');
+          }),
+          linkPicker('Chores', () => state.choresLink, (id) => {
+            state.choresLink = id;
+            save('settings');
+            emit('reminders');
+          }),
+        )
+      : null,
+
     group('Calendars on this device',
       'Reading these directly means nothing to paste and nothing to publish — ' +
       'anything the family adds on their own phones appears here.',
@@ -750,6 +776,33 @@ function renderSources(body) {
 }
 
 /* ── Shared controls ──────────────────────────────────────── */
+
+/**
+ * A "which Reminders list backs this?" row: the hub feature on the left,
+ * the device's lists as chips on the right. Tapping the active chip
+ * unlinks; the picker never deletes anything on either side.
+ */
+function linkPicker(label, get, set) {
+  const row = h('div.link-picker.well');
+  const paint = () => {
+    const lists = reminderState.lists ?? [];
+    const current = get();
+    fill(row,
+      h('div.link-picker-label', label),
+      h('div.link-picker-options',
+        h(`button.chip.small${!current ? '.on' : ''}`, {
+          onclick: () => { set(null); paint(); },
+        }, 'Not connected'),
+        ...lists.map((list) =>
+          h(`button.chip.small${current === list.id ? '.on' : ''}`, {
+            onclick: () => { set(current === list.id ? null : list.id); paint(); },
+          }, list.name)),
+      ),
+    );
+  };
+  paint();
+  return row;
+}
 
 function group(title, description, ...children) {
   return h('section.settings-group',

@@ -527,3 +527,33 @@
   .ambient-panel.sky .ambient-clock { font-size: calc(var(--u) * 14); }
   .ambient-panel.night .ambient-clock { font-size: calc(var(--u) * 9.5); }
 }
+
+/* ── Linked-to-Reminders notes on list & chore panels ───────── */
+
+.list-sync-note {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1);
+  margin-top: auto;
+  padding-top: calc(var(--u) * 2);
+  font-size: var(--t-xs);
+  color: var(--fg-3);
+  flex: none;
+}
+.list-sync-hint { color: var(--fg-4); margin-left: calc(var(--u) * 1.5); }
+
+.chore-linked-main {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--u) * 1.5);
+  flex: 1;
+  min-width: 0;
+}
+.chore-linked-tag {
+  font-size: var(--t-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bad);
+  white-space: nowrap;
+}

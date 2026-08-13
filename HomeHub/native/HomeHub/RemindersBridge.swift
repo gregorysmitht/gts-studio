@@ -105,6 +105,24 @@ final class RemindersBridge {
             }
     }
 
+    /// A grocery typed on the wall should land on every phone.
+    ///
+    /// No due date on purpose: things added from the hub's list keyboard
+    /// are "get this sometime soon" items, and an artificial date would
+    /// drag them into the agenda views.
+    func add(listId: String, title: String) throws -> [String: Any] {
+        try requireAccess()
+        guard let list = store.calendars(for: .reminder)
+            .first(where: { $0.calendarIdentifier == listId }) else {
+            throw BridgeError.upstream("That Reminders list no longer exists")
+        }
+        let reminder = EKReminder(eventStore: store)
+        reminder.calendar = list
+        reminder.title = title
+        try store.save(reminder, commit: true)
+        return ["ok": true, "id": reminder.calendarItemIdentifier]
+    }
+
     /// Ticking one off the wall should tick it off everywhere.
     func complete(id: String, done: Bool) throws -> [String: Any] {
         try requireAccess()

@@ -45,6 +45,13 @@ const DEFAULTS = {
   checklists: {},
   leaveLeadMin: 20,
 
+  /* iOS Reminders as the source of truth. listLinks maps a hub list to
+     a Reminders list (hub list id → EKCalendar identifier); choresLink
+     backs the whole chores feature with one Reminders list, whose
+     native repeat rules make recurring chores free. Empty = local. */
+  listLinks: {},
+  choresLink: null,
+
   ambient: {
     enabled: true,
     idleMinutes: 8,

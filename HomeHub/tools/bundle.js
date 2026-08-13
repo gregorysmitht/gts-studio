@@ -162,11 +162,16 @@ function main() {
     || path.join(ROOT, 'dist', 'homehub-single.html');
   let html = read('index.html');
 
-  // Inline stylesheets in document order.
+  // Inline stylesheets in document order. External ones (Google Fonts)
+  // are dropped, not fetched: a single-file build can't carry a CDN
+  // dependency, and every face in tokens.css has a native fallback.
   html = html.replace(
     /[ \t]*<link rel="stylesheet" href="([^"]+)"\/?>\n?/g,
-    (_, href) => `<style>\n/* ── ${href} ── */\n${read(href)}\n</style>\n`
+    (_, href) => /^https?:/i.test(href)
+      ? ''
+      : `<style>\n/* ── ${href} ── */\n${read(href)}\n</style>\n`
   );
+  html = html.replace(/[ \t]*<link rel="preconnect"[^>]*>\n?/g, '');
 
   // Drop everything that needs sibling files: manifest, icons, worker.
   html = html.replace(/[ \t]*<link rel="manifest"[^>]*>\n?/g, '');

@@ -272,3 +272,29 @@
      easing here shows up as the photo lagging behind the touch. */
   transition: box-shadow var(--dur-fast) var(--ease-out);
 }
+
+/* ── Connected Reminders lists (Settings → Device) ──────────── */
+
+.link-picker {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--u) * 2);
+  padding: calc(var(--u) * 1.75) calc(var(--u) * 2);
+}
+.link-picker-label {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  min-width: calc(var(--u) * 14);
+  padding-top: calc(var(--u) * 0.75);
+}
+.link-picker-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 1);
+  flex: 1;
+  min-width: 0;
+}
+.chip.small {
+  padding: calc(var(--px) * 7) calc(var(--px) * 16);
+  font-size: calc(var(--px) * 14);
+}

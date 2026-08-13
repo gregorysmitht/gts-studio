@@ -13,7 +13,7 @@
 
 import {
   nativeHas, remindersAuthStatus, requestRemindersAccess,
-  nativeReminderLists, nativeReminders, completeReminder,
+  nativeReminderLists, nativeReminders, completeReminder, createReminder,
 } from '../core/native.js';
 import { state, save, emit } from '../core/store.js';
 import { startOfDay, addDays } from '../core/time.js';
@@ -71,7 +71,14 @@ export async function loadReminders() {
   try {
     await loadReminderLists();
     const horizon = addDays(startOfDay(new Date()), HORIZON_DAYS);
-    reminderState.items = await nativeReminders(horizon, state.reminderLists ?? []);
+    /* The agenda's list filter must never starve a linked list: a
+       Groceries list excluded from Up Next still has to feed the Lists
+       panel. Union the linked ids into the request ([] still means all). */
+    const chosen = state.reminderLists ?? [];
+    const linked = [...Object.values(state.listLinks ?? {}), state.choresLink]
+      .filter(Boolean);
+    const ids = chosen.length ? [...new Set([...chosen, ...linked])] : [];
+    reminderState.items = await nativeReminders(horizon, ids);
     reminderState.error = null;
   } catch (err) {
     reminderState.error = err.message;
@@ -123,6 +130,14 @@ export async function tickOff(id, done = true) {
   loadReminders();
 }
 
+/* ── Adding ───────────────────────────────────────────────── */
+
+/** Create a reminder in a specific list and refresh. */
+export async function addReminder(listId, title) {
+  await createReminder(listId, title);
+  await loadReminders();
+}
+
 /* ── Queries ──────────────────────────────────────────────── */
 
 const isOverdue = (r) => r.due && r.due < new Date() && !r.completed;
@@ -150,6 +165,20 @@ export function remindersOn(day) {
 
 export function overdueCount() {
   return reminderState.items.filter(isOverdue).length;
+}
+
+/** One list's open items — what a linked hub list renders. Dated first
+    (a grocery with a date means "before Saturday"), undated after, in
+    the order Reminders returned them. */
+export function listItems(listId) {
+  return reminderState.items
+    .filter((r) => !r.completed && r.listId === listId)
+    .sort((a, b) => (a.due ? +a.due : Infinity) - (b.due ? +b.due : Infinity));
+}
+
+/** The linked list's display name, for "Synced with Reminders · X". */
+export function listName(listId) {
+  return reminderState.lists.find((l) => l.id === listId)?.name ?? null;
 }
 
 export { isOverdue };

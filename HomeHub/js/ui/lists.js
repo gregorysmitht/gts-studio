@@ -7,6 +7,9 @@ import { h, fill, $, toast } from '../core/dom.js';
 import { icon } from './icons.js';
 import { makeExpandable, openPanel, closePanel } from '../core/panel.js';
 import { state, save, uid, on } from '../core/store.js';
+import {
+  remindersAvailable, listItems, listName, tickOff, addReminder,
+} from '../data/reminders.js';
 
 const listById = (id) => state.lists.find((l) => l.id === id);
 const pending = (list) => list.items.filter((i) => !i.done).length;
@@ -74,6 +77,13 @@ function renderListPanel(body, listId) {
   const list = listById(listId);
   if (!list) return;
 
+  /* A linked list is a window onto an iOS Reminders list: rows are real
+     reminders, ticking completes them everywhere, and the keyboard
+     creates reminders every phone will see. The local items stay stored
+     untouched underneath in case the link is ever removed. */
+  const linkedTo = remindersAvailable() ? state.listLinks?.[listId] : null;
+  if (linkedTo) return renderLinkedPanel(body, list, linkedTo);
+
   const open = list.items.filter((i) => !i.done);
   const done = list.items.filter((i) => i.done);
 
@@ -120,6 +130,59 @@ function renderListPanel(body, listId) {
           h('div.list-items.done', ...done.map((item) => itemRow(item, list, body))),
         )
       : null,
+  );
+}
+
+function renderLinkedPanel(body, list, reminderListId) {
+  const items = listItems(reminderListId);
+  const sourceName = listName(reminderListId);
+
+  const input = h('input.list-input', {
+    type: 'text',
+    placeholder: `Add to ${list.name}…`,
+    autocapitalize: 'sentences',
+    enterkeyhint: 'done',
+    onkeydown: (e) => {
+      if (e.key !== 'Enter') return;
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      addReminder(reminderListId, text)
+        .then(() => renderLinkedPanel(body, list, reminderListId))
+        .catch((err) => toast(err.message, 'warn'));
+      requestAnimationFrame(() => $('.list-input')?.focus());
+    },
+  });
+
+  fill(body,
+    h('div.list-add', icon('plus', { size: 24 }), input),
+
+    items.length
+      ? h('div.list-items', ...items.map((r) => linkedRow(r, body, list, reminderListId)))
+      : h('div.empty', icon('check', { size: 44, stroke: 1.6 }), 'All clear'),
+
+    h('div.list-sync-note',
+      icon('refresh', { size: 16 }),
+      sourceName
+        ? `Synced with Reminders · ${sourceName}`
+        : 'Synced with the Reminders app',
+    ),
+  );
+}
+
+function linkedRow(reminder, body, list, reminderListId) {
+  return h('div.list-item',
+    h('button.check', {
+      onclick: () => {
+        tickOff(reminder.id, true)
+          .then(() => renderLinkedPanel(body, list, reminderListId))
+          .catch((err) => toast(err.message, 'warn'));
+      },
+      'aria-label': `Mark ${reminder.title} done`,
+    }),
+    h('span.list-item-text', reminder.title),
+    /* No trash button: deleting someone's reminder from the wall is a
+       bigger decision than completing it. That stays on the phone. */
   );
 }
 
