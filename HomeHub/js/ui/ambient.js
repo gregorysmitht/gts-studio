@@ -263,6 +263,9 @@ function paint() {
 
   const night = isNightNow();
   panel.classList.toggle('night', night);
+  /* No photos means the panel is the whole composition, not a caption on
+     one — the type scales up to wall-clock size (see .ambient-panel.sky). */
+  panel.classList.toggle('sky', !reel.length);
 
   const { hour, minute, period } = clockParts(new Date());
 
@@ -384,6 +387,10 @@ export function composeLines() {
   if (weather) add(weather.rank, weather.el);
 
   all.sort((a, b) => a.rank - b.rank);
+  /* Only the most important line gets coloured text. A stack of orange
+     reads as a malfunction; one orange line above neutral ones reads as
+     news. The icons keep their colour everywhere — a mark, not a block. */
+  all[0]?.el.classList.add('lead');
   /* Three is the ceiling for pinning. It is for the handful of things
      worth interrupting a photograph for, and a morning where six are
      true at once is exactly when the wall should not become a list
