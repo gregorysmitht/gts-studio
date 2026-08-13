@@ -1,0 +1,197 @@
+/* ============================================================
+   Event detail modal (design handoff 3d)
+   ============================================================ */
+
+/* The hub blurs and dims underneath (7px at 50%, per the spec). */
+body.modal-open #hub {
+  filter: blur(7px);
+  opacity: 0.5;
+  pointer-events: none;
+  transition: filter 200ms var(--ease-out), opacity 200ms var(--ease-out);
+}
+
+.ev-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 7, 13, 0.55);
+  opacity: 0;
+  transition: opacity 200ms var(--ease-out);
+}
+#sheet-host.in .ev-scrim { opacity: 1; }
+
+/* Self-centred: absolute + inset 0 + auto margins, so it needs nothing
+   from #sheet-host, which also serves the older bottom sheets. */
+.ev-modal {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  height: fit-content;
+  width: min(calc(var(--px) * 640), 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--hh-modal-bg);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: var(--hh-r-modal);
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.65);
+  padding: calc(var(--px) * 32) calc(var(--px) * 36);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 22);
+  transform: scale(0.94);
+  opacity: 0;
+  transition: transform 200ms var(--ease-out), opacity 200ms var(--ease-out);
+}
+#sheet-host.in .ev-modal { transform: scale(1); opacity: 1; }
+
+.ev-head {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--px) * 18);
+}
+.ev-bar {
+  width: calc(var(--px) * 5);
+  align-self: stretch;
+  border-radius: calc(var(--px) * 3);
+  flex: none;
+}
+.ev-head-main { flex: 1; min-width: 0; }
+.ev-title {
+  font-family: var(--font-display);
+  font-size: calc(var(--px) * 34);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.ev-sub {
+  font-size: calc(var(--px) * 17);
+  color: rgba(231, 234, 244, 0.6);
+  margin-top: calc(var(--px) * 6);
+}
+.ev-close {
+  width: calc(var(--px) * 40);
+  height: calc(var(--px) * 40);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: none;
+  color: rgba(231, 234, 244, 0.7);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.ev-close:active { background: rgba(255, 255, 255, 0.12); }
+
+/* Stat tiles (LEAVE BY / WHO'S GOING). */
+.ev-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: calc(var(--px) * 12);
+}
+.ev-tile {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--hh-r-strip);
+  padding: calc(var(--px) * 14) calc(var(--px) * 18);
+  min-width: 0;
+}
+.ev-tile-label {
+  font-size: calc(var(--px) * 11);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hh-label);
+}
+.ev-tile-big {
+  font-family: var(--font-display);
+  font-size: calc(var(--px) * 26);
+  font-weight: 500;
+  margin-top: calc(var(--px) * 6);
+  font-variant-numeric: tabular-nums;
+}
+.ev-tile-sub {
+  font-size: calc(var(--px) * 13);
+  color: rgba(231, 234, 244, 0.5);
+  margin-top: calc(var(--px) * 2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ev-tile-people {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 8);
+  margin-top: calc(var(--px) * 8);
+  min-width: 0;
+}
+.ev-avatar {
+  width: calc(var(--px) * 30);
+  height: calc(var(--px) * 30);
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4a5a80, #2a3350);
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--px) * 12);
+  font-weight: 600;
+  flex: none;
+}
+.ev-tile-names {
+  font-size: calc(var(--px) * 14);
+  color: rgba(231, 234, 244, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Checklist: rounded-square boxes; done = green fill + strikethrough. */
+.ev-checklist { display: flex; flex-direction: column; gap: calc(var(--px) * 10); }
+.ev-check-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 12);
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+.ev-check-box {
+  width: calc(var(--px) * 17);
+  height: calc(var(--px) * 17);
+  border-radius: calc(var(--px) * 5);
+  border: 1.5px solid rgba(231, 234, 244, 0.4);
+  display: grid;
+  place-items: center;
+  color: transparent;
+  flex: none;
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
+}
+.ev-check-row.done .ev-check-box {
+  background: var(--hh-good);
+  border-color: var(--hh-good);
+  color: #0b0e18;
+}
+.ev-check-label { font-size: calc(var(--px) * 16); }
+.ev-check-row.done .ev-check-label {
+  color: rgba(231, 234, 244, 0.55);
+  text-decoration: line-through;
+}
+
+/* Actions: full pills. */
+.ev-actions { display: flex; gap: calc(var(--px) * 10); margin-top: calc(var(--px) * 2); }
+.ev-btn {
+  flex: 1;
+  border-radius: var(--r-pill);
+  padding: calc(var(--px) * 13) 0;
+  text-align: center;
+  font-size: calc(var(--px) * 16);
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(231, 234, 244, 0.85);
+}
+.ev-btn.primary {
+  background: #e7eaf4;
+  color: #0b0e18;
+  border: none;
+}
+.ev-btn:active { transform: scale(0.98); }

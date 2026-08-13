@@ -1,6 +1,7 @@
-/* Home-screen weather: the current conditions plus the next few hours,
-   and a separate five-day card. Both expand into the full panel, where
-   the outlook runs to ten days for anyone who wants that far ahead. */
+/* Home-screen weather, to the design handoff: the "Right Now" card with
+   watch/warning escalation and an 8-hour strip, and the "Next 5 Days"
+   card as rows with horizontal range bars. Both expand into the full
+   panel, where the outlook runs to ten days. */
 
 import { h, fill } from '../core/dom.js';
 import { hourLabel, weekday, isToday, clockTime } from '../core/time.js';
@@ -11,33 +12,6 @@ import { live } from '../data/hub.js';
 import { nextHours, nextPrecipWindow, nextThunderWindow, nowcastSentence } from '../data/weather.js';
 import { CONDITION_LABEL } from '../data/conditions.js';
 import { openWeatherPanel } from './weather-panel.js';
-import { tempColor } from '../core/palette.js';
-
-/**
- * The active warning, if there is one, as a bar across the weather card.
- *
- * Only the most severe is shown — a wall display that lists four
- * advisories teaches people to stop reading them. The count goes on the
- * end so nothing is hidden, and the whole thing opens the Alerts tab.
- */
-function alertLine(model) {
-  const alerts = model.alerts ?? [];
-  if (!alerts.length) return null;
-
-  const rank = (a) => (/extreme/i.test(a.severity) ? 3 : /severe/i.test(a.severity) ? 2
-    : /moderate/i.test(a.severity) ? 1 : 0);
-  const worst = [...alerts].sort((a, b) => rank(b) - rank(a))[0];
-  const loud = rank(worst) >= 2;
-
-  return h(`button.wx-alert${loud ? '.severe' : ''}.no-expand`, {
-    onclick: (e) => { e.stopPropagation(); openWeatherPanel({ tab: 'alerts' }); },
-    'aria-label': `Weather alert: ${worst.event}. Open alerts.`,
-  },
-    icon(worst.isTropical ? 'hurricane' : worst.isThunder ? 'bolt' : 'alert', { size: 22 }),
-    h('span.wx-alert-event', worst.event),
-    alerts.length > 1 ? h('span.wx-alert-more', `+${alerts.length - 1}`) : null,
-  );
-}
 
 /* ── Current conditions + next hours ──────────────────────── */
 
@@ -48,120 +22,140 @@ export function createWeatherWidget() {
   return card;
 }
 
+function worstAlert(model) {
+  const alerts = model.alerts ?? [];
+  if (!alerts.length) return null;
+  const rank = (a) => (/extreme/i.test(a.severity) ? 3 : /severe/i.test(a.severity) ? 2
+    : /moderate/i.test(a.severity) ? 1 : 0);
+  return [...alerts].sort((a, b) => rank(b) - rank(a))[0];
+}
+
 export function renderWeather(card) {
   const model = live.weather;
   if (!model) return fill(card, skeleton());
 
   const now = model.current;
   const today = model.daily?.[0];
-  /* Eight, not six: "will it rain before bedtime" asked mid-afternoon
-     needs to reach the evening, and the card is wide enough now. */
   const hours = nextHours(model, 8);
 
-  /* A warning is an extra bar the card was not sized for, so the hero
-     tightens to make room rather than clipping the hi/lo row. */
-  card.classList.toggle('has-alert', !!(model.alerts ?? []).length);
+  const alert = worstAlert(model);
+  /* Alert escalation (handoff §Interactions): a watch is a strip inside
+     the card; an active *warning* means the whole card adopts the alert
+     styling and the hourly strip switches from glyphs to rain odds. */
+  const warning = !!alert && /warning/i.test(alert.event ?? '');
+  card.classList.toggle('warning', warning);
 
   fill(card,
-    /* No "Now" label: next to a live temperature the size of a fist it
-       said nothing. The temperature, the conditions and today's range
-       read as one statement down the left; the glyph is the visual on
-       the right, not a second column of text. */
+    h('div.label', 'Right now'),
+    warning ? warningHead(alert) : null,
+
     h('div.wx-top',
       h('div.wx-now',
         h('div.wx-temp.num', temp(now.temp)),
         h('div.wx-summary', now.summary || CONDITION_LABEL[now.condition]),
-        h('div.wx-hilo',
-          today ? h('span.hi', h('span.hl', 'H'), temp(today.hi)) : null,
-          today ? h('span.lo', h('span.hl', 'L'), temp(today.lo)) : null,
-          now.feelsLike != null && Math.abs(now.feelsLike - now.temp) >= 3
-            ? h('span.wx-feels', `Feels ${temp(now.feelsLike)}`)
-            : null,
-        ),
-        /* The timing line is the last line of the statement, not a band
-           floating between the hero and the hourly strip. The card reads
-           top to bottom: what it is, what it will be, when it changes. */
-        timingLine(model),
+        h('div.wx-sub', warning ? heaviestLine(model, now) : hiloLine(today)),
       ),
-      h('div.wx-glyph',
-        weatherIcon(now.condition, { size: 116, night: now.night }),
-      ),
+      h('div.wx-glyph', weatherIcon(now.condition, { size: 78, night: now.night })),
     ),
 
-    /* Warnings belong here, beside the conditions they describe, not in
-       the top bar next to the clock. A tornado warning is weather; it
-       should read as the loudest thing on the weather card rather than
-       as a pill in the furniture. */
-    alertLine(model),
+    warning ? null : strip(model, alert),
 
-    h('div.divider'),
-
-    h('div.wx-hours', ...hours.map((hour, i) => hourColumn(hour, i))),
+    h('div.wx-hours', ...hours.map((hour, i) => hourColumn(hour, i, warning))),
   );
+}
+
+/* "SEVERE THUNDERSTORM WARNING · UNTIL 7 PM" with the pulsing dot. */
+function warningHead(alert) {
+  const until = alert.ends ? ` · until ${clockTime(alert.ends)}` : '';
+  return h('div.wx-warning-head',
+    h('span.wx-warning-dot'),
+    h('span.wx-warning-text', `${alert.event}${until}`),
+  );
+}
+
+function hiloLine(today) {
+  if (!today) return null;
+  return h('span', `H ${temp(today.hi)}  L ${temp(today.lo)}`);
+}
+
+/* The warning card trades the H/L line for when it peaks. */
+function heaviestLine(model, now) {
+  const window = nextThunderWindow(model) ?? nextPrecipWindow(model);
+  const parts = [];
+  if (window) parts.push(`Heaviest ${clockTime(window.from)} – ${clockTime(window.to)}`);
+  if (now.windGust >= 30) parts.push(`wind gusts to ${Math.round(now.windGust)} mph`);
+  return parts.length ? h('span', parts.join(' · ')) : hiloLine(model.daily?.[0]);
 }
 
 /**
- * The single most useful sentence on the home screen: when it is going
- * to rain, or storm, and until when. Falls back to a quiet all-clear so
- * the card's proportions don't jump around.
+ * The one strip under the hero (handoff): a watch/advisory in alert
+ * tones with its window on the right; otherwise the next rain or storm
+ * window in the same shape; otherwise a quiet green all-clear. One
+ * strip always — the card's proportions never jump.
  */
-function timingLine(model) {
-  /* Something about to happen in the next few minutes beats a window
-     that opens this afternoon — that's the whole point of standing in
-     the hallway looking at this. */
-  const imminent = nowcastSentence(live.nowcast);
-  if (imminent) {
-    return h('div.wx-timing.now',
-      icon('umbrella', { size: 20, stroke: 2.2 }),
-      h('span.wx-timing-window', imminent),
-      h('span.wx-timing-peak', 'next hour'),
-    );
-  }
-
+function strip(model, alert) {
   const storm = nextThunderWindow(model);
   const rain = nextPrecipWindow(model);
   const window = storm ?? rain;
+  const meta = window
+    ? `${clockTime(window.from)} – ${clockTime(window.to)}${window.peak ? ` · ${percent(window.peak)} peak` : ''}`
+    : null;
 
-  if (!window) {
-    return h('div.wx-timing.clear',
-      icon('check', { size: 20, stroke: 2.6 }),
-      h('span', 'No rain expected today'),
+  if (alert) {
+    return h('button.wx-strip.alert.no-expand', {
+      onclick: (e) => { e.stopPropagation(); openWeatherPanel({ tab: 'alerts' }); },
+      'aria-label': `Weather alert: ${alert.event}. Open alerts.`,
+    },
+      icon(alert.isTropical ? 'hurricane' : alert.isThunder ? 'bolt' : 'alert', { size: 18 }),
+      h('span.wx-strip-copy', alert.event),
+      meta ? h('span.wx-strip-meta', meta) : null,
     );
   }
 
-  const until = new Date(+window.to + 3600e3);
-  return h(`div.wx-timing.${storm ? 'storm' : 'rain'}`,
-    icon(storm ? 'bolt' : 'umbrella', { size: 20, stroke: 2.2 }),
-    h('span.wx-timing-label', storm ? 'Storms' : 'Rain'),
-    h('span.wx-timing-window', `${clockTime(window.from)} – ${clockTime(until)}`),
-    h('span.wx-timing-peak', `${percent(window.peak)} peak`),
+  const soon = nowcastSentence(live.nowcast);
+  if (soon) {
+    return h('div.wx-strip.alert',
+      icon('umbrella', { size: 18 }),
+      h('span.wx-strip-copy', soon),
+      h('span.wx-strip-meta', 'next hour'),
+    );
+  }
+
+  if (window) {
+    return h('div.wx-strip.alert',
+      icon(storm ? 'bolt' : 'umbrella', { size: 18 }),
+      h('span.wx-strip-copy', storm ? 'Storms expected' : 'Rain expected'),
+      h('span.wx-strip-meta', meta),
+    );
+  }
+
+  return h('div.wx-strip.good',
+    icon('check', { size: 18 }),
+    h('span.wx-strip-copy', 'No rain expected today'),
   );
 }
 
-function hourColumn(hour, index) {
-  const wet = hour.precipChance >= 15;
-  const stormy = hour.thunderChance >= 25;
+function hourColumn(hour, index, warning) {
+  const pct = Math.max(hour.precipChance ?? 0, hour.thunderChance ?? 0);
   return h('div.wx-hour',
     h('div.wx-hour-label', index === 0 ? 'Now' : hourLabel(hour.time)),
-    weatherIcon(hour.condition, { size: 40, night: hour.night }),
+    /* During an active warning the glyph slot answers the only question
+       anyone has — how likely, hour by hour (handoff 3b). */
+    warning
+      ? h(`div.wx-hour-pct${pct >= 45 ? '.wet' : ''}`, percent(pct))
+      : weatherIcon(hour.condition, { size: 24, night: hour.night }),
     h('div.wx-hour-temp.num', temp(hour.temp)),
-    /* Dry hours say nothing: a row of eight em-dashes was pure noise.
-       The element stays for the column rhythm; only wet hours speak. */
-    h(`div.wx-hour-precip${stormy ? '.storm' : wet ? '.wet' : '.dry'}`,
-      stormy ? icon('bolt', { size: 14, stroke: 2.4 }) : null,
-      wet || stormy ? percent(Math.max(hour.precipChance, hour.thunderChance)) : '',
-    ),
   );
 }
 
 function skeleton() {
   return h('div.wx-skeleton',
-    h('div.skeleton', { style: { width: '45%', height: 'calc(var(--u) * 16)' } }),
-    h('div.skeleton', { style: { width: '100%', height: 'calc(var(--u) * 10)' } }),
+    h('div.skeleton', { style: { width: '45%', height: 'calc(var(--px) * 68)' } }),
+    h('div.skeleton', { style: { width: '100%', height: 'calc(var(--px) * 80)' } }),
   );
 }
 
-/* ── Five-day outlook ─────────────────────────────────────── */
+/* ── Five-day outlook — rows with range bars ──────────────── */
 
 export function createForecastWidget() {
   const card = h('article.card.fc-card', { id: 'w-forecast' });
@@ -171,22 +165,14 @@ export function createForecastWidget() {
 }
 
 /**
- * Columns rather than rows: the card is wide and short, and a column per
- * day leaves room for type big enough to read across a room. Each
- * column carries a vertical bar showing that day's range within the
- * run's range, so the shape of the week is visible at a glance without
- * reading a single number.
- *
- * Five days, not seven. Seven fitted, but only just — in portrait this
- * card gets three of six grid columns, and at that width the day names
- * and temperatures were being squeezed for the sake of two days nobody
- * plans around from a hallway. The panel behind this card still shows
- * ten.
+ * A row per day (handoff): day · precip % · horizontal range bar · low ·
+ * high. The bar's track spans the whole run's range, so the shape of the
+ * week is readable without a single number.
  */
 export function renderForecast(card) {
   const model = live.weather;
   if (!model?.daily?.length) {
-    return fill(card, h('div.label', 'Forecast'), h('div.skeleton', { style: { flex: '1' } }));
+    return fill(card, h('div.label', 'Next 5 days'), h('div.skeleton', { style: { flex: '1' } }));
   }
 
   const days = model.daily.slice(0, 5);
@@ -197,39 +183,26 @@ export function renderForecast(card) {
   const span = Math.max(1, max - min);
 
   fill(card,
-    h('div.section-head',
-      h('div.label', 'Next 5 days'),
-      h('div.note', `${temp(min)} – ${temp(max)}`),
-    ),
-    h('div.fc-cols', ...days.map((day) => dayColumn(day, { max, span, now: model.current.temp }))),
+    h('div.label', 'Next 5 days'),
+    h('div.fc-rows', ...days.map((day) => dayRow(day, { min, span }))),
   );
 }
 
-function dayColumn(day, { max, span, now }) {
+function dayRow(day, { min, span }) {
   const today = isToday(day.date);
-  // The track spans the whole run: its top is the run's high, its
-  // bottom its low. Each day's bar sits where its range falls.
-  const top = ((max - day.hi) / span) * 100;
-  const height = Math.max(8, ((day.hi - day.lo) / span) * 100);
+  const left = ((day.lo - min) / span) * 100;
+  const right = 100 - ((day.hi - min) / span) * 100;
+  const wet = (day.precipChance ?? 0) >= 70;
 
-  return h(`div.fc-col${today ? '.today' : ''}`,
-    h('div.fc-col-day', today ? 'Today' : weekday(day.date)),
-    weatherIcon(day.condition, { size: 34 }),
-    h('div.fc-col-pop', day.precipChance >= 15 ? percent(day.precipChance) : ' '),
-    h('div.fc-col-hi.num', temp(day.hi)),
-    /* No "now" marker here: at this size the track is only ~20px tall and
-       a dot on it reads as a smudge rather than a position. The panel's
-       ten-day view has the room to show it properly. */
-    h('div.fc-track',
-      h('div.fc-track-fill', {
-        style: {
-          top: `${top}%`,
-          height: `${height}%`,
-          background: `linear-gradient(to top, ${tempColor(day.lo)}, ${tempColor(day.hi)})`,
-        },
+  return h(`div.fc-row${today ? '.today' : ''}`,
+    h('span.fc-day', today ? 'Today' : weekday(day.date)),
+    h(`span.fc-pop${wet ? '.wet' : ''}`, day.precipChance >= 5 ? percent(day.precipChance) : ''),
+    h('div.fc-bar',
+      h('div.fc-bar-fill', {
+        style: { left: `${left.toFixed(0)}%`, right: `${right.toFixed(0)}%` },
       }),
     ),
-    h('div.fc-col-lo.num', temp(day.lo)),
+    h('span.fc-lo.num', temp(day.lo)),
+    h('span.fc-hi.num', temp(day.hi)),
   );
 }
-

@@ -1,21 +1,20 @@
 /* ============================================================
-   Top bar + home widget grid
+   Top bar + home grid, to the design handoff (1180×880 frame).
+   Every size here is calc(var(--px) * N) where N is the pixel
+   value in the spec, so the composition scales proportionally.
    ============================================================ */
 
-/* ── The hero band ───────────────────────────────────────
-   Deliberately not a card. A lobby display doesn't put its
-   clock in a box, and letting this sit directly on the sky
-   is what separates the top of the screen from the grid
-   below it. A brass hairline closes the band.              */
+/* ── Header ──────────────────────────────────────────────
+   Clock block left, music pill centred, round icon buttons
+   right, all vertically centred. No rule under the band —
+   the header floats on the ground like everything else.   */
 
 #topbar {
   position: relative;   /* the mini player centres against this */
   display: flex;
-  align-items: flex-end;
-  gap: var(--gap);
+  align-items: center;
+  gap: calc(var(--px) * 28);
   flex: none;
-  padding-bottom: calc(var(--u) * 2.75);
-  border-bottom: 1px solid rgba(221, 178, 124, 0.22);
 }
 
 .topbar-left { min-width: 0; flex: none; }
@@ -23,664 +22,501 @@
 .topbar-clock {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--u) * 1.5);
-  line-height: 0.9;
+  gap: calc(var(--px) * 10);
+  line-height: 1;
 }
+/* Space Grotesk 500 at 72 frame-px, tracked -0.02em (handoff §type). */
 .clock-time {
   font-family: var(--font-display);
-  font-size: var(--t-clock);
-  /* Hairline. Avenir Next has no 300, so this resolves to Ultra Light,
-     which is the point: set this large, weight is not what carries it,
-     and light type on a dark ground optically thickens anyway. */
-  font-weight: 300;
-  letter-spacing: var(--track-tight);
+  font-size: calc(var(--px) * 72);
+  font-weight: 500;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums lining-nums;
-  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35);
 }
 .clock-period {
-  font-size: var(--t-md);
-  font-weight: 600;
-  color: var(--fg-3);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  font-size: calc(var(--px) * 19);
+  font-weight: 500;
+  color: var(--hh-text);
+  opacity: 0.55;
 }
 
-/* Tracked caps under a hairline clock — the masthead move. Sentence
-   case at body size read like a caption sitting under a headline; this
-   reads as part of the same object. */
 .topbar-date {
-  margin-top: calc(var(--u) * 1.25);
-  font-size: var(--t-xs);
-  font-weight: 600;
-  color: var(--fg-3);
+  margin-top: calc(var(--px) * 8);
+  font-size: calc(var(--px) * 13);
+  font-weight: 500;
+  color: var(--hh-text);
+  opacity: 0.45;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  text-shadow: 0 1px 16px rgba(0, 0, 0, 0.3);
 }
 
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: calc(var(--u) * 1.25);
+  gap: calc(var(--px) * 10);
   margin-left: auto;
   flex: none;
   flex-wrap: wrap;
   justify-content: flex-end;
-  padding-top: calc(var(--u) * 0.5);
 }
 
-.place-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--u) * 1);
-  height: var(--tap);
-  padding: 0 calc(var(--u) * 2.25);
-  border-radius: var(--r-pill);
+/* 48px outlined circles, glyph at 65% (handoff §header). */
+.topbar-right .icon-btn {
+  width: calc(var(--px) * 48);
+  height: calc(var(--px) * 48);
+  border-radius: 50%;
   background: transparent;
-  border: 1px solid rgba(221, 178, 124, 0.30);
-  color: var(--fg-2);
-  font-size: var(--t-sm);
-  font-weight: 500;
-  letter-spacing: var(--track-wide);
-  max-width: calc(var(--u) * 34);
-  transition: transform var(--dur-fast) var(--ease-out),
-              border-color var(--dur-fast) var(--ease-out);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--hh-text);
+  opacity: 0.65;
 }
-.place-pill:active { transform: scale(0.95); border-color: var(--accent); }
-.place-pill span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Weather alerts still need to carry, but as a lit sign rather than a
-   siren: a tinted field with a bright rule, not a solid slab of orange. */
-.alert-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--u) * 1.1);
-  height: var(--tap);
-  padding: 0 calc(var(--u) * 2.25);
-  border-radius: var(--r-pill);
-  font-size: var(--t-sm);
-  font-weight: 600;
-  letter-spacing: var(--track-wide);
-  color: var(--sev-moderate);
-  background: rgba(214, 166, 92, 0.14);
-  border: 1px solid rgba(214, 166, 92, 0.45);
-  transition: transform var(--dur-fast) var(--ease-out);
-}
-.alert-pill:active { transform: scale(0.95); }
-
-.alert-pill.severe {
-  color: #FFF1EA;
-  background: rgba(217, 106, 90, 0.26);
-  border-color: rgba(217, 106, 90, 0.6);
-  animation: alert-breathe 4s var(--ease-in-out) infinite;
-}
-@keyframes alert-breathe {
-  0%, 100% { box-shadow: 0 0 0 rgba(217, 106, 90, 0); }
-  50%      { box-shadow: 0 0 calc(var(--u) * 4) rgba(217, 106, 90, 0.45); }
-}
+.topbar-right .icon-btn:active { background: rgba(255, 255, 255, 0.12); opacity: 1; }
 
 .demo-note {
   display: block;
-  margin-top: calc(var(--u) * 0.75);
+  margin-top: calc(var(--px) * 6);
   padding: 0;
   background: none;
   border: none;
   text-align: left;
-  font-size: var(--t-xs);
+  font-size: calc(var(--px) * 12);
   font-weight: 600;
-  color: var(--accent);
+  color: var(--hh-amber);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   cursor: pointer;
 }
 
 /* ─────────────────────────────────────────────────────────
-   GRID
-   Landscape iPad: weather is the anchor, its forecast sits
-   beneath it, and the calendar runs full height beside them.
+   GRID (handoff §Canvas): two equal columns, 22px gap.
+   Left column: Right Now over Next 5 Days (which flexes).
+   Right column: Up Next, full height.
    ───────────────────────────────────────────────────────── */
 
 .grid {
   flex: 1;
   min-height: 0;
   display: grid;
-  gap: var(--gap);
-  grid-template-columns: repeat(12, 1fr);
-  grid-template-rows: 1.75fr 1fr;
+  gap: calc(var(--px) * 22);
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr;
 }
 
-/* Two columns now, not three: the sky on the left, the family on the
-   right. Weather over its forecast, calendar full height beside them. */
-.wx-card    { grid-column: 1 / 7;  grid-row: 1 / 2; }
-.fc-card    { grid-column: 1 / 7;  grid-row: 2 / 3; }
-.cal-card   { grid-column: 7 / 13; grid-row: 1 / 3; }
+.wx-card  { grid-column: 1; grid-row: 1; }
+.fc-card  { grid-column: 1; grid-row: 2; }
+.cal-card { grid-column: 2; grid-row: 1 / 3; }
 
-/* ── Current weather card ─────────────────────────────────── */
+/* ── Right Now card ───────────────────────────────────────── */
+
+.wx-card { gap: calc(var(--px) * 14); }
+
+/* Active warning: the whole card adopts the alert styling (3b). */
+.wx-card.warning {
+  background: rgba(224, 122, 95, 0.08);
+  border-color: rgba(224, 122, 95, 0.35);
+}
+
+.wx-warning-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 12);
+}
+.wx-warning-dot {
+  width: calc(var(--px) * 10);
+  height: calc(var(--px) * 10);
+  border-radius: 50%;
+  background: var(--hh-alert);
+  box-shadow: 0 0 14px rgba(232, 146, 124, 0.9);
+  animation: warning-pulse 2.2s var(--ease-in-out) infinite;
+  flex: none;
+}
+@keyframes warning-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+.wx-warning-text {
+  font-size: calc(var(--px) * 16);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hh-alert-copy);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .wx-top {
   display: flex;
-  /* Centred, not top-aligned. The card spans two grid rows, so this box
-     is much taller than its contents and every spare pixel was pooling
-     in one gap below the temperature. */
-  align-items: center;
-  gap: var(--gap);
-  /* Basis auto, not 0: the hourly strip below also grows now, and from a
-     zero basis this box would be handed less than its own contents and
-     quietly clip the temperature. Starting at content height means the
-     two of them only ever share what's left over. */
-  flex: 1 1 auto;
-  /* Clip inside this block rather than letting a 130px numeral spill
-     over the hourly strip when the card really is too short. */
+  justify-content: space-between;
+  align-items: flex-start;
   min-height: 0;
-  overflow: hidden;
 }
 
 .wx-now { display: flex; flex-direction: column; min-width: 0; }
 
+/* Space Grotesk 400 at 64–68 frame-px, -0.03em (handoff). */
 .wx-temp {
   font-family: var(--font-display);
-  font-size: var(--t-hero);
-  font-weight: 300;
-  line-height: 0.86;
-  letter-spacing: var(--track-tight);
-  font-variant-numeric: lining-nums;
-  margin-top: calc(var(--u) * 1);
-}
-
-.wx-hilo {
-  display: flex;
-  align-items: baseline;
-  gap: calc(var(--u) * 2.5);
-  margin-top: calc(var(--u) * 1.25);
-  font-size: var(--t-md);
-  font-weight: 500;
-  letter-spacing: var(--track-wide);
-  font-variant-numeric: tabular-nums lining-nums;
-}
-.wx-hilo span { display: inline-flex; align-items: baseline; gap: calc(var(--u) * 0.5); }
-.wx-hilo .hi { color: var(--warm); }
-.wx-hilo .lo { color: var(--cool); }
-/* Tracked caps rather than chevron glyphs — the letters read as part of
-   the masthead type system; the arrows read as UI chrome. */
-.wx-hilo .hl {
-  font-size: var(--t-xs);
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--fg-3);
-}
-
-.wx-glyph {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-.wx-glyph .wx-icon { filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.3)); }
-
-/* Under the temperature, not beside the glyph: "80° Partly Cloudy" is
-   one statement and reads as one column of type. */
-.wx-summary {
-  font-family: var(--font-display);
-  font-size: var(--t-xl);
+  font-size: calc(var(--px) * 66);
   font-weight: 400;
-  letter-spacing: var(--track-snug);
-  margin-top: calc(var(--u) * 0.75);
-  line-height: 1.12;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: lining-nums;
 }
-.wx-feels {
-  font-size: var(--t-xs);
-  color: var(--fg-3);
-  letter-spacing: var(--track-wide);
+.wx-summary {
+  font-size: calc(var(--px) * 21);
+  font-weight: 500;
+  margin-top: calc(var(--px) * 8);
+}
+.wx-sub {
+  font-size: calc(var(--px) * 15);
+  color: var(--hh-text-2);
+  margin-top: calc(var(--px) * 6);
 }
 
-/* A plain line, not a pill. Stacked under the alert bar the two outlined
-   pills competed; now the alert is the only bordered thing on the card,
-   which is exactly the hierarchy a warning deserves. */
-.wx-timing {
+.wx-glyph { margin: calc(var(--px) * 6) calc(var(--px) * 6) 0 0; flex: none; }
+.wx-glyph .wx-icon {
+  width: calc(var(--px) * 78);
+  height: calc(var(--px) * 78);
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.3));
+}
+
+/* The strip: alert tones for watches and rain/storm windows, green for
+   the all-clear. One strip always, so the card never jumps. */
+.wx-strip {
   display: flex;
   align-items: center;
-  gap: calc(var(--u) * 1.25);
-  margin-top: calc(var(--u) * 1.75);
-  padding: 0;
-  font-size: var(--t-sm);
+  gap: calc(var(--px) * 12);
+  width: 100%;
+  text-align: left;
+  border-radius: var(--hh-r-strip);
+  padding: calc(var(--px) * 11) calc(var(--px) * 16);
+  font-size: calc(var(--px) * 15);
   flex: none;
   overflow: hidden;
 }
-.wx-timing.storm { color: var(--thunder); }
-.wx-timing.rain  { color: var(--rain); }
-.wx-timing.clear { color: var(--good); }
-/* Something happening within the hour — brass, because it's the line
-   most worth noticing on the whole screen. */
-.wx-timing.now { color: var(--accent); }
-
-.wx-timing-label {
-  font-size: var(--t-xs);
+.wx-strip.alert {
+  background: var(--hh-alert-bg);
+  border: 1px solid var(--hh-alert-line);
+  color: var(--hh-alert);
+}
+.wx-strip.alert .wx-strip-copy { color: var(--hh-alert-copy); }
+.wx-strip.good {
+  background: var(--hh-good-bg);
+  border: 1px solid var(--hh-good-line);
+  color: var(--hh-good);
+}
+.wx-strip.good .wx-strip-copy { color: var(--hh-good-copy); }
+.wx-strip-copy {
   font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-.wx-timing-window {
-  font-family: var(--font-display);
-  color: var(--fg);
-  font-size: var(--t-sm);
-  font-weight: 400;
-  font-variant-numeric: tabular-nums lining-nums;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.wx-timing-peak {
+.wx-strip-meta {
   margin-left: auto;
-  color: var(--fg-3);
-  font-size: var(--t-xs);
-  font-weight: 600;
+  font-size: calc(var(--px) * 14);
+  color: var(--hh-text-2);
   white-space: nowrap;
+  flex: none;
 }
-.wx-timing.clear span { color: var(--good); font-weight: 600; }
 
-/* The divider and strip pin to the bottom; the card's slack gathers in
-   one place, between the statement and the strip, instead of around a
-   timing line that belonged to nothing. */
-.wx-card .divider { margin: auto 0 0; }
-
+/* Hourly strip: 8 columns over a hairline (handoff). */
 .wx-hours {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  gap: calc(var(--u) * 0.5);
-  padding-top: calc(var(--u) * 2);
-  /* Shares the card's spare height with the hero above instead of
-     leaving it all in one gap. The card spans two grid rows and so is
-     taller than its contents; somebody has to take the slack, and an
-     hourly strip that breathes reads better than a hole. */
-  flex: 1 1 auto;
-  min-height: 0;
+  grid-template-columns: repeat(8, 1fr);
+  gap: calc(var(--px) * 4);
+  text-align: center;
+  border-top: 1px solid var(--hh-hairline);
+  padding-top: calc(var(--px) * 14);
+  flex: none;
 }
+.wx-card.warning .wx-hours { border-top-color: rgba(224, 122, 95, 0.2); }
 
 .wx-hour {
   display: flex;
   flex-direction: column;
+  gap: calc(var(--px) * 8);
   align-items: center;
-  justify-content: center;
-  gap: calc(var(--u) * 0.75);
   min-width: 0;
 }
 .wx-hour-label {
-  font-size: var(--t-xs);
-  font-weight: 650;
-  color: var(--fg-3);
-  letter-spacing: 0.04em;
+  font-size: calc(var(--px) * 12);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
+  color: var(--hh-label);
+  white-space: nowrap;
 }
-.wx-hour-temp {
-  font-family: var(--font-display); font-size: var(--t-lg); font-weight: 500; }
-.wx-hour-precip {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-size: var(--t-xs);
-  font-weight: 650;
-  /* Empty when dry — but still one line tall, so the columns keep rank. */
-  min-height: calc(var(--t-xs) * 1.2);
+.wx-hour .wx-icon { width: calc(var(--px) * 24); height: calc(var(--px) * 24); }
+.wx-hour-temp { font-size: calc(var(--px) * 18); font-weight: 500; }
+/* Warning mode: the glyph slot answers "how likely" instead (3b). */
+.wx-hour-pct {
+  font-size: calc(var(--px) * 14);
+  font-weight: 600;
+  color: rgba(233, 236, 245, 0.45);
+  line-height: calc(var(--px) * 24);
 }
-.wx-hour-precip.dry { color: var(--fg-4); }
-.wx-hour-precip.wet { color: var(--rain); }
-.wx-hour-precip.storm { color: var(--thunder); }
+.wx-hour-pct.wet { color: var(--hh-rain-blue); }
 
 .wx-skeleton { display: flex; flex-direction: column; gap: var(--gap); flex: 1; }
 
-/* ── Seven-day card ───────────────────────────────────────── */
+/* ── Next 5 Days — rows with range bars ───────────────────── */
 
-/* This card is the shortest on the grid, so it buys back vertical room
-   with tighter padding than the default. */
-.fc-card { padding: calc(var(--u) * 2) calc(var(--u) * 2.25); }
-.fc-card .section-head { margin-bottom: calc(var(--u) * 0.5); }
+.fc-card { padding: calc(var(--px) * 20) calc(var(--px) * 30); gap: calc(var(--px) * 14); }
 
-.fc-cols {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  gap: calc(var(--u) * 0.5);
-  flex: 1;
-  min-height: 0;
-}
-
-.fc-col {
-  display: grid;
-  /* The track is the only flexible row, so a short card squeezes the bar
-     rather than clipping the temperatures. */
-  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
-  justify-items: center;
-  align-items: center;
-  gap: calc(var(--u) * 0.4);
-  min-height: 0;
-  min-width: 0;
-  overflow: hidden;
-  padding: calc(var(--u) * 0.5) 0;
-  border-radius: var(--r-md);
-}
-.fc-col.today { background: rgba(255, 255, 255, 0.08); }
-
-.fc-col-day {
-  font-size: var(--t-xs);
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--fg-3);
-  white-space: nowrap;
-}
-.fc-col.today .fc-col-day { color: var(--fg); }
-
-.fc-col-pop {
-  font-size: var(--t-xs);
-  font-weight: 650;
-  color: var(--rain);
-  min-height: 1em;
-}
-.fc-col-hi {
-  font-family: var(--font-display); font-size: var(--t-md); font-weight: 400; }
-.fc-col-lo { font-size: var(--t-sm); color: var(--fg-3); }
-
-/* Vertical range bar: top of the track is the week's high. */
-.fc-track {
-  position: relative;
-  width: calc(var(--u) * 1.1);
-  height: 100%;
-  min-height: 0;
-  border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, 0.11);
-  justify-self: center;
-}
-.fc-track-fill {
-  position: absolute;
-  left: 0;
-  right: 0;
-  border-radius: var(--r-pill);
-}
-
-/* ── Calendar card ────────────────────────────────────────── */
-
-.cal-list {
-  flex: 1;
-  min-height: 0;
+.fc-rows {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--u) * 0.25);
-  margin: 0 calc(var(--pad-card) * -0.5);
-  padding: 0 calc(var(--pad-card) * 0.5);
-  /* No fade mask: the widget trims itself to whole rows, so there is
-     never a half-visible line to soften. The full list is in the panel. */
-}
-
-.cal-day-head {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--u) * 1.5);
-  flex: none;
-  padding: calc(var(--u) * 2.25) 0 calc(var(--u) * 1);
-}
-.cal-day-head:first-child { padding-top: 0; }
-
-.cal-day-name {
-  font-size: var(--label-size);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--fg-3);
-  flex: none;
-}
-/* Hairline that runs out to the count, the way a menu section rules off. */
-.cal-day-rule {
+  gap: calc(var(--px) * 12);
   flex: 1;
-  height: 1px;
-  background: var(--glass-line);
-}
-.cal-day-count {
-  font-size: var(--t-xs);
-  font-weight: 600;
-  color: var(--fg-4);
-  font-variant-numeric: tabular-nums;
-  flex: none;
+  min-height: 0;
+  justify-content: space-around;
 }
 
-.cal-row {
+.fc-row {
   display: flex;
   align-items: center;
-  gap: calc(var(--u) * 1.5);
-  padding: calc(var(--u) * 1.15) calc(var(--u) * 1.25);
-  border-radius: var(--r-md);
-  min-height: calc(var(--u) * 6.5);
-  flex: none;
+  gap: calc(var(--px) * 16);
+  min-width: 0;
 }
-.cal-row {
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-out);
+.fc-day {
+  font-size: calc(var(--px) * 17);
+  font-weight: 500;
+  min-width: calc(var(--px) * 74);
+  color: var(--hh-text);
+  opacity: 0.75;
+  white-space: nowrap;
 }
-.cal-row:active { background: var(--glass-hi); }
-.cal-row.now {
-  background: rgba(255, 250, 242, 0.09);
-  box-shadow: inset 0 0 0 1px var(--glass-line);
-  cursor: pointer;
+.fc-row.today .fc-day { font-weight: 600; opacity: 1; }
+.fc-pop {
+  font-size: calc(var(--px) * 14);
+  font-weight: 600;
+  min-width: calc(var(--px) * 44);
+  color: var(--hh-text);
+  opacity: 0.4;
+  white-space: nowrap;
+}
+.fc-pop.wet { color: var(--hh-rain-blue); opacity: 1; }
+
+/* The track spans the week's range; each day's fill sits where its own
+   range falls inside it (handoff §Next 5 Days). */
+.fc-bar {
+  flex: 1;
+  height: calc(var(--px) * 6);
+  border-radius: calc(var(--px) * 3);
+  background: rgba(255, 255, 255, 0.08);
+  position: relative;
+  min-width: calc(var(--px) * 60);
+}
+.fc-bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: inherit;
+  background: var(--hh-range);
 }
 
-.cal-dot {
-  width: calc(var(--u) * 1.25);
-  height: calc(var(--u) * 1.25);
+.fc-lo {
+  font-size: calc(var(--px) * 16);
+  color: var(--hh-text);
+  opacity: 0.5;
+  min-width: calc(var(--px) * 36);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.fc-hi {
+  font-size: calc(var(--px) * 17);
+  font-weight: 600;
+  min-width: calc(var(--px) * 40);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Up Next card (handoff §agenda) ───────────────────────── */
+
+.cal-card { padding: calc(var(--px) * 26) calc(var(--px) * 30); gap: calc(var(--px) * 16); }
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex: none;
+}
+.section-head .note { font-size: calc(var(--px) * 14); color: var(--hh-text); opacity: 0.4; }
+.section-head .note.overdue-note { color: var(--hh-alert); opacity: 1; font-weight: 600; }
+
+/* The pinned next event: a highlighted row with a countdown badge. */
+.up-pin {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 16);
+  padding: calc(var(--px) * 16) calc(var(--px) * 18);
+  background: rgba(236, 194, 126, 0.09);
+  border: 1px solid rgba(236, 194, 126, 0.3);
+  border-radius: calc(var(--px) * 16);
+  flex: none;
+  text-align: left;
+  width: 100%;
+}
+.up-pin.activity {
+  background: rgba(132, 174, 222, 0.09);
+  border-color: rgba(132, 174, 222, 0.3);
+}
+.up-pin.now {
+  background: rgba(217, 160, 95, 0.1);
+  border-color: rgba(217, 160, 95, 0.32);
+}
+.up-pin-title { font-size: calc(var(--px) * 20); font-weight: 600; }
+.up-pin-sub {
+  font-size: calc(var(--px) * 14);
+  color: var(--hh-text-2);
+  margin-top: calc(var(--px) * 2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.up-pin-main { flex: 1; min-width: 0; }
+.up-pin-right { text-align: right; flex: none; }
+.up-pin-time {
+  font-size: calc(var(--px) * 17);
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.up-pin-badge {
+  font-size: calc(var(--px) * 12);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hh-amber);
+  margin-top: calc(var(--px) * 2);
+  white-space: nowrap;
+}
+.up-pin.activity .up-pin-badge { color: #9fc0ea; }
+.up-pin.now .up-pin-badge { color: #e3b98a; }
+
+/* The list distributes vertically; hairlines between rows. */
+.up-rows {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: space-between;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.up-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 16);
+  padding: calc(var(--px) * 11) calc(var(--px) * 4);
+  border-bottom: 1px solid var(--hh-hairline);
+  min-width: 0;
+  width: 100%;
+  text-align: left;
+}
+.up-row:last-child { border-bottom: none; }
+
+.up-dot {
+  width: calc(var(--px) * 10);
+  height: calc(var(--px) * 10);
   border-radius: 50%;
   flex: none;
 }
-
-.cal-row-main { min-width: 0; flex: 1; }
-/* Two lines before the ellipsis. Real family events are named things
-   like "Varsity Volleyball Pre-Season Meeting", and one line in this
-   column truncates most of them into uselessness — the one thing a wall
-   display must not do, because you cannot tap to find out what it says
-   from across the room. Short titles still take a single line; only the
-   long ones spend the extra row. */
-.cal-row-title {
-  font-family: var(--font-display);
-  font-size: var(--t-md);
-  font-weight: 400;
-  line-height: 1.18;
-  letter-spacing: var(--track-snug);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-wrap: pretty;
-}
-.cal-row-where {
-  font-size: var(--t-xs);
-  color: var(--fg-3);
-  letter-spacing: var(--track-wide);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-top: 2px;
-}
-
-.cal-row-time { text-align: right; flex: none; }
-.cal-time-main {
-  font-size: var(--t-sm);
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.cal-time-rel { font-size: var(--t-xs); color: var(--fg-4); }
-.cal-time-rel.live {
-  color: var(--good);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-/* ── Air tile ─────────────────────────────────────────────── */
-
-.air-main {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--u) * 1.75);
-  margin: calc(var(--u) * 1) 0;
+.up-check {
+  width: calc(var(--px) * 18);
+  height: calc(var(--px) * 18);
+  border-radius: 50%;
+  border: 1.5px solid rgba(231, 234, 244, 0.35);
   flex: none;
-}
-
-.air-dial {
-  position: relative;
-  width: calc(var(--u) * 8.5);
-  height: calc(var(--u) * 8.5);
-  flex: none;
-}
-.air-ring { width: 100%; height: 100%; }
-.air-dial-value {
-  position: absolute;
-  inset: 0;
+  margin-left: calc(var(--px) * -4);
   display: grid;
   place-items: center;
-  font-family: var(--font-display);
-  font-size: var(--t-xl);
-  font-weight: 400;
+  color: transparent;
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
+}
+.up-check:active { transform: scale(0.86); }
+.up-row.overdue .up-check {
+  width: calc(var(--px) * 22);
+  height: calc(var(--px) * 22);
+  border: 2px solid var(--hh-alert);
+  margin-left: 0;
 }
 
-.air-main-text { min-width: 0; }
-.air-band {
-  font-family: var(--font-display);
-  font-size: var(--t-lg);
-  font-weight: 400;
-  letter-spacing: var(--track-snug);
-  line-height: 1.1;
-}
-.air-sub {
-  font-size: var(--t-xs);
-  color: var(--fg-4);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-top: 2px;
-}
-
-.air-rows {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  gap: calc(var(--u) * 0.5);
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-.air-row {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--u) * 1.25);
-  font-size: var(--t-sm);
-}
-.air-row-icon { color: var(--fg-3); display: grid; place-items: center; flex: none; }
-.air-row-text { min-width: 0; flex: 1; display: flex; flex-direction: column; }
-.air-row-label {
-  color: var(--fg-2);
+.up-main { flex: 1; min-width: 0; }
+.up-title {
+  font-size: calc(var(--px) * 19);
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.air-row-note { font-size: calc(var(--t-xs) * 0.9); color: var(--fg-4); }
-.air-row-value { font-weight: 650; white-space: nowrap; flex: none; }
-
-/* ── Lists tile ───────────────────────────────────────────── */
-
-.list-summary {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: calc(var(--u) * 1.25);
-  flex: 1;
-  min-height: 0;
-}
-.list-summary-row {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--u) * 1.5);
-  font-size: var(--t-md);
-}
-.list-summary-icon { color: var(--fg-3); display: grid; place-items: center; flex: none; }
-.list-summary-name {
-  font-weight: 550;
+.up-sub {
+  font-size: calc(var(--px) * 14);
+  color: var(--hh-text-2);
+  margin-top: calc(var(--px) * 2);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.list-summary-count {
-  margin-left: auto;
-  min-width: calc(var(--u) * 4);
-  height: calc(var(--u) * 4);
-  padding: 0 calc(var(--u) * 1.2);
-  border-radius: var(--r-pill);
-  background: var(--accent);
-  color: #06121b;
-  font-size: var(--t-xs);
-  font-weight: 750;
-  display: grid;
-  place-items: center;
-}
-.list-summary-count.zero { background: var(--glass-well); color: var(--good); }
-
-/* ── Chores tile ──────────────────────────────────────────── */
-
-.chore-progress {
-  height: calc(var(--u) * 1.1);
-  border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, 0.11);
-  overflow: hidden;
-  margin-bottom: calc(var(--u) * 1.75);
-  flex: none;
-}
-.chore-progress-fill {
-  height: 100%;
-  border-radius: var(--r-pill);
-  background: linear-gradient(to right, var(--good), #7FE3B8);
-  transition: width var(--dur) var(--ease-out);
-}
-
-.chore-mini {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--u) * 1.15);
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-.chore-mini-row { display: flex; align-items: center; gap: calc(var(--u) * 1.25); }
-.chore-mini-title {
-  font-size: var(--t-sm);
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.chore-mini-who {
-  font-size: var(--t-xs);
-  font-weight: 650;
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chore-clear {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--u);
-  flex: 1;
-  color: var(--good);
-  font-size: var(--t-sm);
+.up-time {
+  font-size: calc(var(--px) * 16);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--hh-text);
+  opacity: 0.85;
+  white-space: nowrap;
+  flex: none;
+}
+.up-tag {
+  font-size: calc(var(--px) * 13);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hh-alert);
+  white-space: nowrap;
+  flex: none;
 }
 
-/* Shared round checkbox. */
+/* Overdue rows are boxed (2a). */
+.up-row.overdue {
+  background: rgba(224, 122, 95, 0.07);
+  border: 1px solid rgba(224, 122, 95, 0.14);
+  border-radius: var(--hh-r-strip);
+  padding: calc(var(--px) * 13) calc(var(--px) * 16);
+  margin-bottom: calc(var(--px) * 8);
+}
+
+/* Done: 45% with a green tick and strikethrough (3b/3c). */
+.up-row.done { opacity: 0.45; }
+.up-row.done .up-title { text-decoration: line-through; }
+.up-tick { color: var(--hh-good); font-size: calc(var(--px) * 16); flex: none; }
+
+/* Suggested skip / skipped (3b/3c). */
+.up-skip {
+  font-size: calc(var(--px) * 15);
+  font-weight: 600;
+  color: #9fc0ea;
+  white-space: nowrap;
+  flex: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.up-skipped { color: var(--hh-good); font-size: calc(var(--px) * 15); font-weight: 600; flex: none; }
+
+/* Section label row inside the list ("TODAY · 6"). */
+.up-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: calc(var(--px) * 4) 0;
+  flex: none;
+}
+
+/* Shared round checkbox (chores panel still uses it). */
 .check {
   width: calc(var(--u) * 4.5);
   height: calc(var(--u) * 4.5);
@@ -704,39 +540,32 @@
 }
 
 /* ─────────────────────────────────────────────────────────
-   Portrait / narrow: restack into a single readable column
+   Portrait / narrow: the handoff is landscape-only, so the
+   same three cards restack full-width with the frame scale
+   recomputed off the narrow edge.
    ───────────────────────────────────────────────────────── */
 
-/* Portrait: a tall, narrow board. Three cards stack full-width — the
-   temperature up top, the schedule in the middle where eye level lands
-   on a hung iPad, the week along the bottom. No density cut needed any
-   more; three cards have the room six never did. */
 @media (orientation: portrait), (max-aspect-ratio: 5/4) {
-  /* A softer cut than the 0.85 the six-card board needed: three cards
-     fit at full size, but the top bar still has to seat the music pill
-     between its two ends on a 1024-wide screen. */
-  :root { --density: 0.9; }
+  :root { --px: min(100vw / 880, 100vh / 1180); }
 
   .grid {
     grid-template-columns: 1fr;
-    grid-template-rows: 1.55fr 1.3fr 0.75fr;
+    grid-template-rows: auto 1.25fr 0.9fr;
   }
-  /* The base spans (1/7, 7/13) would mint implicit columns beside the
-     single 1fr track and quietly halve every card, so pin the column. */
-  .wx-card    { grid-column: 1 / -1; grid-row: 1 / 2; }
-  .cal-card   { grid-column: 1 / -1; grid-row: 2 / 3; }
-  .fc-card    { grid-column: 1 / -1; grid-row: 3 / 4; }
+  .wx-card  { grid-column: 1; grid-row: 1; }
+  .cal-card { grid-column: 1; grid-row: 2; }
+  .fc-card  { grid-column: 1; grid-row: 3; }
 
   .topbar-date { white-space: nowrap; }
 }
 
 /* Small screens (a phone glancing at the same URL): one column. */
 @media (max-width: 700px) {
-  :root { --scale: 0.82; }
+  :root { --px: calc(100vw / 620); }
   .grid {
     grid-template-columns: 1fr;
     grid-template-rows: none;
-    grid-auto-rows: minmax(calc(var(--u) * 26), auto);
+    grid-auto-rows: auto;
     overflow-y: auto;
   }
   .wx-card, .cal-card, .fc-card {
@@ -745,104 +574,4 @@
   }
   #topbar { flex-direction: column; align-items: flex-start; }
   .topbar-right { margin-left: 0; }
-}
-
-/* ── Reminders in the Up Next list ────────────────────────────
-   Same row rhythm as an event so the card reads as one list; a
-   checkbox rather than a colour dot, because one is a thing that
-   happens to you and the other is a thing you have to do. */
-
-.rem-check {
-  width: calc(var(--u) * 2.5);
-  height: calc(var(--u) * 2.5);
-  border-radius: 50%;
-  flex: none;
-  border: 2px solid var(--chip, var(--accent));
-  opacity: 0.85;
-  transition: background var(--dur-fast) var(--ease-out),
-              transform var(--dur-fast) var(--ease-spring);
-}
-.rem-row:active .rem-check {
-  background: var(--chip, var(--accent));
-  transform: scale(0.86);
-}
-
-.cal-day-head.overdue .cal-day-name { color: var(--bad); }
-.cal-day-head.overdue .cal-day-rule { background: rgba(224, 144, 112, 0.3); }
-.cal-day-head.overdue .cal-day-count { color: var(--bad); }
-
-.rem-row.late .rem-check { border-color: var(--bad); }
-.cal-time-rel.late {
-  color: var(--bad);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.note.overdue-note { color: var(--bad); font-weight: 600; }
-
-/* ── Weather warnings, on the weather card ────────────────────
-   They used to sit in the top bar beside the clock, which put a
-   tornado warning in the same visual register as the date. */
-
-.wx-alert {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--u) * 1.25);
-  width: 100%;
-  /* margin-top: auto takes the card's slack, so this and the timing
-     line stack at the foot instead of both competing for it and
-     squeezing the temperature until the hi/lo row clips. */
-  margin-top: auto;
-  margin-bottom: var(--u);
-  padding: calc(var(--u) * 1.1) calc(var(--u) * 1.6);
-  border-radius: var(--r-pill);
-  text-align: left;
-  font-size: var(--t-xs);
-  color: var(--sev-moderate);
-  background: rgba(214, 166, 92, 0.14);
-  border: 1px solid rgba(214, 166, 92, 0.45);
-  flex: none;
-  transition: transform var(--dur-fast) var(--ease-out);
-}
-.wx-alert:active { transform: scale(0.98); }
-.wx-alert.severe {
-  color: #FFF1EA;
-  background: rgba(217, 106, 90, 0.26);
-  border-color: rgba(217, 106, 90, 0.62);
-  animation: alert-breathe 4s var(--ease-in-out) infinite;
-}
-.wx-alert-event {
-  font-weight: 600;
-  letter-spacing: var(--track-wide);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-/* With a warning above it, the timing line no longer needs to claim the
-   slack itself. */
-.wx-alert + .wx-timing { margin-top: 0; }
-
-/* Everything the hero gives up so a warning fits above the hourly strip
-   without the temperature clipping. Only in force when there is one. */
-.wx-card.has-alert .wx-temp {
-  font-size: calc(var(--t-hero) * 0.82);
-  margin-top: 0;
-}
-.wx-card.has-alert .wx-hilo { margin-top: calc(var(--u) * 0.75); }
-.wx-card.has-alert .wx-hours { padding-top: calc(var(--u) * 1.1); }
-.wx-card.has-alert .wx-summary { margin-top: calc(var(--u) * 0.4); }
-/* CSS beats the SVG's width/height attributes, so the glyph can give up
-   a little without the widget having to know about alerts. */
-.wx-card.has-alert .wx-glyph .wx-icon {
-  width: calc(var(--u) * 11.5);
-  height: calc(var(--u) * 11.5);
-}
-.wx-card.has-alert .wx-feels { margin-top: calc(var(--u) * 0.4); }
-
-.wx-alert-more {
-  margin-left: auto;
-  font-size: var(--t-xs);
-  font-weight: 700;
-  opacity: 0.8;
-  flex: none;
 }

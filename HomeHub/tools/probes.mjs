@@ -28,7 +28,10 @@ import path from 'node:path';
 const SOAK = new Set(['ambient-burnin', 'bridge-chatter', 'music-feedback']);
 /* One-off debugging scripts that live beside the real probes. */
 const SKIP = new Set(['dbg', 'alert-debug', 'fade-probe', 'ambient-shot',
-  'device-tab', 'host-sim', 'iframe-sim', 'icon1024']);
+  'device-tab', 'host-sim', 'iframe-sim', 'icon1024',
+  /* Diagnosed the old top-bar slack problem; superseded by wxcard+home3
+     and hardcodes the pre-handoff layout. */
+  'topbar-fit']);
 
 const CONCURRENCY = 3;
 const TIMEOUT_S = 150;

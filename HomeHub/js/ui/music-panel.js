@@ -54,51 +54,55 @@ let rafId = null;
 function renderNowPlaying(body, panel) {
   if (!hasTrack()) return fill(body, emptyState());
 
+  /* The 2b composition: album art left, everything else in a stack to
+     its right, queue bar along the foot. The ground is the night
+     palette with a bottom ambient glow rather than a blurred blow-up
+     of the record — flatter, per the handoff. */
   const stage = h('div.np-stage',
-    h('div.np-backdrop'),
-    h('div.np-scrim'),
     h('div.np-content',
       h('div.np-art-wrap', h('img.np-art', { alt: '' })),
-      h('div.np-meta',
-        h('div.np-title'),
-        h('div.np-artist'),
-        h('div.np-album'),
-      ),
-    ),
-    h('div.np-controls',
-      h('div.np-transport',
-      h('div.np-scrub',
-        h('span.np-elapsed.num', '0:00'),
-        h('div.np-track', { onclick: onScrub },
-          h('div.np-track-fill'),
-          h('div.np-track-knob'),
+      h('div.np-right',
+        h('div.np-meta',
+          h('div.np-title'),
+          h('div.np-artist'),
         ),
-        h('span.np-remaining.num', '-0:00'),
-      ),
-      h('div.np-buttons',
-        h('button.np-btn.np-shuffle', {
-          onclick: () => setShuffle(!player.shuffle).catch(reportError),
-          'aria-label': 'Shuffle',
-        }, icon('shuffle', { size: 26 })),
-        h('button.np-btn', {
-          onclick: () => previous().catch(reportError),
-          'aria-label': 'Previous track',
-        }, icon('skipBack', { size: 34 })),
-        h('button.np-btn.np-play', {
-          onclick: () => togglePlay().catch(reportError),
-          'aria-label': 'Play or pause',
-        }),
-        h('button.np-btn', {
-          onclick: () => next().catch(reportError),
-          'aria-label': 'Next track',
-        }, icon('skipForward', { size: 34 })),
-        h('button.np-btn.np-repeat', {
-          onclick: () => setRepeat(nextRepeat(player.repeat)).catch(reportError),
-          'aria-label': 'Repeat',
-        }, icon('refresh', { size: 26 })),
-      ),
+        h('div.np-controls',
+          h('div.np-scrub',
+            h('div.np-track', { onclick: onScrub },
+              h('div.np-track-fill'),
+              h('div.np-track-knob'),
+            ),
+            h('div.np-times',
+              h('span.np-elapsed.num', '0:00'),
+              h('span.np-remaining.num', '-0:00'),
+            ),
+          ),
+          h('div.np-buttons',
+            h('button.np-btn.ghost-btn.np-shuffle', {
+              onclick: () => setShuffle(!player.shuffle).catch(reportError),
+              'aria-label': 'Shuffle',
+            }, icon('shuffle', { size: 22 })),
+            h('button.np-btn.ring-btn', {
+              onclick: () => previous().catch(reportError),
+              'aria-label': 'Previous track',
+            }, icon('skipBack', { size: 26 })),
+            h('button.np-btn.np-play', {
+              onclick: () => togglePlay().catch(reportError),
+              'aria-label': 'Play or pause',
+            }),
+            h('button.np-btn.ring-btn', {
+              onclick: () => next().catch(reportError),
+              'aria-label': 'Next track',
+            }, icon('skipForward', { size: 26 })),
+            h('button.np-btn.ghost-btn.np-repeat', {
+              onclick: () => setRepeat(nextRepeat(player.repeat)).catch(reportError),
+              'aria-label': 'Repeat',
+            }, icon('refresh', { size: 22 })),
+          ),
+        ),
       ),
     ),
+    queueBar(),
   );
 
   fill(body, stage);
@@ -115,6 +119,24 @@ function renderNowPlaying(body, panel) {
 }
 
 const nextRepeat = (mode) => ({ off: 'all', all: 'one', one: 'off' }[mode] ?? 'off');
+
+/* "UP NEXT · two thumbs · Queue · 12 tracks" (handoff 2b). Only when the
+   bridge actually reports a queue — the web player often can't see it. */
+function queueBar() {
+  const queue = player.queue ?? [];
+  if (!queue.length) return null;
+  return h('div.np-queue',
+    h('span.np-queue-label', 'Up next'),
+    ...queue.slice(0, 2).flatMap((track) => [
+      h('div.np-queue-art', artOrNote(track.artworkUrl, 18, `queued "${track.title}"`)),
+      h('div.np-queue-meta',
+        h('div.np-queue-title', track.title),
+        h('div.np-queue-artist', track.artist ?? ''),
+      ),
+    ]),
+    queue.length > 2 ? h('span.np-queue-count', `Queue · ${queue.length} tracks`) : null,
+  );
+}
 
 function reportError(err) {
   toast(err.message, 'warn');
@@ -134,15 +156,12 @@ function paintTrack() {
     // and fails to fetch looks exactly like one that never arrived.
     art.onerror = () => console.warn(`[music] now-playing artwork failed: ${artworkUrl}`);
     art.src = artworkUrl;
-    // The backdrop is the same image, blown up and blurred, so the whole
-    // wall takes the colour of the record.
-    $('.np-backdrop').style.backgroundImage = `url("${artworkUrl}")`;
   } else if (!artworkUrl) {
     console.info(`[music] no artwork for "${title}"`);
   }
   fill($('.np-title'), title ?? '');
-  fill($('.np-artist'), artist ?? '');
-  fill($('.np-album'), album ?? '');
+  /* One line, artist and record together, per the handoff. */
+  fill($('.np-artist'), [artist, album].filter(Boolean).join(' · '));
 
   // Mini player too, if it's on screen.
   const miniArt = $('.mini-art');

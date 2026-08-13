@@ -37,6 +37,14 @@ const DEFAULTS = {
 
   chores: [],            // { id, title, personId, repeat, days[], history{} }
 
+  /* Handoff additions. skipped: reminder id → 'YYYY-MM-DD' it was skipped
+     for ("rain will handle it"). checklists: event id → { itemText: true }
+     for the modal's packing list. leaveLeadMin: how long before a located
+     event the "leave by" line assumes you need. */
+  skipped: {},
+  checklists: {},
+  leaveLeadMin: 20,
+
   ambient: {
     enabled: true,
     idleMinutes: 8,

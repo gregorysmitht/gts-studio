@@ -24,15 +24,13 @@
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: calc(var(--u) * 2);
-  padding: calc(var(--u) * 1.1) calc(var(--u) * 1.6);
-  width: min(calc(var(--u) * 62), 46vw);
+  gap: calc(var(--px) * 14);
+  /* Handoff pill: 9px all round with 20px on the text end. */
+  padding: calc(var(--px) * 9) calc(var(--px) * 20) calc(var(--px) * 9) calc(var(--px) * 9);
   border-radius: var(--r-pill);
-  background: var(--glass);
-  border: 1px solid var(--glass-line);
-  backdrop-filter: blur(var(--blur)) saturate(1.3);
-  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3);
-  box-shadow: 0 calc(var(--u) * 1.5) calc(var(--u) * 4) rgba(0, 0, 0, 0.32);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
@@ -62,35 +60,33 @@
   text-align: left;
 }
 
+/* 46px round thumb (handoff §music pill). */
 .mini-art-wrap {
-  width: calc(var(--u) * 7);
-  height: calc(var(--u) * 7);
-  border-radius: var(--r-md);
+  width: calc(var(--px) * 46);
+  height: calc(var(--px) * 46);
+  border-radius: 50%;
   overflow: hidden;
   flex: none;
   display: grid;
   place-items: center;
-  background: var(--glass-well);
+  background: linear-gradient(135deg, #3c4a6e, #1d2438);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--fg-4);
-  box-shadow: 0 calc(var(--u) * 0.5) calc(var(--u) * 1.5) rgba(0, 0, 0, 0.35);
 }
 .mini-art { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-.mini-meta { min-width: 0; flex: 1; }
+.mini-meta { min-width: calc(var(--px) * 140); flex: 1; }
 .mini-title {
-  font-family: var(--font-display);
-  font-size: var(--t-md);
-  font-weight: 400;
-  letter-spacing: var(--track-snug);
+  font-size: calc(var(--px) * 17);
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .mini-artist {
-  font-size: var(--t-xs);
+  font-size: calc(var(--px) * 13);
   margin-top: 1px;
-  color: var(--fg-3);
-  letter-spacing: var(--track-wide);
+  color: var(--hh-text-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -124,15 +120,16 @@
   flex: none;
 }
 .mini-controls .icon-btn {
-  width: calc(var(--u) * 6.5);
-  height: calc(var(--u) * 6.5);
+  width: calc(var(--px) * 40);
+  height: calc(var(--px) * 40);
   border: none;
-  background: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
 }
-.mini-play { background: var(--glass-hi); }
+.mini-play { background: rgba(255, 255, 255, 0.1); }
 .mini-time {
-  font-size: var(--t-xs);
-  color: var(--fg-4);
+  font-size: calc(var(--px) * 13);
+  color: rgba(231, 234, 244, 0.4);
   /* Wide enough for "-12:34" so the controls beside it don't shuffle
      sideways as the countdown crosses ten minutes. */
   min-width: calc(var(--u) * 6);
@@ -154,56 +151,38 @@
   flex-direction: column;
   overflow: hidden;
   border-radius: inherit;
-}
-
-/* Now Playing is the one screen that runs edge to edge: the header
-   floats over the artwork instead of sitting in a bar above it, so
-   the record reaches all four corners. */
-.panel:has(.np-stage) .panel-head {
-  position: absolute;
-  inset: 0 0 auto 0;
-  z-index: 2;
-  border-bottom: none;
-}
-
-.np-backdrop {
-  position: absolute;
-  inset: calc(var(--u) * -10);
-  background-size: cover;
-  background-position: center;
-  filter: blur(calc(var(--u) * 9)) saturate(1.5);
-  transform: scale(1.15);
-  transition: background-image var(--dur-panel) var(--ease-out);
-}
-/* Two jobs: keep the floating header legible over any album cover, and
-   keep the transport legible over the foot of it. */
-.np-scrim {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(to bottom, rgba(8,7,6,0.52) 0%, transparent calc(var(--u) * 16)),
-    linear-gradient(to bottom, rgba(8,7,6,0.34) 0%, rgba(8,7,6,0.60) 62%, rgba(8,7,6,0.86) 100%);
+  /* Handoff 2b ground: the night palette with a bottom ambient glow. */
+  background: radial-gradient(900px 620px at 50% 118%, rgba(80, 100, 170, 0.28), transparent 65%),
+              #0b0e18;
+  padding: calc(var(--px) * 24) calc(var(--px) * 40) calc(var(--px) * 24);
+  gap: calc(var(--px) * 20);
 }
 
 .np-content {
   position: relative;
   flex: 1;
   min-height: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: calc(var(--px) * 64);
   align-items: center;
-  justify-content: center;
-  gap: calc(var(--u) * 6);
-  /* Top padding clears the floating header. */
-  padding: calc(var(--u) * 13) calc(var(--u) * 4) calc(var(--u) * 4);
+  padding: 0 calc(var(--px) * 24);
 }
 
+/* 380px art, 28px radius, drop shadow + ambient glow (handoff 2b). */
 .np-art-wrap {
-  width: min(38vw, 46vh);
+  width: min(calc(var(--px) * 380), 40vh);
   aspect-ratio: 1;
   flex: none;
-  border-radius: var(--r-xl);
+  border-radius: calc(var(--px) * 28);
   overflow: hidden;
-  box-shadow: 0 calc(var(--u) * 5) calc(var(--u) * 14) rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55),
+              0 0 120px rgba(90, 110, 180, 0.18);
+  display: grid;
+  place-items: center;
+  color: var(--fg-4);
+  background: repeating-linear-gradient(45deg, #232a42, #232a42 14px, #1c2236 14px, #1c2236 28px);
 }
 .np-art {
   width: 100%;
@@ -216,48 +195,37 @@
 }
 .np-art.loaded { opacity: 1; transform: none; }
 
-.np-meta { min-width: 0; max-width: 42ch; }
+.np-right {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 30);
+  min-width: 0;
+}
+
+.np-meta { min-width: 0; }
 .np-title {
   font-family: var(--font-display);
-  font-size: var(--t-xxl);
-  font-weight: 400;
-  line-height: 1.08;
-  letter-spacing: var(--track-snug);
+  font-size: calc(var(--px) * 52);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   text-wrap: balance;
-  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.5);
 }
 .np-artist {
-  font-size: var(--t-xl);
-  font-weight: 400;
-  color: var(--fg-2);
-  margin-top: calc(var(--u) * 1.5);
-  letter-spacing: var(--track-wide);
-}
-.np-album {
-  font-size: var(--label-size);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--fg-4);
-  margin-top: calc(var(--u) * 2);
+  font-size: calc(var(--px) * 22);
+  color: rgba(231, 234, 244, 0.6);
+  margin-top: calc(var(--px) * 8);
 }
 
 /* ── Transport ────────────────────────────────────────────────
    Fades away when nobody has touched the wall for a while; any
-   activity brings it straight back. The panel header goes with it,
-   so an untouched wall shows the record and nothing else. */
+   activity brings it straight back. */
 
 .np-controls {
-  position: relative;
-  flex: none;
-  padding: 0 calc(var(--u) * 5) calc(var(--u) * 5);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 30);
   transition: opacity 900ms var(--ease-out), transform 900ms var(--ease-out);
-}
-/* Keeps the transport a composed block rather than a wall-wide rule. */
-.np-transport {
-  width: 100%;
-  max-width: calc(var(--u) * 92);
-  margin: 0 auto;
 }
 
 .panel.resting .np-controls {
@@ -270,31 +238,24 @@
   pointer-events: none;
 }
 .panel .panel-head { transition: opacity 900ms var(--ease-out); }
+.panel.resting .np-queue { opacity: 0; }
+.np-queue { transition: opacity 900ms var(--ease-out); }
 
-/* The art comes forward a touch once everything else steps back. */
-.panel.resting .np-scrim { opacity: 0.72; }
-.np-scrim { transition: opacity 900ms var(--ease-out); }
-
-.np-scrub {
+.np-scrub { display: flex; flex-direction: column; gap: calc(var(--px) * 10); }
+.np-times {
   display: flex;
-  align-items: center;
-  gap: calc(var(--u) * 2);
-  margin-bottom: calc(var(--u) * 3);
+  justify-content: space-between;
+  font-size: calc(var(--px) * 14);
+  color: rgba(231, 234, 244, 0.45);
+  font-variant-numeric: tabular-nums lining-nums;
 }
-.np-elapsed, .np-remaining {
-  font-size: var(--t-xs);
-  color: var(--fg-3);
-  min-width: calc(var(--u) * 6);
-  flex: none;
-}
-.np-remaining { text-align: right; }
 
+/* 6px track, light fill, 16px white thumb (handoff 2b). */
 .np-track {
   position: relative;
-  flex: 1;
-  height: calc(var(--u) * 0.75);
-  border-radius: var(--r-pill);
-  background: rgba(255, 246, 232, 0.20);
+  height: calc(var(--px) * 6);
+  border-radius: calc(var(--px) * 3);
+  background: rgba(255, 255, 255, 0.1);
   cursor: pointer;
 }
 /* A taller invisible hit area — the visible bar is too thin for a finger. */
@@ -306,48 +267,117 @@
 .np-track-fill {
   height: 100%;
   width: 0;
-  border-radius: var(--r-pill);
-  background: var(--fg);
+  border-radius: inherit;
+  background: #d6dcf0;
 }
 .np-track-knob {
   position: absolute;
   top: 50%;
-  width: calc(var(--u) * 2);
-  height: calc(var(--u) * 2);
-  margin-left: calc(var(--u) * -1);
+  width: calc(var(--px) * 16);
+  height: calc(var(--px) * 16);
+  margin-left: calc(var(--px) * -8);
   transform: translateY(-50%);
   border-radius: 50%;
-  background: var(--fg);
+  background: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .np-buttons {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: calc(var(--u) * 4);
+  gap: calc(var(--px) * 26);
 }
 .np-btn {
   display: grid;
   place-items: center;
-  width: var(--tap);
-  height: var(--tap);
   border-radius: 50%;
-  color: var(--fg-2);
+  color: var(--hh-text);
   transition: transform var(--dur-fast) var(--ease-spring),
               color var(--dur-fast) var(--ease-out);
 }
 .np-btn:active { transform: scale(0.88); }
-.np-btn.on { color: var(--accent); }
+.np-btn.on { color: var(--hh-amber); }
 
+/* Ghost 52px (shuffle/repeat), outlined 64px (prev/next), filled 92px
+   play — the handoff's three transport weights. */
+.np-btn.ghost-btn {
+  width: calc(var(--px) * 52);
+  height: calc(var(--px) * 52);
+  background: none;
+  border: none;
+  opacity: 0.5;
+}
+.np-btn.ghost-btn.on { opacity: 1; }
+.np-btn.ring-btn {
+  width: calc(var(--px) * 64);
+  height: calc(var(--px) * 64);
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
 .np-play {
-  width: calc(var(--u) * 11);
-  height: calc(var(--u) * 11);
-  background: var(--fg);
-  color: #0d0b09;
-  box-shadow: 0 calc(var(--u) * 1.5) calc(var(--u) * 4) rgba(0, 0, 0, 0.45);
+  width: calc(var(--px) * 92);
+  height: calc(var(--px) * 92);
+  background: #e7eaf4;
+  color: #0b0e18;
+  box-shadow: 0 12px 36px rgba(230, 234, 244, 0.25);
 }
 .np-play:active { transform: scale(0.93); }
+
+/* ── Queue bar (handoff 2b foot) ──────────────────────────── */
+
+.np-queue {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 14);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: calc(var(--px) * 18);
+  padding: calc(var(--px) * 14) calc(var(--px) * 22);
+  flex: none;
+  min-width: 0;
+}
+.np-queue-label {
+  font-size: calc(var(--px) * 12);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(231, 234, 244, 0.4);
+  margin-right: calc(var(--px) * 10);
+  flex: none;
+}
+.np-queue-art {
+  width: calc(var(--px) * 36);
+  height: calc(var(--px) * 36);
+  border-radius: calc(var(--px) * 10);
+  overflow: hidden;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: repeating-linear-gradient(45deg, #2a3050, #2a3050 8px, #222741 8px, #222741 16px);
+  color: var(--fg-4);
+}
+.np-queue-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.np-queue-meta { flex: 1; min-width: 0; }
+.np-queue-title {
+  font-size: calc(var(--px) * 16);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.np-queue-artist {
+  font-size: calc(var(--px) * 13);
+  color: rgba(231, 234, 244, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.np-queue-count {
+  font-size: calc(var(--px) * 14);
+  color: rgba(231, 234, 244, 0.4);
+  white-space: nowrap;
+  flex: none;
+}
 
 /* Repeat-one gets a dot rather than a different glyph. */
 .np-repeat { position: relative; }
@@ -483,16 +513,21 @@
 @media (orientation: portrait), (max-aspect-ratio: 5/4) {
   /* Narrower here: the clock and the controls are the same width as in
      landscape but the bar is not, so the pill has to give the ground
-     back rather than run into them. */
-  #mini-player { width: min(calc(var(--u) * 52), 40vw); }
+     back rather than run into them. Frame-px, not --u — the portrait
+     frame scale is what sized the ends it has to clear. */
+  #mini-player { width: min(calc(var(--px) * 300), 34vw); }
 
-  .np-content { flex-direction: column; gap: calc(var(--u) * 3); }
-  .np-art-wrap { width: min(62vw, 40vh); }
-  .np-meta { text-align: center; max-width: none; }
-  .np-title { font-size: var(--t-xl); }
-  .np-artist { font-size: var(--t-lg); }
-  .np-controls { padding: 0 calc(var(--u) * 3) calc(var(--u) * 4); }
-  .np-buttons { gap: calc(var(--u) * 2.5); }
+  /* Portrait stacks the 2b grid: art above, stack below, centred. */
+  .np-content {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: calc(var(--px) * 36);
+    align-content: center;
+  }
+  .np-art-wrap { width: min(56vw, 36vh); }
+  .np-right { width: 100%; max-width: calc(var(--px) * 620); }
+  .np-meta { text-align: center; }
+  .np-buttons { justify-content: center; }
 }
 
 /* Below this the bar is too narrow to hold a centred pill: an absolutely

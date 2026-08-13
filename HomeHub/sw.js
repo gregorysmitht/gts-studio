@@ -68,6 +68,9 @@ const SHELL = [
   './js/ui/music-widget.js',
   './js/ui/music-panel.js',
   './js/ui/photo-grid.js',
+  './js/core/daypart.js',
+  './js/ui/event-modal.js',
+  './css/modal.css',
 ];
 
 self.addEventListener('install', (event) => {
@@ -94,7 +97,23 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // Same-origin only: never intercept weather, radar tiles or calendars.
+  /* Google Fonts is the one cross-origin exception: cache-first with a
+     background fill, so the handoff faces survive offline after the
+     first successful load and never block paint (display=swap). */
+  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+    event.respondWith(
+      caches.match(request).then((cached) => cached ?? fetch(request).then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(VERSION).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      }))
+    );
+    return;
+  }
+
+  // Same-origin only otherwise: never intercept weather, radar tiles or calendars.
   if (url.origin !== location.origin) return;
   if (url.pathname.includes('/.netlify/functions/')) return;
 

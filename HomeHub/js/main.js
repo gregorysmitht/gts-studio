@@ -7,6 +7,7 @@ import { live, startData } from './data/hub.js';
 import { mountTopbar } from './ui/topbar.js';
 import { mountHome } from './ui/home.js';
 import { startIdleWatch } from './core/idle.js';
+import { startDaypart } from './core/daypart.js';
 import { startMusic } from './data/music.js';
 import { loadReminders, remindersAvailable } from './data/reminders.js';
 import { mountMiniPlayer } from './ui/music-widget.js';
@@ -31,6 +32,7 @@ function boot() {
   applyScale();
   seedFirstRun();
 
+  startDaypart();
   refreshSky();
   drawStars();
   // The sun moves; repaint once a minute so dawn and dusk actually roll in.

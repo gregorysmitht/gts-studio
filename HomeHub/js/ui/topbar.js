@@ -5,6 +5,7 @@
 
 import { h, fill, $ } from '../core/dom.js';
 import { clockParts, fullDate } from '../core/time.js';
+import { greetingSuffix } from '../core/daypart.js';
 import { icon } from './icons.js';
 import { on } from '../core/store.js';
 import { isDemo } from '../data/hub.js';
@@ -35,6 +36,17 @@ function startTicking() {
 function renderClock() {
   const el = $('.topbar-clock');
   if (el) fill(el, ...clockNodes());
+  /* The date line carries the daypart greeting (handoff 3a/3c), so the
+     minute tick refreshes it too — midnight and the 5pm→6pm boundary
+     both change this text. */
+  const date = $('.topbar-date');
+  if (date) fill(date, dateLine());
+}
+
+/* "THURSDAY, AUGUST 13 · GOOD MORNING" — the greeting is part of the
+   date line, morning and evening only, per the handoff. */
+function dateLine() {
+  return fullDate(new Date()) + greetingSuffix();
 }
 
 function clockNodes() {
@@ -53,12 +65,9 @@ function render() {
   const right = $('.topbar-right');
   if (!left || !right) return;
 
-  /* No greeting. It was the same four words for hours at a stretch, on a
-     screen whose whole job is to say something worth reading, and it
-     pushed the clock down to make room for it. */
   fill(left,
     h('div.topbar-clock', ...clockNodes()),
-    h('div.topbar-date', fullDate(new Date())),
+    h('div.topbar-date', dateLine()),
     /* Demo lives under the date, not in the right cluster: the bar has
        to seat four buttons around a centred music pill, and a wide pill
        of caps was the one tenant with somewhere better to be. */

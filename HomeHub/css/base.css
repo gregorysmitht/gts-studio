@@ -7,7 +7,8 @@
 html, body {
   height: 100%;
   overflow: hidden;               /* the hub never scrolls as a page */
-  background: #05070f;
+  background: var(--hh-bg);
+  transition: background 2000ms linear;   /* daypart shifts are ambient */
   overscroll-behavior: none;
 }
 
@@ -15,7 +16,7 @@ body {
   font-family: var(--font);
   font-size: var(--t-md);
   line-height: 1.35;
-  color: var(--fg);
+  color: var(--hh-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -63,26 +64,18 @@ canvas { display: block; }
 
 #sky > * { position: absolute; inset: 0; }
 
+/* The handoff replaces the solar-geometry gradient with four flat
+   daypart grounds plus their glows (tokens.css). sky.js still writes
+   the --sky-* vars — they've simply lost their consumer, along with the
+   sun-bloom layer. The star canvas stays: the handoff's night ground
+   asks for exactly the sparse ≤50% stars it already draws. */
 .sky-base {
-  background: linear-gradient(
-    to bottom,
-    var(--sky-1) 0%,
-    var(--sky-2) 52%,
-    var(--sky-3) 100%
-  );
+  background: var(--hh-glow), var(--hh-bg);
+  /* ≥1s so a daypart change is ambient, never an event (handoff). */
   transition: background var(--dur-sky) linear;
 }
 
-/* Sun/moon bloom, positioned by real solar azimuth + elevation. */
-.sky-glow {
-  background: radial-gradient(
-    circle var(--sky-glow-size) at var(--sky-glow-x) var(--sky-glow-y),
-    var(--sky-glow) 0%,
-    transparent 72%
-  );
-  transition: background var(--dur-sky) linear;
-  mix-blend-mode: screen;
-}
+.sky-glow { display: none; }
 
 .sky-stars {
   width: 100%;
@@ -122,11 +115,12 @@ canvas { display: block; }
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: max(var(--pad-edge), env(safe-area-inset-top))
-           max(var(--pad-edge), env(safe-area-inset-right))
-           max(var(--pad-edge), env(safe-area-inset-bottom))
-           max(var(--pad-edge), env(safe-area-inset-left));
-  gap: var(--gap-lg);
+  /* Handoff frame: 40px top, 48px sides, 44px bottom, 26px band gap. */
+  padding: max(calc(var(--px) * 40), env(safe-area-inset-top))
+           max(calc(var(--px) * 48), env(safe-area-inset-right))
+           max(calc(var(--px) * 44), env(safe-area-inset-bottom))
+           max(calc(var(--px) * 48), env(safe-area-inset-left));
+  gap: calc(var(--px) * 26);
   transition: opacity var(--dur) var(--ease-out),
               transform var(--dur-panel) var(--ease-spring),
               filter var(--dur-panel) var(--ease-spring);
@@ -160,35 +154,21 @@ body.ambient-on #panel-host {
    PRIMITIVES
    ───────────────────────────────────────────────────────── */
 
-/* Cards are furniture, not chrome: no outline, a wide soft shadow to lift
-   them off the sky, and one hairline of light along the top edge the way
-   real glass catches a room. Losing the border is most of what stops the
-   home screen reading as a dashboard. */
+/* Handoff card surface: a quiet translucent panel with a hairline
+   border, 24px radius, no blur, no shadow. The old glass treatment
+   (blur + bloom + lifted shadow) reads richer close up but the handoff
+   is flatter and calmer, and it is the spec. */
 .card {
   position: relative;
-  background: var(--glass);
-  border: none;
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-card),
-              inset 0 1px 0 rgba(255, 248, 238, 0.11);
-  backdrop-filter: blur(var(--blur)) saturate(1.3);
-  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3);
-  padding: var(--pad-card);
+  background: var(--hh-card);
+  border: 1px solid var(--hh-card-line);
+  border-radius: var(--hh-r-card);
+  padding: calc(var(--px) * 22) calc(var(--px) * 30);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-}
-
-/* A faint warm bloom in the upper-left, like light falling across glass. */
-.card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(120% 90% at 8% -10%,
-              rgba(255, 240, 220, 0.09), transparent 58%);
-  pointer-events: none;
 }
 
 .card.tappable {
@@ -199,7 +179,7 @@ body.ambient-on #panel-host {
 }
 .card.tappable:active {
   transform: scale(0.985);
-  background: var(--glass-hi);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* A rest-state affordance: a faint chevron in the top-right corner, so
@@ -225,12 +205,13 @@ body.ambient-on #panel-host {
    the flying clone appears to *be* it. */
 .card.morphing { opacity: 0; }
 
+/* Handoff section label: 13px / 600 / 0.16em caps at 45%. */
 .label {
-  font-size: var(--label-size);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
+  font-size: calc(var(--px) * 13);
+  font-weight: 600;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--fg-3);
+  color: var(--hh-label);
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 1);
@@ -335,7 +316,7 @@ body.ambient-on #panel-host {
 }
 .hscroll::-webkit-scrollbar { display: none; }
 
-.divider { height: 1px; background: var(--glass-line-2); flex: none; }
+.divider { height: 1px; background: var(--hh-hairline); flex: none; }
 
 .spacer { flex: 1 1 auto; min-height: 0; min-width: 0; }
 

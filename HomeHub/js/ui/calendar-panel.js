@@ -9,6 +9,7 @@ import {
 import { icon } from './icons.js';
 import { openPanel, onPanelClose, redrawPanel } from '../core/panel.js';
 import { openSheet } from '../core/sheet.js';
+import { openEventModal } from './event-modal.js';
 import { live } from '../data/hub.js';
 import { eventsOnDay, groupByDay, upcoming, isNow, layoutColumns } from '../data/calendar.js';
 import { state, on } from '../core/store.js';
@@ -293,75 +294,10 @@ function openDaySheet(day) {
 
 /* ── Event detail ─────────────────────────────────────────── */
 
+/* The 3d modal replaced the old row-list sheet; this alias keeps every
+   existing call site (month grid, week view, agenda) on one door. */
 export function openEventSheet(event) {
-  const multiDay = !sameDay(event.start, event.end) && !event.allDay;
-
-  openSheet(
-    h('article.sheet-event', { style: { '--chip': event.color || 'var(--accent)' } },
-      h('div.sheet-accent'),
-
-      h('div.sheet-head',
-        h('div',
-          h('div.sheet-eyebrow',
-            h('span.cal-dot', { style: { background: event.color || 'var(--accent)' } }),
-            event.calendarName || 'Calendar'),
-          h('h3.sheet-title', event.title),
-        ),
-        isNow(event) ? h('span.sheet-live', 'Happening now') : null,
-      ),
-
-      h('div.sheet-rows',
-        sheetRow('calendar', relativeDay(event.start), fullDate(event.start)),
-
-        sheetRow('clock',
-          event.allDay ? 'All day' : timeRange(event.start, event.end),
-          multiDay
-            ? `Ends ${fullDate(event.end)} at ${clockTime(event.end)}`
-            : durationText(event.start, event.end, event.allDay)),
-
-        event.location
-          ? sheetRow('pin', event.location, null, {
-              href: `https://maps.apple.com/?q=${encodeURIComponent(event.location)}`,
-            })
-          : null,
-
-        event.organizer ? sheetRow('person', event.organizer, 'Organizer') : null,
-
-        event.attendees?.length
-          ? sheetRow('users', event.attendees.slice(0, 6).join(', '),
-              event.attendees.length > 6 ? `+${event.attendees.length - 6} more` : 'Attendees')
-          : null,
-
-        event.recurring ? sheetRow('refresh', 'Repeating event', null) : null,
-      ),
-
-      event.description
-        ? h('div.sheet-notes',
-            h('div.label', icon('note', { size: 16 }), 'Notes'),
-            h('p', event.description),
-          )
-        : null,
-
-      event.url
-        ? h('a.btn.sheet-link', { href: event.url, target: '_blank', rel: 'noopener' },
-            icon('link', { size: 20 }), 'Open link')
-        : null,
-    )
-  );
-}
-
-function sheetRow(glyph, primary, secondary, link) {
-  const content = [
-    h('span.sheet-row-icon', icon(glyph, { size: 22 })),
-    h('div.sheet-row-text',
-      h('div.sheet-row-primary', primary),
-      secondary ? h('div.sheet-row-secondary', secondary) : null,
-    ),
-  ];
-  return link
-    ? h('a.sheet-row.linked', { ...link, target: '_blank', rel: 'noopener' },
-        ...content, icon('chevronRight', { size: 20 }))
-    : h('div.sheet-row', ...content);
+  openEventModal(event);
 }
 
 

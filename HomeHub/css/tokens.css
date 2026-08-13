@@ -42,11 +42,21 @@
      Both resolve natively on iPad, so the whole typographic
      identity still costs zero bytes and never flashes an
      unstyled frame.                                         */
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-          "Segoe UI Variable Display", "Segoe UI", Roboto,
-          system-ui, sans-serif;
-  --font-display: "Avenir Next", Avenir, Futura, "Helvetica Neue",
-          system-ui, sans-serif;
+  /* The design handoff specifies Space Grotesk for the things you look
+     at (clock, temperatures, titles) and IBM Plex Sans for everything
+     else. Both load from Google Fonts with display:swap; the fallbacks
+     are the previous native stacks, so offline or before first fetch the
+     hub still renders in a face chosen on purpose. */
+  --font: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+          "Segoe UI", Roboto, system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Avenir Next", Avenir, Futura,
+          "Helvetica Neue", system-ui, sans-serif;
+
+  /* ── Handoff frame scale ────────────────────────────────
+     The handoff is drawn at 1180×880. --px is that frame's pixel,
+     scaled proportionally to whatever screen the hub is on, so every
+     size copied from the spec stays pixel-true to the composition. */
+  --px: min(100vw / 1180, 100vh / 880);
 
   /* Distance-viewing type ramp. Nothing below 15px ships.
      The hero went UP a size when the serif left: a sans of the same
@@ -155,6 +165,39 @@
   --sev-moderate: #D6A65C;
   --sev-minor:    #8FB6C9;
 
+  /* ── Handoff palette ────────────────────────────────────
+     Straight from the design tokens section of the handoff README.
+     The daypart engine (js/core/daypart.js) stamps data-daypart on
+     <html>; the background/glow pair swaps below. */
+  --hh-bg:        #0b0e18;                      /* night default      */
+  --hh-glow:      radial-gradient(circle at 12% 8%, rgba(120,140,220,.10), transparent 40%);
+  --hh-text:      #e7eaf4;
+  --hh-text-2:    rgba(231, 234, 244, 0.55);
+  --hh-label:     rgba(231, 234, 244, 0.45);
+  --hh-card:      rgba(255, 255, 255, 0.04);
+  --hh-card-line: rgba(255, 255, 255, 0.07);
+  --hh-hairline:  rgba(255, 255, 255, 0.05);
+  --hh-alert:       #e8927c;
+  --hh-alert-copy:  #f0b3a3;
+  --hh-alert-bg:    rgba(224, 122, 95, 0.09);
+  --hh-alert-line:  rgba(224, 122, 95, 0.30);
+  --hh-cat-green:  #8fc79a;
+  --hh-cat-purple: #c39ed6;
+  --hh-cat-blue:   #84aede;
+  --hh-rain-blue:  #8fb6e4;
+  --hh-amber:      #ecc27e;
+  --hh-dusk-amber: #d9a05f;
+  --hh-cloud:      #aab3cf;
+  --hh-good:       #8fc79a;
+  --hh-good-copy:  #b5dcbc;
+  --hh-good-bg:    rgba(143, 199, 154, 0.08);
+  --hh-good-line:  rgba(143, 199, 154, 0.28);
+  --hh-range: linear-gradient(90deg, #5a7bc0, #d9a05f);
+  --hh-modal-bg:   #151a2b;
+  --hh-r-card: calc(var(--px) * 24);
+  --hh-r-strip: calc(var(--px) * 14);
+  --hh-r-modal: calc(var(--px) * 26);
+
   /* ── Motion ─────────────────────────────────────────────
      --ease-spring is the iOS-ish overshoot used for panel
      expansion; --ease-out for everything ordinary.          */
@@ -173,6 +216,26 @@
   --z-ambient: 60;
   --z-dimmer: 80;
   --z-toast: 90;
+}
+
+/* ── Time-of-day palettes (handoff §Design Tokens) ───────────
+   The layout never changes between dayparts — only the ground and
+   its glows. Transitions are handled where the vars are consumed
+   (body background transitions ≥1s so the shift is ambient). */
+:root[data-daypart="morning"] {
+  --hh-bg: #121525;
+  --hh-glow: radial-gradient(1100px 500px at 30% 115%, rgba(235,166,110,.22), transparent 65%),
+             radial-gradient(900px 500px at 85% -10%, rgba(120,150,220,.12), transparent 60%);
+  --hh-card: rgba(255, 255, 255, 0.045);
+}
+:root[data-daypart="afternoon"] {
+  --hh-bg: #0f1320;
+  --hh-glow: radial-gradient(1000px 560px at 60% -15%, rgba(105,125,175,.24), transparent 60%);
+}
+:root[data-daypart="evening"] {
+  --hh-bg: #0e0f1c;
+  --hh-glow: radial-gradient(1100px 520px at 25% 118%, rgba(196,116,92,.2), transparent 62%),
+             radial-gradient(900px 500px at 90% -10%, rgba(110,100,180,.18), transparent 60%);
 }
 
 /* ── Short screens ────────────────────────────────────────────
