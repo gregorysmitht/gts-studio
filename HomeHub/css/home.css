@@ -195,7 +195,7 @@
   display: flex;
   align-items: baseline;
   gap: calc(var(--u) * 2.5);
-  margin-top: calc(var(--u) * 1.5);
+  margin-top: calc(var(--u) * 1.25);
   font-size: var(--t-md);
   font-weight: 500;
   letter-spacing: var(--track-wide);
@@ -228,7 +228,7 @@
   font-size: var(--t-xl);
   font-weight: 400;
   letter-spacing: var(--track-snug);
-  margin-top: calc(var(--u) * 1.25);
+  margin-top: calc(var(--u) * 0.75);
   line-height: 1.12;
 }
 .wx-feels {
@@ -244,8 +244,8 @@
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 1.25);
-  margin-top: auto;
-  padding: calc(var(--u) * 1) calc(var(--u) * 0.25);
+  margin-top: calc(var(--u) * 1.75);
+  padding: 0;
   font-size: var(--t-sm);
   flex: none;
   overflow: hidden;
@@ -266,7 +266,7 @@
 .wx-timing-window {
   font-family: var(--font-display);
   color: var(--fg);
-  font-size: var(--t-md);
+  font-size: var(--t-sm);
   font-weight: 400;
   font-variant-numeric: tabular-nums lining-nums;
   white-space: nowrap;
@@ -280,7 +280,10 @@
 }
 .wx-timing.clear span { color: var(--good); font-weight: 600; }
 
-.wx-card .divider { margin: calc(var(--u) * 1.5) 0 0; }
+/* The divider and strip pin to the bottom; the card's slack gathers in
+   one place, between the statement and the strip, instead of around a
+   timing line that belonged to nothing. */
+.wx-card .divider { margin: auto 0 0; }
 
 .wx-hours {
   display: grid;

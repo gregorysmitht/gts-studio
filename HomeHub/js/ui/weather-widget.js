@@ -78,6 +78,10 @@ export function renderWeather(card) {
             ? h('span.wx-feels', `Feels ${temp(now.feelsLike)}`)
             : null,
         ),
+        /* The timing line is the last line of the statement, not a band
+           floating between the hero and the hourly strip. The card reads
+           top to bottom: what it is, what it will be, when it changes. */
+        timingLine(model),
       ),
       h('div.wx-glyph',
         weatherIcon(now.condition, { size: 116, night: now.night }),
@@ -89,8 +93,6 @@ export function renderWeather(card) {
        should read as the loudest thing on the weather card rather than
        as a pill in the furniture. */
     alertLine(model),
-
-    timingLine(model),
 
     h('div.divider'),
 
