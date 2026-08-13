@@ -54,7 +54,9 @@ export function renderWeather(card) {
 
   const now = model.current;
   const today = model.daily?.[0];
-  const hours = nextHours(model, 6);
+  /* Eight, not six: "will it rain before bedtime" asked mid-afternoon
+     needs to reach the evening, and the card is wide enough now. */
+  const hours = nextHours(model, 8);
 
   /* A warning is an extra bar the card was not sized for, so the hero
      tightens to make room rather than clipping the hi/lo row. */

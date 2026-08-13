@@ -20,7 +20,29 @@ export function createCalendarWidget() {
   const card = h('article.card.cal-card', { id: 'w-calendar' });
   makeExpandable(card, (source) => openCalendarPanel({ source }));
   renderCalendarWidget(card);
+  /* Rotation and panel resizes change how many whole rows fit. */
+  new ResizeObserver(() => trimToWholeRows(card)).observe(card);
   return card;
+}
+
+/**
+ * Hide any row that would only partly fit, and never leave a day heading
+ * as the last thing showing with nothing under it. A half-visible row
+ * invites a tap the card doesn't really answer; the full list is one tap
+ * away in the panel either way.
+ */
+function trimToWholeRows(card) {
+  const list = card.querySelector('.cal-list');
+  if (!list) return;
+  const kids = [...list.children];
+  for (const el of kids) el.style.display = '';
+  const bottom = list.getBoundingClientRect().top + list.clientHeight + 1;
+  let cut = kids.length;
+  for (let i = 0; i < kids.length; i++) {
+    if (kids[i].getBoundingClientRect().bottom > bottom) { cut = i; break; }
+  }
+  while (cut > 0 && kids[cut - 1].classList.contains('cal-day-head')) cut--;
+  for (let i = cut; i < kids.length; i++) kids[i].style.display = 'none';
 }
 
 export function renderCalendarWidget(card) {
@@ -74,6 +96,7 @@ export function renderCalendarWidget(card) {
       }),
     ),
   );
+  requestAnimationFrame(() => trimToWholeRows(card));
 }
 
 function header(todayCount, overdueCount = 0) {
@@ -129,7 +152,7 @@ function reminderRow(reminder) {
  */
 function eventRow(event) {
   const running = isNow(event);
-  const soon = !running && event.start - Date.now() < 3 * 3600e3;
+  const soon = !running && event.start - Date.now() < 6 * 3600e3;
 
   return h(`div.cal-row.no-expand${running ? '.now' : ''}`, {
     role: 'button',
@@ -146,7 +169,13 @@ function eventRow(event) {
     h('span.cal-dot', { style: { background: event.color || 'var(--accent)' } }),
     h('div.cal-row-main',
       h('div.cal-row-title', event.title),
-      event.location ? h('div.cal-row-where', event.location) : null,
+      /* The card is the widest thing on the grid now; a row with no
+         location still has room to say whose calendar it came from. */
+      event.location
+        ? h('div.cal-row-where', event.location)
+        : event.calendarName
+          ? h('div.cal-row-where', event.calendarName)
+          : null,
     ),
     h('div.cal-row-time',
       h('div.cal-time-main', event.allDay ? 'All day' : clockTime(event.start)),

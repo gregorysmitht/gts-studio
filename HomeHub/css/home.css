@@ -123,17 +123,19 @@
   50%      { box-shadow: 0 0 calc(var(--u) * 4) rgba(217, 106, 90, 0.45); }
 }
 
-.demo-pill {
-  height: var(--tap);
-  padding: 0 calc(var(--u) * 2);
-  border-radius: var(--r-pill);
-  background: transparent;
-  border: 1px solid var(--glass-line);
+.demo-note {
+  display: block;
+  margin-top: calc(var(--u) * 0.75);
+  padding: 0;
+  background: none;
+  border: none;
+  text-align: left;
   font-size: var(--t-xs);
   font-weight: 600;
-  color: var(--fg-4);
+  color: var(--accent);
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  cursor: pointer;
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -394,10 +396,8 @@
   gap: calc(var(--u) * 0.25);
   margin: 0 calc(var(--pad-card) * -0.5);
   padding: 0 calc(var(--pad-card) * 0.5);
-  /* Fade the last row out rather than slicing it, so a scrolling list
-     reads as "there's more" instead of "this is broken". */
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--u) * 5), transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--u) * 5), transparent 100%);
+  /* No fade mask: the widget trims itself to whole rows, so there is
+     never a half-visible line to soften. The full list is in the panel. */
 }
 
 .cal-day-head {

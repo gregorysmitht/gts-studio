@@ -202,6 +202,25 @@ body.ambient-on #panel-host {
   background: var(--glass-hi);
 }
 
+/* A rest-state affordance: a faint chevron in the top-right corner, so
+   a guest can tell the cards open without anything shouting about it.
+   Faint on purpose — from across the room it should disappear. */
+.card.tappable::after {
+  content: "";
+  position: absolute;
+  top: calc(var(--pad-card) + var(--u) * 0.35);
+  right: calc(var(--pad-card) + var(--u) * 0.25);
+  width: calc(var(--u) * 1);
+  height: calc(var(--u) * 1);
+  border-top: 2px solid var(--fg-4);
+  border-right: 2px solid var(--fg-4);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+/* Keep the header's own top-right tenant (a "2 overdue" note, the week's
+   range) clear of the chevron. */
+.card.tappable .section-head { padding-right: calc(var(--u) * 2.5); }
+
 /* The card currently expanding into a panel is hidden in place so
    the flying clone appears to *be* it. */
 .card.morphing { opacity: 0; }

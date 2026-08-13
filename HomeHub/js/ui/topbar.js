@@ -11,6 +11,8 @@ import { isDemo } from '../data/hub.js';
 import { openSettings } from './settings.js';
 import { openMusicPanel } from './music-panel.js';
 import { musicAvailable, hasTrack } from '../data/music.js';
+import { openListsPanel } from './lists.js';
+import { openChoresPanel } from './chores.js';
 
 let tickTimer = null;
 
@@ -57,6 +59,10 @@ function render() {
   fill(left,
     h('div.topbar-clock', ...clockNodes()),
     h('div.topbar-date', fullDate(new Date())),
+    /* Demo lives under the date, not in the right cluster: the bar has
+       to seat four buttons around a centred music pill, and a wide pill
+       of caps was the one tenant with somewhere better to be. */
+    isDemo() ? demoNote() : null,
   );
 
   fill(right,
@@ -64,7 +70,17 @@ function render() {
        wall-mounted iPad, so it was permanent furniture saying nothing;
        warnings moved onto the weather card, beside the conditions they
        describe. Settings is still one tap away for both. */
-    isDemo() ? demoPill() : null,
+
+    /* The front door for lists and chores now that their cards are off
+       the grid. Same treatment as music: a quiet icon, a full panel. */
+    h('button.icon-btn.no-expand', {
+      onclick: (event) => openListsPanel({ source: event.currentTarget }),
+      'aria-label': 'Lists',
+    }, icon('list', { size: 24 })),
+    h('button.icon-btn.no-expand', {
+      onclick: (event) => openChoresPanel({ source: event.currentTarget }),
+      'aria-label': 'Chores',
+    }, icon('broom', { size: 24 })),
 
     /* How you reach music from a silent house. Once something is
        playing the mini player beside it is the way in, and CSS hides
@@ -87,8 +103,8 @@ function render() {
 }
 
 
-function demoPill() {
-  return h('button.demo-pill.no-expand', {
+function demoNote() {
+  return h('button.demo-note.no-expand', {
     onclick: () => openSettings('sources'),
     title: 'Showing generated sample data — add a location or calendar to go live',
   }, 'Demo data');
