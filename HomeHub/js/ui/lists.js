@@ -10,6 +10,7 @@ import {
 } from '../core/panel.js';
 import { state, save, uid, on } from '../core/store.js';
 import { isToday, clockTime, relativeDay } from '../core/time.js';
+import { openReminderEditor } from './reminder-edit.js';
 import {
   remindersAvailable, listItems, listName, tickOff, addReminder, isOverdue,
 } from '../data/reminders.js';
@@ -193,7 +194,8 @@ function linkedRow(reminder, body, list, reminderListId) {
       },
       'aria-label': `Mark ${reminder.title} done`,
     }),
-    h('span.list-item-text', reminder.title),
+    h('span.list-item-text.tappable', { onclick: () => openReminderEditor(reminder) },
+      reminder.title),
     /* A dated grocery means "before Saturday" — say so. */
     reminder.due
       ? h(`span.list-due${isOverdue(reminder) ? '.late' : ''}`,

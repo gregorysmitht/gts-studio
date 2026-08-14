@@ -48,7 +48,7 @@
   <key>NSCalendarsUsageDescription</key>
   <string>HomeHub shows your family's upcoming events on the wall display.</string>
   <key>NSCalendarsFullAccessUsageDescription</key>
-  <string>HomeHub shows your family's upcoming events on the wall display. It only reads them.</string>
+  <string>HomeHub shows your family's upcoming events on the wall display. It saves the ones you add or edit there, too.</string>
   <key>NSRemindersUsageDescription</key>
   <string>HomeHub shows your family's reminders on the wall display.</string>
   <key>NSRemindersFullAccessUsageDescription</key>

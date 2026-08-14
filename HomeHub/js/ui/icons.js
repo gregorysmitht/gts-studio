@@ -192,6 +192,7 @@ const UI = {
   thermometer:  '<path d="M13.5 14.2V4.8a2.3 2.3 0 0 0-4.6 0v9.4a4.4 4.4 0 1 0 4.6 0z"/>',
   umbrella:     '<path d="M12 2.5A9.5 9.5 0 0 0 2.5 12h19A9.5 9.5 0 0 0 12 2.5z"/><path d="M12 12v7a2.5 2.5 0 0 1-5 0"/>',
   trash:        '<path d="M4 7h16M9.5 7V5.2A1.2 1.2 0 0 1 10.7 4h2.6a1.2 1.2 0 0 1 1.2 1.2V7M6.5 7l.9 12.1A2 2 0 0 0 9.4 21h5.2a2 2 0 0 0 2-1.9L17.5 7"/>',
+  pencil:       '<path d="M16.3 3.9a2.4 2.4 0 0 1 3.4 3.4L7.6 19.4 3 21l1.6-4.6z"/><path d="M14.5 5.7l3.4 3.4"/>',
   person:       '<circle cx="12" cy="8" r="3.8"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/>',
   photo:        '<rect x="3" y="4.5" width="18" height="15" rx="3"/><circle cx="8.6" cy="10" r="1.7"/><path d="M3.4 17l5-4.6a2 2 0 0 1 2.7 0l4.3 4M14.5 14.4l1.6-1.4a2 2 0 0 1 2.7 0l1.8 1.6"/>',
   grid:         '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>',

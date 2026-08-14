@@ -148,6 +148,44 @@ export async function createReminder(listId, title) {
   return nativeCall('reminders.add', { listId, title });
 }
 
+/**
+ * Edit a reminder in place. `changes` may hold title, due (epoch ms or
+ * null to clear), hasTime, notes, and repeat
+ * ('none'|'daily'|'weekdays'|'weekly'|'biweekly'|'monthly').
+ */
+export async function updateReminder(id, changes) {
+  return nativeCall('reminders.update', { id, changes });
+}
+
+export async function removeReminder(id) {
+  return nativeCall('reminders.remove', { id });
+}
+
+/** Put an event on the family calendar from the wall. */
+export async function createEvent({ title, start, end, allDay, calendarId, location, notes }) {
+  return nativeCall('calendar.add', {
+    title, start: +start, end: +end, allDay: !!allDay,
+    calendarId: calendarId || null, location: location || '', notes: notes || '',
+  });
+}
+
+/**
+ * Edit an event. Recurring events need the occurrence's own start and a
+ * span: 'this' touches that occurrence, 'future' the rest of the series.
+ */
+export async function updateEvent(uid, occurrenceStart, span, changes) {
+  return nativeCall('calendar.update', {
+    uid, occurrenceStart: +occurrenceStart, span,
+    changes: { ...changes,
+      ...(changes.start != null ? { start: +changes.start } : {}),
+      ...(changes.end != null ? { end: +changes.end } : {}) },
+  });
+}
+
+export async function removeEvent(uid, occurrenceStart, span) {
+  return nativeCall('calendar.remove', { uid, occurrenceStart: +occurrenceStart, span });
+}
+
 /* ── Weather ──────────────────────────────────────────────── */
 
 /**

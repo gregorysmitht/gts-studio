@@ -65,7 +65,9 @@ async function loadFromDevice(window_) {
   events.sort((a, b) => a.start - b.start || a.title.localeCompare(b.title));
   return {
     events,
-    calendars: calendars.map(({ id, name, color }) => ({ id, name, color })),
+    /* `editable` survives: the event modal's edit mode needs to know
+       which calendars can take a write (subscribed ones cannot). */
+    calendars: calendars.map(({ id, name, color, editable }) => ({ id, name, color, editable })),
     demo: false,
     errors: [],
     source: 'device',

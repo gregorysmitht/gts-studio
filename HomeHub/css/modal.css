@@ -195,3 +195,52 @@ body.modal-open #hub {
   border: none;
 }
 .ev-btn:active { transform: scale(0.98); }
+
+/* ── Edit / create forms (events and reminders) ─────────────── */
+
+.ev-form {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 16);
+}
+.ev-form-row {
+  display: flex;
+  gap: calc(var(--px) * 14);
+  align-items: flex-end;
+}
+.ev-form-row > * { flex: 1; min-width: 0; }
+.ev-field {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 6);
+  min-width: 0;
+}
+.ev-field-label {
+  font-size: calc(var(--px) * 12.5);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.ev-field .switch { align-self: flex-start; }
+.ev-form .text-input {
+  width: 100%;
+  font-size: calc(var(--px) * 17);
+  padding: calc(var(--px) * 12) calc(var(--px) * 14);
+}
+.ev-input { font-size: calc(var(--px) * 20); font-weight: 600; }
+.ev-form-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--px) * 8);
+}
+.ev-btn.danger {
+  color: var(--severe, #d98a8a);
+  border-color: color-mix(in srgb, var(--severe, #d98a8a) 40%, transparent);
+  flex: 0 0 auto;
+}
+.ev-modal-slim { width: min(calc(var(--px) * 520), 92vw); }
+
+/* Words that open an editor should say so under a finger. */
+.tappable { cursor: pointer; }
+.tappable:active { opacity: 0.7; }

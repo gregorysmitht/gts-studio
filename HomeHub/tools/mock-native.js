@@ -21,10 +21,18 @@
   let canPlayCatalog = true;   // an Apple Music subscription on this Apple ID
 
   const CALENDARS = [
-    { id: 'cal-family', name: 'Family',  color: '#7B96B8', source: 'iCloud' },
-    { id: 'cal-school', name: 'School',  color: '#8FA98A', source: 'iCloud' },
-    { id: 'cal-work',   name: 'Work',    color: '#9B8AAE', source: 'Exchange' },
+    { id: 'cal-family', name: 'Family',  color: '#7B96B8', source: 'iCloud', editable: true },
+    { id: 'cal-school', name: 'School',  color: '#8FA98A', source: 'iCloud', editable: true },
+    /* A subscribed/Exchange calendar that refuses writes, so the edit
+       pencil's gate gets exercised. */
+    { id: 'cal-work',   name: 'Work',    color: '#9B8AAE', source: 'Exchange', editable: false },
   ];
+
+  /* Mutations from the wall, layered over the static fixture tuples the
+     same way EventKit would persist them. */
+  const C_EXTRA = [];
+  const C_GONE = new Set();
+  const C_PATCH = {};
 
   /* Events relative to now, in the shape CalendarBridge.swift emits. */
   function events(from, to, ids) {
@@ -56,6 +64,7 @@
           calendarName: cal.name,
           color: cal.color,
           recurring: false,
+          editable: cal.editable,
         };
       });
 
@@ -70,7 +79,7 @@
       start: at(0, 0), end: at(1, 0),
       allDay: true, location: '', description: '',
       calendarId: family.id, calendarName: family.name, color: family.color,
-      recurring: false,
+      recurring: false, editable: true,
     });
     list.push({
       id: 'mock-dupe', uid: 'mock-dupe',
@@ -78,10 +87,15 @@
       start: at(0, 16, 0), end: at(0, 17, 30),
       allDay: false, location: 'Freedom Park — Field 3', description: '',
       calendarId: school.id, calendarName: school.name, color: school.color,
-      recurring: false,
+      recurring: false, editable: true,
     });
 
-    return list.filter((e) => e.end > +from && e.start < +to);
+    /* Wall-made mutations, applied the way EventKit persists them. */
+    list.push(...C_EXTRA.filter((ev) => !ids?.length || ids.includes(ev.calendarId)));
+    return list
+      .filter((e) => !C_GONE.has(e.uid))
+      .map((e) => (C_PATCH[e.uid] ? { ...e, ...C_PATCH[e.uid] } : e))
+      .filter((e) => e.end > +from && e.start < +to);
   }
 
   /* ── Reminders ──────────────────────────────────────────────
@@ -357,6 +371,7 @@
      every reminders mutation is followed by the same nudge the real
      bridge would send after its debounce. */
   const R_MUTATORS = /^reminders\.(complete|add|update|remove)$/;
+  const C_MUTATORS = /^calendar\.(add|update|remove)$/;
 
   /** Per-method round-trip time, in ms. See __setLatency below. */
   const LATENCY = {};
@@ -366,6 +381,39 @@
     'calendar.request': () => { auth = 'granted'; return { status: auth }; },
     'calendar.list': () => ({ calendars: CALENDARS }),
     'calendar.events': ({ from, to, calendarIds }) => ({ events: events(from, to, calendarIds) }),
+    'calendar.add': ({ title, start, end, allDay, calendarId, location, notes }) => {
+      const cal = CALENDARS.find((c) => c.id === calendarId)
+        ?? CALENDARS.find((c) => c.editable);
+      if (!cal.editable) throw new Error('That calendar cannot be written to');
+      const uid = `mock-new-${C_EXTRA.length}`;
+      C_EXTRA.push({
+        id: `${uid}-${Math.floor(start / 1000)}`, uid,
+        title, start, end: Math.max(start, end), allDay: !!allDay,
+        location: location || '', description: notes || '',
+        calendarId: cal.id, calendarName: cal.name, color: cal.color,
+        recurring: false, editable: true,
+      });
+      return { ok: true, uid };
+    },
+    'calendar.update': ({ uid, changes }) => {
+      const cur = events(0, Infinity).find((e) => e.uid === uid);
+      if (!cur) throw new Error('That event no longer exists');
+      if (!cur.editable) throw new Error('That calendar cannot be written to');
+      const patch = { ...changes };
+      if (patch.calendarId) {
+        const cal = CALENDARS.find((c) => c.id === patch.calendarId);
+        if (!cal?.editable) throw new Error('That calendar cannot be written to');
+        patch.calendarName = cal.name;
+        patch.color = cal.color;
+      }
+      delete patch.repeat;
+      C_PATCH[uid] = { ...(C_PATCH[uid] ?? {}), ...patch };
+      return { ok: true };
+    },
+    'calendar.remove': ({ uid }) => {
+      C_GONE.add(uid);
+      return { ok: true };
+    },
     'reminders.status': () => ({ status: reminderAuth }),
     'reminders.request': () => { reminderAuth = 'granted'; return { status: reminderAuth }; },
     'reminders.lists': () => ({ lists: R_LISTS }),
@@ -386,6 +434,31 @@
       };
       R_ITEMS.push(item);
       return { ok: true, id: item.id };
+    },
+    'reminders.update': ({ id, changes }) => {
+      const item = R_ITEMS.find((r) => r.id === id);
+      if (!item) throw new Error('That reminder no longer exists');
+      if (changes.title) item.title = changes.title;
+      if ('due' in changes) {
+        item.due = changes.due ?? null;
+        item.hasTime = !!changes.hasTime;
+      }
+      if ('notes' in changes) item.notes = changes.notes ?? '';
+      if ('repeat' in changes) {
+        const text = {
+          none: '', daily: 'Daily', weekdays: 'Weekdays', weekly: 'Weekly',
+          biweekly: 'Every 2 weeks', monthly: 'Monthly',
+        }[changes.repeat] ?? '';
+        item.recurring = !!text;
+        item.repeatText = text;
+      }
+      return { ok: true };
+    },
+    'reminders.remove': ({ id }) => {
+      const i = R_ITEMS.findIndex((r) => r.id === id);
+      if (i < 0) throw new Error('That reminder no longer exists');
+      R_ITEMS.splice(i, 1);
+      return { ok: true };
     },
 
     'weather.forecast': () => forecast(),
@@ -469,6 +542,7 @@
           const result = fn(params || {});
           if (MUTATORS.test(method)) setTimeout(push, 10);
           if (R_MUTATORS.test(method)) setTimeout(() => pushTopic('reminders'), 30);
+          if (C_MUTATORS.test(method)) setTimeout(() => pushTopic('calendar'), 30);
           resolve(result);
         } catch (err) {
           reject(err);

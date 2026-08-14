@@ -107,6 +107,39 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
                 to: date(p["to"]),
                 calendarIds: p["calendarIds"] as? [String]
             )]
+        case "calendar.add":
+            guard let title = p["title"] as? String, !title.isEmpty else {
+                throw BridgeError.badParams("calendar.add needs a title")
+            }
+            return try calendar.add(
+                title: title,
+                start: date(p["start"]),
+                end: date(p["end"]),
+                allDay: p["allDay"] as? Bool ?? false,
+                calendarId: p["calendarId"] as? String,
+                location: p["location"] as? String,
+                notes: p["notes"] as? String
+            )
+        case "calendar.update":
+            guard let uid = p["uid"] as? String,
+                  let changes = p["changes"] as? [String: Any] else {
+                throw BridgeError.badParams("calendar.update needs a uid and changes")
+            }
+            return try calendar.update(
+                uid: uid,
+                occurrenceStart: date(p["occurrenceStart"]),
+                span: p["span"] as? String == "future" ? .futureEvents : .thisEvent,
+                changes: changes
+            )
+        case "calendar.remove":
+            guard let uid = p["uid"] as? String else {
+                throw BridgeError.badParams("calendar.remove needs a uid")
+            }
+            return try calendar.remove(
+                uid: uid,
+                occurrenceStart: date(p["occurrenceStart"]),
+                span: p["span"] as? String == "future" ? .futureEvents : .thisEvent
+            )
 
         case "reminders.status":
             return ["status": RemindersBridge.authorizationStatus()]
@@ -130,6 +163,17 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
                 throw BridgeError.badParams("reminders.add needs a listId and a title")
             }
             return try reminders.add(listId: listId, title: title)
+        case "reminders.update":
+            guard let id = p["id"] as? String,
+                  let changes = p["changes"] as? [String: Any] else {
+                throw BridgeError.badParams("reminders.update needs an id and changes")
+            }
+            return try reminders.update(id: id, changes: changes)
+        case "reminders.remove":
+            guard let id = p["id"] as? String else {
+                throw BridgeError.badParams("reminders.remove needs an id")
+            }
+            return try reminders.remove(id: id)
 
         case "weather.forecast":
             guard let lat = p["lat"] as? Double, let lon = p["lon"] as? Double else {

@@ -9,6 +9,7 @@ import { icon } from './icons.js';
 import { makeExpandable, openPanel, onPanelClose, redrawPanel } from '../core/panel.js';
 import { state, save, uid, on, personById } from '../core/store.js';
 import { openSettings } from './settings.js';
+import { openReminderEditor } from './reminder-edit.js';
 import {
   remindersAvailable, listItems, listName, tickOff, addReminder, isOverdue,
 } from '../data/reminders.js';
@@ -209,7 +210,8 @@ function linkedChoreRow(r) {
       onclick: () => tickOff(r.id, true).catch((err) => toast(err.message, 'warn')),
       'aria-label': `Mark ${r.title} done`,
     }),
-    h('div.chore-row-main',
+    /* The check completes; the words edit. */
+    h('div.chore-row-main.tappable', { onclick: () => openReminderEditor(r) },
       h('div.chore-row-title', r.title),
       meta.length ? h('div.chore-row-meta', ...meta) : null,
     ),

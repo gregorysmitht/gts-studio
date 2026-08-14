@@ -9,8 +9,9 @@ import {
 import { icon } from './icons.js';
 import { openPanel, onPanelClose, redrawPanel } from '../core/panel.js';
 import { openSheet } from '../core/sheet.js';
-import { openEventModal } from './event-modal.js';
+import { openEventModal, openEventCreate } from './event-modal.js';
 import { live } from '../data/hub.js';
+import { nativeHas } from '../core/native.js';
 import { eventsOnDay, groupByDay, upcoming, isNow, layoutColumns } from '../data/calendar.js';
 import { state, on } from '../core/store.js';
 import { openSettings } from './settings.js';
@@ -32,6 +33,14 @@ export function openCalendarPanel({ source, date } = {}) {
       { id: 'agenda', label: 'Agenda', render: (body) => renderAgenda(body) },
     ],
     actions: [
+      /* Creating events needs a writable device calendar; ICS feeds are
+         read-only by nature, so the button only exists on that path. */
+      ...(nativeHas('calendar') && live.calendar?.source === 'device'
+        ? [h('button.icon-btn', {
+            onclick: () => openEventCreate({ date: cursor }),
+            'aria-label': 'New event',
+          }, icon('plus', { size: 24 }))]
+        : []),
       h('button.icon-btn', {
         onclick: () => openSettings('calendars'),
         'aria-label': 'Manage calendars',

@@ -168,6 +168,72 @@ final class RemindersBridge {
         return ["ok": true, "completed": reminder.isCompleted]
     }
 
+    /// Editing from the wall: rename, reschedule, change the repeat.
+    /// The repeat vocabulary is the hub's six choices, not full RRULE —
+    /// anything fancier is set in the Reminders app and left alone.
+    func update(id: String, changes: [String: Any]) throws -> [String: Any] {
+        try requireAccess()
+        guard let reminder = store.calendarItem(withIdentifier: id) as? EKReminder else {
+            throw BridgeError.upstream("That reminder no longer exists")
+        }
+        if let title = changes["title"] as? String, !title.isEmpty { reminder.title = title }
+        if changes.keys.contains("due") {
+            if let ms = changes["due"] as? Double {
+                let dueDate = Date(timeIntervalSince1970: ms / 1000)
+                let hasTime = changes["hasTime"] as? Bool ?? true
+                var parts: Set<Calendar.Component> = [.year, .month, .day]
+                if hasTime { parts.formUnion([.hour, .minute]) }
+                reminder.dueDateComponents = Calendar.current.dateComponents(parts, from: dueDate)
+            } else {
+                reminder.dueDateComponents = nil
+            }
+        }
+        if let notes = changes["notes"] as? String {
+            reminder.notes = notes.isEmpty ? nil : notes
+        }
+        if let repeatId = changes["repeat"] as? String {
+            reminder.recurrenceRules = Self.rule(for: repeatId).map { [$0] }
+        }
+        try store.save(reminder, commit: true)
+        return ["ok": true]
+    }
+
+    /// Deleting is offered from the edit sheet only — a deliberate step
+    /// past completing, never a stray tap on a row.
+    func remove(id: String) throws -> [String: Any] {
+        try requireAccess()
+        guard let reminder = store.calendarItem(withIdentifier: id) as? EKReminder else {
+            throw BridgeError.upstream("That reminder no longer exists")
+        }
+        try store.remove(reminder, commit: true)
+        return ["ok": true]
+    }
+
+    static func rule(for id: String) -> EKRecurrenceRule? {
+        let weekdays: [EKRecurrenceDayOfWeek] = [
+            EKRecurrenceDayOfWeek(.monday), EKRecurrenceDayOfWeek(.tuesday),
+            EKRecurrenceDayOfWeek(.wednesday), EKRecurrenceDayOfWeek(.thursday),
+            EKRecurrenceDayOfWeek(.friday),
+        ]
+        switch id {
+        case "daily":
+            return EKRecurrenceRule(recurrenceWith: .daily, interval: 1, end: nil)
+        case "weekdays":
+            return EKRecurrenceRule(
+                recurrenceWith: .weekly, interval: 1,
+                daysOfTheWeek: weekdays, daysOfTheMonth: nil, monthsOfTheYear: nil,
+                weeksOfTheYear: nil, daysOfTheYear: nil, setPositions: nil, end: nil)
+        case "weekly":
+            return EKRecurrenceRule(recurrenceWith: .weekly, interval: 1, end: nil)
+        case "biweekly":
+            return EKRecurrenceRule(recurrenceWith: .weekly, interval: 2, end: nil)
+        case "monthly":
+            return EKRecurrenceRule(recurrenceWith: .monthly, interval: 1, end: nil)
+        default:
+            return nil   // "none"
+        }
+    }
+
     private func due(_ reminder: EKReminder) -> Date? {
         reminder.dueDateComponents?.date
     }
