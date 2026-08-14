@@ -20,7 +20,7 @@ import {
 import { musicAvailable, musicAuthStatus } from '../data/music.js';
 import {
   remindersAvailable, reminderState, reminderAuth, connectReminders,
-  loadReminderLists, isListShown, toggleList,
+  loadReminderLists, isListShown, toggleList, listName,
 } from '../data/reminders.js';
 import { ensureMusicAccess } from './music-panel.js';
 import { photoGrid, addPhotos } from './photo-grid.js';
@@ -202,6 +202,8 @@ function renderReminders(body) {
           'Connected lists always reach their own screens regardless.',
           upNextList)
       : null,
+
+    native ? siriCard() : null,
   );
 
   paintAdd();
@@ -223,6 +225,32 @@ function renderReminders(body) {
     paintUpNext();
     paintAdd();
   });
+}
+
+/* Discoverability, not configuration: the exact sentences that work,
+   built from the family's actual list names. Nothing here to tap. */
+function siriCard() {
+  const phrases = [];
+  const linkedList = state.lists
+    .map((l) => listName(state.listLinks?.[l.id]))
+    .find(Boolean);
+  if (linkedList) phrases.push(`Add milk to ${linkedList}`);
+  const person = state.people.find((p) => listName(state.choreLinks?.[p.id]));
+  if (person) phrases.push(`Add sweep the porch to ${listName(state.choreLinks[person.id])}`);
+  phrases.push('Add soccer practice Thursday at 5 to my calendar');
+  phrases.push('Show the radar on Home Hub');
+  phrases.push('Start the screensaver on Home Hub');
+
+  return group('Works with Siri',
+    'Say it to the wall or to any phone in the family. Connected lists ' +
+    'answer to their Reminders names; the hub itself answers to “Home Hub”.',
+    h('div.siri-phrases',
+      ...phrases.map((p) => h('div.siri-phrase.well',
+        h('span.siri-hey', 'Hey Siri,'),
+        h('span', ` ${p}`),
+      )),
+    ),
+  );
 }
 
 function removeList(list, repaint) {

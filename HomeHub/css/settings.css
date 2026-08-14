@@ -327,3 +327,16 @@
   gap: calc(var(--u) * 1.5);
   text-align: left;
 }
+
+/* The Works-with-Siri phrase card: sentences, not controls. */
+.siri-phrases {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1);
+}
+.siri-phrase {
+  padding: calc(var(--u) * 1.4) calc(var(--u) * 2);
+  font-size: var(--t-sm);
+  color: var(--fg-2);
+}
+.siri-hey { color: var(--fg-4); font-weight: 650; }

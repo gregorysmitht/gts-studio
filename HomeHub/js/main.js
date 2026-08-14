@@ -12,6 +12,7 @@ import { startDaypart } from './core/daypart.js';
 import { startMusic } from './data/music.js';
 import { loadReminders, remindersAvailable } from './data/reminders.js';
 import { mountMiniPlayer } from './ui/music-widget.js';
+import { startIntentRouter } from './ui/intents.js';
 import { toast } from './core/dom.js';
 
 function applyScale() {
@@ -64,6 +65,7 @@ function boot() {
     refresh.calendar();
   });
   startIdleWatch();
+  startIntentRouter();
 
   registerServiceWorker();
 

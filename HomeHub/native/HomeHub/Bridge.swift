@@ -259,6 +259,15 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
                 self?.push(topic: "music", payload: snapshot)
             }
             music.startObserving()
+
+            /* Siri's "show the radar on Home Hub" lands here; the page's
+               intent router walks to the screen. The relay replays an
+               ask that arrived before the web view was ready. */
+            IntentRelay.shared.handler = { [weak self] action in
+                Task { @MainActor in
+                    self?.push(topic: "intent", payload: ["action": action])
+                }
+            }
         }
 
         /* Reminders and events also change on their own — Siri, a phone
