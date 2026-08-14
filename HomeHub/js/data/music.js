@@ -61,6 +61,26 @@ export const setRepeat   = (mode) => send('music.repeat', { mode });
 /** Play a catalog or library item. @param {'song'|'album'|'playlist'} type */
 export const playItem = (type, id) => send('music.playItem', { type, id });
 
+/**
+ * Siri's "play music on Home Hub". Resume whatever is on the deck; with
+ * nothing queued anywhere, reach for the family's first playlist, then
+ * anything recently played. The catalog lives on this side of the
+ * bridge, so so does the fallback.
+ */
+export async function playSomething() {
+  if (hasTrack()) return play();
+  try {
+    const lists = await playlists();
+    if (lists.length) return playItem('playlist', lists[0].id);
+  } catch { /* no subscription or no playlists — try recents */ }
+  try {
+    const items = await recentlyPlayed();
+    const coll = items.find((i) => i.type === 'playlist' || i.type === 'album');
+    if (coll) return playItem(coll.type, coll.id);
+  } catch { /* nothing there either */ }
+  throw new Error('Nothing to play yet — open Music and pick something');
+}
+
 export async function togglePlay() {
   if (player.state === 'playing') return pause();
   return play();

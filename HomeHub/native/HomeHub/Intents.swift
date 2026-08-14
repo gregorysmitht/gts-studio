@@ -65,6 +65,35 @@ struct OpenHubIntent: AppIntent {
     }
 }
 
+/// Playback, spoken. The intent rides the same relay: the page's router
+/// resumes the system player, or reaches for the family's first
+/// playlist when nothing is queued anywhere — the catalog logic lives
+/// in JS, so the intent stays a one-liner.
+struct PlayHubMusicIntent: AppIntent {
+    static let title: LocalizedStringResource = "Play music on Home Hub"
+    static let description = IntentDescription(
+        "Resumes the music, or starts a playlist when nothing is queued.")
+    static let openAppWhenRun = true
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        IntentRelay.shared.send("music-play")
+        return .result()
+    }
+}
+
+struct PauseHubMusicIntent: AppIntent {
+    static let title: LocalizedStringResource = "Pause music on Home Hub"
+    static let description = IntentDescription("Pauses whatever is playing.")
+    static let openAppWhenRun = true
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        IntentRelay.shared.send("music-pause")
+        return .result()
+    }
+}
+
 /// Registered phrases work with zero setup — but every one must carry
 /// the app's name, per Apple. The destination slot makes each screen
 /// speakable: "Show chores on Home Hub."
@@ -77,6 +106,23 @@ struct HubShortcuts: AppShortcutsProvider {
                 "Show the \(\.$destination) on \(.applicationName)",
                 "Open \(\.$destination) on \(.applicationName)",
                 "Start the \(\.$destination) on \(.applicationName)",
+            ]
+        )
+        AppShortcut(
+            intent: PlayHubMusicIntent(),
+            phrases: [
+                "Play music on \(.applicationName)",
+                "Play some music on \(.applicationName)",
+                "Resume music on \(.applicationName)",
+                "Put some music on \(.applicationName)",
+            ]
+        )
+        AppShortcut(
+            intent: PauseHubMusicIntent(),
+            phrases: [
+                "Pause the music on \(.applicationName)",
+                "Pause music on \(.applicationName)",
+                "Stop the music on \(.applicationName)",
             ]
         )
     }

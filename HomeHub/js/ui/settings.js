@@ -238,6 +238,8 @@ function siriCard() {
   const person = state.people.find((p) => listName(state.choreLinks?.[p.id]));
   if (person) phrases.push(`Add sweep the porch to ${listName(state.choreLinks[person.id])}`);
   phrases.push('Add soccer practice Thursday at 5 to my calendar');
+  phrases.push('Play some music on Home Hub');
+  phrases.push('Pause the music on Home Hub');
   phrases.push('Show the radar on Home Hub');
   phrases.push('Start the screensaver on Home Hub');
 
