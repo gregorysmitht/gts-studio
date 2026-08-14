@@ -1,5 +1,6 @@
 import Foundation
 import WebKit
+import EventKit
 
 /// Routes `window.HomeHubNative.call(method, params)` to native code.
 ///
@@ -215,6 +216,32 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
             }
             music.startObserving()
         }
+
+        /* Reminders and events also change on their own — Siri, a phone
+           across the house, a calendar sync. EventKit posts one blanket
+           notification for all of it (no detail inside), so the page is
+           told which stores to ask again rather than what changed. */
+        NotificationCenter.default.addObserver(
+            forName: .EKEventStoreChanged, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.scheduleStoreChangedPush()
+        }
+    }
+
+    /// A sync lands as a burst of notifications; let it settle so the
+    /// page refetches once, not once per touched item.
+    private var storeChangedPush: DispatchWorkItem?
+
+    private func scheduleStoreChangedPush() {
+        storeChangedPush?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            Task { @MainActor in
+                self?.push(topic: "reminders", payload: [:])
+                self?.push(topic: "calendar", payload: [:])
+            }
+        }
+        storeChangedPush = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
     }
 
     @MainActor

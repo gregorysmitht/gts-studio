@@ -6,7 +6,7 @@
 
 import { h, fill, toast } from '../core/dom.js';
 import { icon } from './icons.js';
-import { makeExpandable, openPanel } from '../core/panel.js';
+import { makeExpandable, openPanel, onPanelClose, redrawPanel } from '../core/panel.js';
 import { state, save, uid, on, personById, nextColor, PALETTE } from '../core/store.js';
 import {
   remindersAvailable, listItems, listName, tickOff, addReminder, isOverdue,
@@ -145,6 +145,9 @@ export function openChoresPanel({ source } = {}) {
         { id: 'upcoming', label: 'Upcoming', render: (body) => renderLinkedUpcoming(body, linked) },
       ],
     });
+    /* Siri or a phone adds a chore while the board is up on the wall. */
+    const stop = on('reminders', () => redrawPanel());
+    onPanelClose(stop);
     return;
   }
 

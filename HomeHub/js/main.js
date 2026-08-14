@@ -3,7 +3,8 @@
 import { installIconDefs } from './ui/icons.js';
 import { paintSky, drawStars } from './core/sky.js';
 import { state, on, seedFirstRun } from './core/store.js';
-import { live, startData } from './data/hub.js';
+import { live, startData, refresh } from './data/hub.js';
+import { onNativeEvent } from './core/native.js';
 import { mountTopbar } from './ui/topbar.js';
 import { mountHome } from './ui/home.js';
 import { startIdleWatch } from './core/idle.js';
@@ -48,9 +49,20 @@ function boot() {
   startMusic();
   if (remindersAvailable()) {
     loadReminders();
-    // Someone ticks one off on their phone; the wall should notice.
+    // The shell nudges the page the moment the Reminders database
+    // changes under it — Siri, a phone across the house, a sync. The
+    // interval stays as the fallback for a missed nudge.
     setInterval(loadReminders, 5 * 60e3);
+    onNativeEvent('reminders', () => loadReminders());
   }
+  onNativeEvent('calendar', () => refresh.calendar());
+  // A wall iPad coming back from overnight idle should not spend its
+  // first five minutes showing yesterday.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    if (remindersAvailable()) loadReminders();
+    refresh.calendar();
+  });
   startIdleWatch();
 
   registerServiceWorker();

@@ -101,8 +101,42 @@ final class RemindersBridge {
                     "listName": list?.title ?? "",
                     "color": CalendarBridge.hex(from: list?.cgColor),
                     "completed": reminder.isCompleted,
+                    "recurring": reminder.hasRecurrenceRules,
+                    "repeatText": Self.repeatLabel(reminder.recurrenceRules?.first),
                 ]
             }
+    }
+
+    /// "Daily", "Weekdays", "Every Tue" — the short phrase a chore row can
+    /// wear. EventKit rules can be arbitrarily baroque; anything past the
+    /// household vocabulary just says "Repeats".
+    static func repeatLabel(_ rule: EKRecurrenceRule?) -> String {
+        guard let rule else { return "" }
+        let days = rule.daysOfTheWeek ?? []
+        switch (rule.frequency, rule.interval) {
+        case (.daily, 1):
+            return "Daily"
+        case (.weekly, 1) where days.count == 5
+            && !days.contains(where: { $0.dayOfTheWeek == .saturday || $0.dayOfTheWeek == .sunday }):
+            return "Weekdays"
+        case (.weekly, 1) where days.count <= 1:
+            if let day = days.first {
+                let names: [EKWeekday: String] = [
+                    .sunday: "Sun", .monday: "Mon", .tuesday: "Tue", .wednesday: "Wed",
+                    .thursday: "Thu", .friday: "Fri", .saturday: "Sat",
+                ]
+                return "Every \(names[day.dayOfTheWeek] ?? "week")"
+            }
+            return "Weekly"
+        case (.weekly, 2):
+            return "Every 2 weeks"
+        case (.monthly, 1):
+            return "Monthly"
+        case (.yearly, 1):
+            return "Yearly"
+        default:
+            return "Repeats"
+        }
     }
 
     /// A grocery typed on the wall should land on every phone.

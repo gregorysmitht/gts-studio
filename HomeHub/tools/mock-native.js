@@ -96,6 +96,9 @@
     /* The lists a family links to the hub's Lists/Chores features. */
     { id: 'rl-groceries', name: 'Groceries', color: '#8FC79A', source: 'iCloud' },
     { id: 'rl-chores',    name: 'Chores',    color: '#C39ED6', source: 'iCloud' },
+    /* Per-person chore lists, the way a family actually sets them up. */
+    { id: 'rl-audrey',    name: "Audrey's Chores",  color: '#D98A9E', source: 'iCloud' },
+    { id: 'rl-everest',   name: "Everest's Chores", color: '#7B96B8', source: 'iCloud' },
   ];
 
   const rMidnight = new Date(); rMidnight.setHours(0, 0, 0, 0);
@@ -115,7 +118,19 @@
     ['rl-chores',    'Empty the dishwasher',             0, 8,  0],
     ['rl-chores',    'Take out the bins',                0, 19, 0],
     ['rl-chores',    'Mow the back yard',                2, 10, 0],
-  ].map(([listId, title, day, hour, priority], i) => {
+    /* The per-person spread every chores view has to handle: overdue,
+       due today with a time, undated ("anytime"), and repeating. */
+    ['rl-audrey',    'Practice piano',                  -1, 16, 0, 'Every Wed'],
+    ['rl-audrey',    'Make your bed',                    0, 8,  0, 'Daily'],
+    ['rl-audrey',    'Feed the dog',                     0, 7,  0, 'Daily'],
+    ['rl-audrey',    'Tidy your room',                null, null, 0],
+    ['rl-audrey',    'Bring library books',              3, 15, 0, 'Weekly'],
+    ['rl-everest',   'Take out the recycling',          -1, 18, 0, 'Every Tue'],
+    ['rl-everest',   'Water the garden',                 0, 9,  0, 'Daily'],
+    ['rl-everest',   'Homework check',                   0, 16, 0, 'Weekdays'],
+    ['rl-everest',   'Sort the Legos',                null, null, 0],
+    ['rl-everest',   'Clean the hamster cage',           2, 10, 0, 'Every Sat'],
+  ].map(([listId, title, day, hour, priority, repeatText], i) => {
     const list = R_LISTS.find((l) => l.id === listId);
     return {
       id: `rem-${i}`,
@@ -129,6 +144,8 @@
       listName: list.name,
       color: list.color,
       completed: false,
+      recurring: !!repeatText,
+      repeatText: repeatText ?? '',
     };
   });
 
@@ -327,12 +344,19 @@
     }
   }
 
-  const push = () => window.HomeHubNative?.onEvent?.('music', snapshot());
+  const pushTopic = (topic, payload = {}) =>
+    window.HomeHubNative?.onEvent?.(topic, payload);
+  const push = () => pushTopic('music', snapshot());
 
   /* MusicKit's state observer fires whether the change came from the hub
      or from somewhere else, so every mutation pushes as well as replying.
      The hub gets the same value twice; applying it twice is a no-op. */
   const MUTATORS = /^music\.(play|pause|next|previous|seek|shuffle|repeat|playItem)$/;
+
+  /* EventKit posts EKEventStoreChanged for the hub's own writes too, so
+     every reminders mutation is followed by the same nudge the real
+     bridge would send after its debounce. */
+  const R_MUTATORS = /^reminders\.(complete|add|update|remove)$/;
 
   /** Per-method round-trip time, in ms. See __setLatency below. */
   const LATENCY = {};
@@ -358,6 +382,7 @@
         id: `rem-new-${R_ITEMS.length}`, title, due: null, hasTime: false,
         notes: '', priority: 0, flagged: false,
         listId: list.id, listName: list.name, color: list.color, completed: false,
+        recurring: false, repeatText: '',
       };
       R_ITEMS.push(item);
       return { ok: true, id: item.id };
@@ -443,6 +468,7 @@
         try {
           const result = fn(params || {});
           if (MUTATORS.test(method)) setTimeout(push, 10);
+          if (R_MUTATORS.test(method)) setTimeout(() => pushTopic('reminders'), 30);
           resolve(result);
         } catch (err) {
           reject(err);
@@ -462,5 +488,10 @@
     /** Pretend the queue moved on its own — proves the push path works. */
     __advance: () => { skip(1); push(); },
     __stopMusic: () => { settle(); music.state = 'stopped'; push(); },
+    /** What EKEventStoreChanged→push looks like from the page's side:
+        a phone or Siri touched the database, refetch both stores. */
+    __mockStoreChanged: () => { pushTopic('reminders'); pushTopic('calendar'); },
+    /** A Siri App Intent asking the hub to show something. */
+    __mockIntent: (action) => pushTopic('intent', { action }),
   };
 })();

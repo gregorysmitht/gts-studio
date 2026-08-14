@@ -5,7 +5,9 @@
 
 import { h, fill, $, toast } from '../core/dom.js';
 import { icon } from './icons.js';
-import { makeExpandable, openPanel, closePanel } from '../core/panel.js';
+import {
+  makeExpandable, openPanel, closePanel, onPanelClose, redrawPanel,
+} from '../core/panel.js';
 import { state, save, uid, on } from '../core/store.js';
 import {
   remindersAvailable, listItems, listName, tickOff, addReminder,
@@ -71,6 +73,16 @@ export function openListsPanel({ source, listId } = {}) {
       $(`.seg-btn[data-tab="${startId}"]`)?.click();
     }
   });
+
+  /* A phone or Siri edits a linked list while it's open on the wall:
+     the reminders refetch lands as an emit, and the panel follows.
+     Unless someone is mid-word in the add box — a rebuild would eat
+     their typing; the next emit catches the panel up. */
+  const stop = on('reminders', () => {
+    if (document.activeElement instanceof HTMLInputElement) return;
+    redrawPanel();
+  });
+  onPanelClose(stop);
 }
 
 function renderListPanel(body, listId) {
