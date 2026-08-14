@@ -7,7 +7,7 @@ five things a browser can't have:
 | --- | --- |
 | **EventKit** | The iPad's own Calendar app. No secret links to paste, no publishing — anything the family adds on their phones shows up here. |
 | **WeatherKit** | Apple's global forecast, included with the developer membership this app needs anyway. |
-| **MusicKit** | Apple Music through the *system* player, so what the wall starts also appears in Control Center and can play out to a HomePod. |
+| **MusicKit** | Apple Music through `SystemMusicPlayer` — the same deck the Music app and Siri use, so the wall mirrors and controls whatever is playing on the iPad, and what the wall starts appears in Control Center and can play out to a HomePod. |
 | **`UIScreen.brightness`** | Night mode dims the *panel*. The browser build can only lay a black layer over the page, which leaves the backlight on and reads grey in a dark hallway. |
 | **`URLSession`** | Requests with no origin, so no CORS — the Netlify proxy function isn't needed at all. |
 
@@ -34,17 +34,17 @@ The likeliest places to need a touch-up, in order:
 2. **`.onChange(of:)` in `HomeHubApp.swift`** — the single-parameter form
    is deprecated on iOS 17 (a warning, not an error).
 3. **`MusicBridge.startObserving()`** — observing
-   `ApplicationMusicPlayer.state` via `objectWillChange.values` is
-   correct but easy to get wrong. If pushes never arrive, everything
-   still works: `js/data/music.js` polls every 5 seconds as a backstop,
-   so the symptom is laggy updates when someone skips a track from their
-   phone, not a broken player.
-4. **`ApplicationMusicPlayer.Queue` construction** in `playItem` —
-   `Queue(for:)`, `Queue(album:)` and `Queue(playlist:)` have moved
-   between MusicKit releases more than anything else here.
+   `SystemMusicPlayer.state` via `objectWillChange.values` is correct
+   but easy to get wrong. If pushes never arrive the symptom is a hub
+   that misses track changes until the next foreground resync
+   (`js/data/music.js` resyncs on visibilitychange; the old 5-second
+   poll was removed on purpose), not a broken player.
+4. **`MusicPlayer.Queue` construction** in `playItem` — `Queue(for:)`,
+   `Queue(album:)` and `Queue(playlist:)` have moved between MusicKit
+   releases more than anything else here.
 5. **Deployment target** — set to iOS 16.0. WeatherKit needs 16+;
-   MusicKit's `ApplicationMusicPlayer` needs 15+;
-   `requestFullAccessToEvents` is already guarded for 17+.
+   MusicKit's `SystemMusicPlayer` needs 16+; `requestFullAccessToEvents`
+   is already guarded for 17+.
 
 Two whole classes of bug have already been swept out, so don't go
 looking for them: every value that crosses into JavaScript is an
@@ -169,9 +169,10 @@ methods to the five small classes beside it.
 
 `onEvent` is the one channel that runs the other way. Almost everything
 here is the page asking a question, but music changes on its own — a
-track ends, someone skips from their phone — so `MusicBridge` observes
-`ApplicationMusicPlayer` and `Bridge.push` calls into the page via
-`evaluateJavaScript`. The page listens with `onNativeEvent('music', fn)`.
+track ends, Siri starts an album, someone opens the Music app — so
+`MusicBridge` observes `SystemMusicPlayer` and `Bridge.push` calls into
+the page via `evaluateJavaScript`. The page listens with
+`onNativeEvent('music', fn)`.
 
 **Adding a method** means two edits: a `case` in `Bridge.dispatch`, and a
 wrapper in `js/core/native.js`. If it should be optional, add a

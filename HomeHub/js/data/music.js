@@ -133,9 +133,9 @@ let stopPoll = null;
 
 /**
  * The bridge pushes on every state change, which covers everything —
- * what the hub starts, and what someone starts from a phone, because
- * the Swift side observes the system player rather than only its own
- * commands. Nothing here needs to ask.
+ * what the hub starts, what Siri starts, what the Music app on this
+ * iPad starts — because the Swift side drives and observes
+ * SystemMusicPlayer, the device's own deck. Nothing here needs to ask.
  */
 export function startMusic() {
   if (!musicAvailable()) return;
@@ -155,7 +155,7 @@ export function startMusic() {
      pushes the moment it changes.
 
      That is expensive in a way a five-second timer does not look. Every
-     `music.now` reads ApplicationMusicPlayer's queue and state, and
+     `music.now` reads the system player's queue and state, and
      MusicBridge is @MainActor, so each one runs on the app's main
      thread. When the music daemon's connection is wedged — which the
      device log announces as "applicationQueuePlayer

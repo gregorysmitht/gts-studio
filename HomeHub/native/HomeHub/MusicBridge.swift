@@ -4,9 +4,14 @@ import MediaPlayer
 
 /// Apple Music, via MusicKit.
 ///
-/// Playback is entirely native: `ApplicationMusicPlayer` is the system
-/// player, so what the hub starts also appears in Control Center, on the
-/// lock screen, and on any HomePod the iPad is playing to. The web layer
+/// Playback is entirely native, through `SystemMusicPlayer` — the same
+/// deck the Music app and Siri use on this iPad. That is the point: the
+/// hub is a remote for the device's music, not a second player beside
+/// it. "Hey Siri, play Fleetwood Mac" said to the wall lights the hub
+/// up; a playlist started from the hub shows in Control Center; either
+/// side can pause the other. (`ApplicationMusicPlayer` was the original
+/// choice, and its app-private queue was exactly why Siri- and
+/// Music-app-started audio never appeared on the wall.) The web layer
 /// never touches audio — it renders the snapshot this file produces and
 /// sends transport commands back.
 ///
@@ -16,15 +21,15 @@ import MediaPlayer
 ///
 /// Two things flow the other way. Every command replies with a fresh
 /// snapshot, *and* the player's own state is observed — so a track
-/// ending, or someone skipping from their phone, pushes to the web view
-/// without the hub asking.
+/// ending, or someone starting an album in the Music app, pushes to the
+/// web view without the hub asking.
 @MainActor
 final class MusicBridge {
 
     /// Called with a snapshot whenever playback changes on its own.
     var onChange: (([String: Any]) -> Void)?
 
-    private let player = ApplicationMusicPlayer.shared
+    private let player = SystemMusicPlayer.shared
     private var observers: [Task<Void, Never>] = []
     private var lastSignature = ""
 
@@ -91,14 +96,14 @@ final class MusicBridge {
         stopObserving()
 
         observers.append(Task { [weak self] in
-            for await _ in ApplicationMusicPlayer.shared.state.objectWillChange.values {
+            for await _ in SystemMusicPlayer.shared.state.objectWillChange.values {
                 guard let self else { return }
                 self.pushIfChanged()
             }
         })
 
         observers.append(Task { [weak self] in
-            for await _ in ApplicationMusicPlayer.shared.queue.objectWillChange.values {
+            for await _ in SystemMusicPlayer.shared.queue.objectWillChange.values {
                 guard let self else { return }
                 self.pushIfChanged()
             }
@@ -231,12 +236,18 @@ final class MusicBridge {
         out["track"] = track(from: entry)
 
         /* Only what fits on screen; the rest of the queue is not shown.
-           Written out with an index rather than a drop/dropFirst/prefix
-           chain — the collection slicing was harder to read than it was
-           worth, and this is the same three entries. */
-        let entries = Array(player.queue.entries)
-        let start = entries.firstIndex { $0.id == entry.id }.map { $0 + 1 } ?? 0
-        out["queue"] = entries[start..<min(start + 3, entries.count)]
+           The system queue is not always one the hub built — the Music
+           app or Siri may own it, it can be large (a library shuffle),
+           and the current entry is not guaranteed to appear in
+           `entries`. So: no full materialisation, and when the current
+           entry can't be located, say "no upcoming" rather than showing
+           the queue's first three as if they were next. */
+        let entries = player.queue.entries
+        guard let at = entries.firstIndex(where: { $0.id == entry.id }) else {
+            out["queue"] = []
+            return out
+        }
+        out["queue"] = Array(entries[entries.index(after: at)...].prefix(3))
             .map { entry -> [String: Any] in
                 /* Same story as the current track: a queue entry from a
                    playlist carries the playlist's cover (or none), and
@@ -288,7 +299,7 @@ final class MusicBridge {
         }
     }
 
-    private func track(from entry: ApplicationMusicPlayer.Queue.Entry) -> [String: Any] {
+    private func track(from entry: MusicPlayer.Queue.Entry) -> [String: Any] {
         var album = ""
         var duration: Any = NSNull()
         var artwork = entry.artwork
@@ -525,7 +536,7 @@ final class MusicBridge {
                 song = try? await request.response().items.first
             }
             guard let song else { throw notFound }
-            player.queue = ApplicationMusicPlayer.Queue(for: [song], startingAt: song)
+            player.queue = MusicPlayer.Queue(for: [song], startingAt: song)
 
         case "album":
             var album = try? await MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: musicId)
@@ -544,7 +555,7 @@ final class MusicBridge {
             guard let tracks = try await album.with(.tracks).tracks, let first = tracks.first else {
                 throw BridgeError.upstream("That album has no tracks to play")
             }
-            player.queue = ApplicationMusicPlayer.Queue(for: tracks, startingAt: first)
+            player.queue = MusicPlayer.Queue(for: tracks, startingAt: first)
 
         case "playlist":
             var list = try? await MusicCatalogResourceRequest<Playlist>(matching: \.id, equalTo: musicId)
@@ -558,7 +569,7 @@ final class MusicBridge {
             guard let tracks = try await list.with(.tracks).tracks, let first = tracks.first else {
                 throw BridgeError.upstream("That playlist is empty")
             }
-            player.queue = ApplicationMusicPlayer.Queue(for: tracks, startingAt: first)
+            player.queue = MusicPlayer.Queue(for: tracks, startingAt: first)
 
         case "station":
             // Stations live only in the catalog; there is no library to
@@ -566,7 +577,7 @@ final class MusicBridge {
             let station = try await MusicCatalogResourceRequest<Station>(matching: \.id, equalTo: musicId)
                 .response().items.first
             guard let station else { throw notFound }
-            player.queue = ApplicationMusicPlayer.Queue(for: [station], startingAt: station)
+            player.queue = MusicPlayer.Queue(for: [station], startingAt: station)
 
         default:
             throw BridgeError.badParams("Unknown music item type: \(type)")

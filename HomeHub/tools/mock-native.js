@@ -313,6 +313,10 @@
     since: Date.now(),
     shuffle: false,
     repeat: 'off',
+    /* System-player truth: the queue can be genuinely empty (nothing
+       playing anywhere on the device), which snapshots as track:null.
+       The fixture starts full; __clearQueue empties it. */
+    cleared: false,
   };
 
   /** Advance the playhead the way native playback would have. */
@@ -334,6 +338,13 @@
 
   /** The snapshot shape MusicBridge.swift emits, on every call and push. */
   function snapshot() {
+    if (music.cleared) {
+      return {
+        state: 'stopped', track: null, position: 0,
+        shuffle: music.shuffle, repeat: music.repeat,
+        queue: [], auth: musicAuth,
+      };
+    }
     settle();
     const t = TRACKS[music.index];
     return {
@@ -475,7 +486,11 @@
     }),
     'music.request': () => { musicAuth = 'granted'; return { status: musicAuth }; },
     'music.now': () => snapshot(),
-    'music.play': () => { settle(); music.state = 'playing'; return snapshot(); },
+    'music.play': () => {
+      // The real system player throws when nothing is queued anywhere.
+      if (music.cleared) throw new Error('The operation couldn’t be completed. (No item to play.)');
+      settle(); music.state = 'playing'; return snapshot();
+    },
     'music.pause': () => { settle(); music.state = 'paused'; return snapshot(); },
     'music.next': () => { skip(1); return snapshot(); },
     'music.previous': () => {
@@ -510,6 +525,7 @@
     },
     'music.playItem': ({ type, id }) => {
       // Songs jump to that track; a collection just starts from the top.
+      music.cleared = false;
       const i = TRACKS.findIndex((t) => t.id === id);
       music.index = type === 'song' && i >= 0 ? i : 0;
       music.position = 0;
@@ -562,6 +578,19 @@
     /** Pretend the queue moved on its own — proves the push path works. */
     __advance: () => { skip(1); push(); },
     __stopMusic: () => { settle(); music.state = 'stopped'; push(); },
+    /** Nothing queued anywhere on the device — the system player's
+        truly-empty state (track:null), which __stopMusic cannot reach. */
+    __clearQueue: () => { music.cleared = true; push(); },
+    /** Music started outside the hub — Siri, the Music app. The system
+        player picks it up and the observer pushes, same as a skip. */
+    __externalPlay: (index = 0) => {
+      music.cleared = false;
+      music.index = index % TRACKS.length;
+      music.position = 0;
+      music.since = Date.now();
+      music.state = 'playing';
+      push();
+    },
     /** What EKEventStoreChanged→push looks like from the page's side:
         a phone or Siri touched the database, refetch both stores. */
     __mockStoreChanged: () => { pushTopic('reminders'); pushTopic('calendar'); },
