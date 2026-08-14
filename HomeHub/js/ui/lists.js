@@ -9,8 +9,9 @@ import {
   makeExpandable, openPanel, closePanel, onPanelClose, redrawPanel,
 } from '../core/panel.js';
 import { state, save, uid, on } from '../core/store.js';
+import { isToday, clockTime, relativeDay } from '../core/time.js';
 import {
-  remindersAvailable, listItems, listName, tickOff, addReminder,
+  remindersAvailable, listItems, listName, tickOff, addReminder, isOverdue,
 } from '../data/reminders.js';
 
 const listById = (id) => state.lists.find((l) => l.id === id);
@@ -193,6 +194,16 @@ function linkedRow(reminder, body, list, reminderListId) {
       'aria-label': `Mark ${reminder.title} done`,
     }),
     h('span.list-item-text', reminder.title),
+    /* A dated grocery means "before Saturday" — say so. */
+    reminder.due
+      ? h(`span.list-due${isOverdue(reminder) ? '.late' : ''}`,
+          isOverdue(reminder) ? 'Overdue'
+            : isToday(reminder.due) ? (reminder.hasTime ? clockTime(reminder.due) : 'Today')
+            : relativeDay(reminder.due))
+      : null,
+    reminder.recurring
+      ? h('span.chore-repeat', icon('refresh', { size: 13 }), reminder.repeatText || 'Repeats')
+      : null,
     /* No trash button: deleting someone's reminder from the wall is a
        bigger decision than completing it. That stays on the phone. */
   );

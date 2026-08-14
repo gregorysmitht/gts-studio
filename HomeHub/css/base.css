@@ -293,6 +293,27 @@ body.ambient-on #panel-host {
 }
 .icon-btn:active { transform: scale(0.9); background: var(--glass-hi); }
 
+/* A count riding a button's shoulder — chores owed today. Position
+   needs a positioned parent, so the button opts in. */
+.icon-btn { position: relative; }
+.btn-badge {
+  position: absolute;
+  top: calc(var(--px) * -4);
+  right: calc(var(--px) * -4);
+  min-width: calc(var(--px) * 22);
+  height: calc(var(--px) * 22);
+  padding: 0 calc(var(--px) * 5);
+  border-radius: calc(var(--px) * 11);
+  background: var(--accent);
+  color: rgba(10, 12, 20, 0.9);
+  font-size: calc(var(--px) * 13);
+  font-weight: 750;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
 /* Scroll areas inside cards/panels: momentum on, bars hidden. */
 .scroll {
   overflow-y: auto;

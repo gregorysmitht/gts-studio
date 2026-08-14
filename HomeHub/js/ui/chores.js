@@ -12,7 +12,7 @@ import { openSettings } from './settings.js';
 import {
   remindersAvailable, listItems, listName, tickOff, addReminder, isOverdue,
 } from '../data/reminders.js';
-import { isToday } from '../core/time.js';
+import { isToday, clockTime, relativeDay, startOfDay } from '../core/time.js';
 
 const dateKey = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -135,19 +135,28 @@ export function openChoresPanel({ source } = {}) {
      that list. iOS owns the schedule — a repeating reminder rolls to its
      next occurrence when completed — so the local repeat/streak
      machinery stands down while a link is set. */
-  const linked = remindersAvailable() ? state.choresLink : null;
-  if (linked) {
+  if (remindersAvailable() && choreBoards().length) {
     openPanel({
       id: 'chores',
       title: 'Chores',
       source,
       tabs: [
-        { id: 'today', label: 'Today', render: (body) => renderLinkedToday(body, linked) },
-        { id: 'upcoming', label: 'Upcoming', render: (body) => renderLinkedUpcoming(body, linked) },
+        { id: 'today', label: 'Today', render: renderLinkedToday },
+        { id: 'upcoming', label: 'Upcoming', render: renderLinkedUpcoming },
+      ],
+      actions: [
+        h('button.icon-btn', {
+          onclick: () => openSettings('reminders'),
+          'aria-label': 'Chore list settings',
+        }, icon('users', { size: 24 })),
       ],
     });
-    /* Siri or a phone adds a chore while the board is up on the wall. */
-    const stop = on('reminders', () => redrawPanel());
+    /* Siri or a phone adds a chore while the board is up on the wall —
+       but never mid-word in an add box. */
+    const stop = on('reminders', () => {
+      if (document.activeElement instanceof HTMLInputElement) return;
+      redrawPanel();
+    });
     onPanelClose(stop);
     return;
   }
@@ -172,34 +181,57 @@ export function openChoresPanel({ source } = {}) {
   });
 }
 
-/* ── Linked mode (state.choresLink) ───────────────────────── */
+/* ── Linked mode (choreLinks per person + choresLink shared) ── */
 
-function linkedRows(body, linked, items, renderer) {
-  return items.map((r) => h('div.list-item',
-    h('button.check', {
-      onclick: () => {
-        tickOff(r.id, true)
-          .then(() => renderer(body, linked))
-          .catch((err) => toast(err.message, 'warn'));
-      },
-      'aria-label': `Mark ${r.title} done`,
-    }),
-    h('div.chore-linked-main',
-      h('span.list-item-text', r.title),
-      isOverdue(r) ? h('span.chore-linked-tag', 'Overdue') : null,
-    ),
-  ));
+/** Every chore board with a Reminders list behind it, people first,
+    the shared "Everyone" bucket last. */
+function choreBoards() {
+  const boards = state.people
+    .map((person) => ({ person, listId: state.choreLinks?.[person.id] }))
+    .filter((b) => b.listId);
+  if (state.choresLink) boards.push({ person: null, listId: state.choresLink });
+  return boards;
 }
 
-/* Due today or already late — the board for right now. Completing a
-   repeating reminder makes EventKit schedule the next occurrence, so
-   recurring chores maintain themselves. */
-function renderLinkedToday(body, linked) {
-  const due = listItems(linked).filter((r) => isOverdue(r) || (r.due && isToday(r.due)));
+/* One reminder as a chore row: tick, title, and the schedule under it —
+   the overdue tag, the due time, the repeat rule. Completing a repeating
+   reminder makes EventKit schedule the next occurrence, so recurring
+   chores maintain themselves; the emit-driven redraw repaints the tab. */
+function linkedChoreRow(r) {
+  const meta = [
+    isOverdue(r) ? h('span.chore-linked-tag', 'Overdue') : null,
+    r.due && r.hasTime ? h('span.chore-due', clockTime(r.due)) : null,
+    r.recurring ? h('span.chore-repeat', icon('refresh', { size: 13 }), r.repeatText || 'Repeats') : null,
+  ].filter(Boolean);
 
+  return h('div.chore-row',
+    h('button.check', {
+      onclick: () => tickOff(r.id, true).catch((err) => toast(err.message, 'warn')),
+      'aria-label': `Mark ${r.title} done`,
+    }),
+    h('div.chore-row-main',
+      h('div.chore-row-title', r.title),
+      meta.length ? h('div.chore-row-meta', ...meta) : null,
+    ),
+  );
+}
+
+function boardHead(board, remaining, late) {
+  const { person } = board;
+  return h('div.chore-column-head',
+    h('span.person-chip', { style: { background: person?.color ?? 'var(--fg-faint)' } },
+      person ? person.name.slice(0, 1).toUpperCase() : icon('users', { size: 15, stroke: 2.4 })),
+    h('span.chore-column-name', person?.name ?? 'Everyone'),
+    h('span.chore-column-count',
+      remaining ? `${remaining} today${late ? ` · ${late} late` : ''}` : '✓'),
+  );
+}
+
+function boardAddInput(board) {
+  const who = board.person?.name ?? 'everyone';
   const input = h('input.list-input', {
     type: 'text',
-    placeholder: 'Add a chore…',
+    placeholder: `Add for ${who}…`,
     autocapitalize: 'sentences',
     enterkeyhint: 'done',
     onkeydown: (e) => {
@@ -207,37 +239,89 @@ function renderLinkedToday(body, linked) {
       const text = input.value.trim();
       if (!text) return;
       input.value = '';
-      addReminder(linked, text)
-        .then(() => renderLinkedToday(body, linked))
-        .catch((err) => toast(err.message, 'warn'));
+      addReminder(board.listId, text).catch((err) => toast(err.message, 'warn'));
     },
   });
+  return h('div.list-add.compact', icon('plus', { size: 20 }), input);
+}
+
+/** What is owed right now: late first, then today, then the undated
+    "anytime" pile — one column per person, so a kid walks up and reads
+    only their own. */
+function renderLinkedToday(body) {
+  const boards = choreBoards();
 
   fill(body,
-    h('div.list-add', icon('plus', { size: 24 }), input),
-    due.length
-      ? h('div.list-items', ...linkedRows(body, linked, due, renderLinkedToday))
-      : h('div.empty', icon('check', { size: 44, stroke: 1.6 }), 'All done today'),
-    h('div.list-sync-note',
-      icon('refresh', { size: 16 }),
-      `Synced with Reminders · ${listName(linked) ?? 'Chores'}`,
-      h('span.list-sync-hint', 'Repeats are set in the Reminders app'),
+    h('div.chore-columns',
+      ...boards.map((board) => {
+        const items = listItems(board.listId);
+        const late = items.filter((r) => isOverdue(r));
+        const today = items.filter((r) => !isOverdue(r) && r.due && isToday(r.due));
+        const anytime = items.filter((r) => !r.due);
+
+        return h('div.chore-column.well',
+          boardHead(board, late.length + today.length, late.length),
+          late.length + today.length
+            ? h('div.chore-board-rows',
+                ...late.map(linkedChoreRow),
+                ...today.map(linkedChoreRow))
+            : h('div.chore-clear',
+                icon('check', { size: 30, stroke: 2.4 }),
+                h('span', 'All done today')),
+          anytime.length
+            ? h('div.chore-anytime',
+                h('div.chore-anytime-head', 'Anytime'),
+                ...anytime.map(linkedChoreRow))
+            : null,
+          boardAddInput(board),
+        );
+      }),
     ),
+    syncNote(boards),
   );
 }
 
-/* Everything else on the list — later this week, and undated someday
-   chores. */
-function renderLinkedUpcoming(body, linked) {
-  const later = listItems(linked).filter((r) => !isOverdue(r) && !(r.due && isToday(r.due)));
+/** The days ahead, grouped under day headers inside each column. */
+function renderLinkedUpcoming(body) {
+  const boards = choreBoards();
+
   fill(body,
-    later.length
-      ? h('div.list-items', ...linkedRows(body, linked, later, renderLinkedUpcoming))
-      : h('div.empty', icon('clipboard', { size: 44, stroke: 1.6 }), 'Nothing scheduled ahead'),
-    h('div.list-sync-note',
-      icon('refresh', { size: 16 }),
-      `Synced with Reminders · ${listName(linked) ?? 'Chores'}`,
+    h('div.chore-columns',
+      ...boards.map((board) => {
+        const later = listItems(board.listId)
+          .filter((r) => r.due && !isOverdue(r) && !isToday(r.due));
+
+        const byDay = new Map();
+        for (const r of later) {
+          const key = +startOfDay(r.due);
+          if (!byDay.has(key)) byDay.set(key, []);
+          byDay.get(key).push(r);
+        }
+
+        return h('div.chore-column.well',
+          boardHead(board, later.length, 0),
+          later.length
+            ? h('div.chore-board-rows',
+                ...[...byDay.entries()].sort(([a], [b]) => a - b).flatMap(([day, rows]) => [
+                  h('div.chore-anytime-head', relativeDay(new Date(day))),
+                  ...rows.map(linkedChoreRow),
+                ]))
+            : h('div.chore-clear',
+                icon('clipboard', { size: 30, stroke: 2 }),
+                h('span', 'Nothing scheduled')),
+        );
+      }),
     ),
+    syncNote(boards),
+  );
+}
+
+function syncNote(boards) {
+  const names = boards.map((b) => listName(b.listId) ?? 'Chores');
+  return h('div.list-sync-note',
+    icon('refresh', { size: 16 }),
+    `Synced with Reminders · ${names.join(', ')}`,
+    h('span.list-sync-hint', 'Repeats and due dates are set in the Reminders app — or by Siri'),
   );
 }
 

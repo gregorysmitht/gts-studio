@@ -13,6 +13,7 @@ import { openMusicPanel } from './music-panel.js';
 import { musicAvailable, hasTrack } from '../data/music.js';
 import { openListsPanel } from './lists.js';
 import { openChoresPanel } from './chores.js';
+import { choresDueCount } from '../data/reminders.js';
 
 let tickTimer = null;
 
@@ -21,6 +22,7 @@ export function mountTopbar() {
   on('weather', render);
   on('settings', render);
   on('calendar', render);
+  on('reminders', render);   // the chores badge counts overdue + today
   startTicking();
 }
 
@@ -88,7 +90,12 @@ function render() {
     h('button.icon-btn.no-expand', {
       onclick: (event) => openChoresPanel({ source: event.currentTarget }),
       'aria-label': 'Chores',
-    }, icon('broom', { size: 24 })),
+    },
+      icon('broom', { size: 24 }),
+      /* The whole home-screen presence chores get: a count of what is
+         owed today. Zero means no badge, not a zero. */
+      choresDueCount() ? h('span.btn-badge.num', String(choresDueCount())) : null,
+    ),
 
     /* How you reach music from a silent house. Once something is
        playing the mini player beside it is the way in, and CSS hides

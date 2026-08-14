@@ -557,3 +557,50 @@
   color: var(--bad);
   white-space: nowrap;
 }
+
+/* ── Per-person linked chore boards ─────────────────────────── */
+
+.chore-row-meta {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.25);
+  margin-top: calc(var(--px) * 3);
+  font-size: calc(var(--px) * 13.5);
+  color: var(--fg-3);
+}
+.chore-due { font-variant-numeric: tabular-nums; }
+.chore-repeat {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--px) * 4);
+  color: var(--fg-4);
+}
+.chore-repeat svg { opacity: 0.7; }
+
+.chore-board-rows { min-height: calc(var(--u) * 4); }
+
+/* The undated someday pile, quieter than what is owed today. */
+.chore-anytime { margin-top: calc(var(--u) * 1.5); }
+.chore-anytime .chore-row-title { color: var(--fg-3); }
+.chore-anytime-head {
+  font-size: calc(var(--px) * 12);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-4);
+  margin: calc(var(--u) * 1.5) 0 calc(var(--u) * 0.5);
+}
+
+.list-add.compact {
+  margin-top: calc(var(--u) * 1.5);
+  padding: calc(var(--u) * 0.9) calc(var(--u) * 1.5);
+}
+
+/* Due chips on linked list rows. */
+.list-due {
+  flex: none;
+  font-size: calc(var(--px) * 13.5);
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}
+.list-due.late { color: var(--severe, #d98a8a); font-weight: 650; }

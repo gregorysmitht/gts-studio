@@ -170,6 +170,18 @@ export function overdueCount() {
   return reminderState.items.filter(isOverdue).length;
 }
 
+/** Overdue-or-due-today count across every linked chore board — the
+    number the topbar badge wears. Undated "anytime" chores are not
+    owed today, so they don't count. */
+export function choresDueCount() {
+  const ids = new Set(
+    [...Object.values(state.choreLinks ?? {}), state.choresLink].filter(Boolean));
+  if (!ids.size) return 0;
+  const dayEnd = addDays(startOfDay(new Date()), 1);
+  return reminderState.items.filter((r) =>
+    !r.completed && ids.has(r.listId) && r.due && r.due < dayEnd).length;
+}
+
 /** One list's open items — what a linked hub list renders. Dated first
     (a grocery with a date means "before Saturday"), undated after, in
     the order Reminders returned them. */
