@@ -9,7 +9,7 @@
    first touch — the point of a wall display is the art, not the
    buttons. */
 
-import { h, fill, $, toast } from '../core/dom.js';
+import { h, fill, $, $$, toast } from '../core/dom.js';
 import { clockParts, fullDate } from '../core/time.js';
 import { temp } from '../core/format.js';
 import { live } from '../data/hub.js';
@@ -66,8 +66,11 @@ function renderNowPlaying(body, panel) {
      of the record — flatter, per the handoff. */
   const stage = h('div.np-stage',
     /* The record colours the room: the same artwork, blown up and
-       heavily blurred, breathes behind the composition. A scrim keeps
-       the type honest on bright covers. */
+       heavily blurred, breathes behind the composition. Two layers, so
+       a track change crossfades the ground instead of hard-cutting —
+       background-image itself cannot animate. A scrim keeps the type
+       honest on bright covers. */
+    h('div.np-backdrop'),
     h('div.np-backdrop'),
     h('div.np-backdrop-scrim'),
     h('div.np-content',
@@ -198,35 +201,124 @@ function reportError(err) {
 
 /** Artwork and text only change between tracks, so they repaint separately. */
 function paintTrack() {
+  const stage = $('.np-stage');
   const art = $('.np-art');
-  if (!art || !player.track) return;
-  const { artworkUrl, title, artist, album } = player.track;
+  if (!stage || !art || !player.track) return;
+  const { id, artworkUrl, title, artist, album } = player.track;
+
+  /* Track identity gates the choreography. A manual skip delivers the
+     same snapshot twice (command reply + observer push), and catalog
+     artwork lands late on the same track — neither may re-run a swap. */
+  const sameTrack = stage.dataset.trackId === id;
+  stage.dataset.trackId = id;
 
   if (artworkUrl && art.dataset.src !== artworkUrl) {
-    art.dataset.src = artworkUrl;
-    art.classList.remove('loaded');
-    art.onload = () => art.classList.add('loaded');
-    // Say so rather than leaving an empty square: a cover that arrives
-    // and fails to fetch looks exactly like one that never arrived.
-    art.onerror = () => console.warn(`[music] now-playing artwork failed: ${artworkUrl}`);
-    art.src = artworkUrl;
-    const backdrop = $('.np-backdrop');
-    if (backdrop) backdrop.style.backgroundImage = `url("${artworkUrl}")`;
+    if (!sameTrack && art.classList.contains('loaded')) {
+      crossfadeArt(art, artworkUrl);
+    } else {
+      /* First paint, or the cover arriving a beat late for the track
+         already showing: the plain fade-in is right, nothing outgoing. */
+      art.dataset.src = artworkUrl;
+      art.classList.remove('loaded');
+      art.onload = () => art.classList.add('loaded');
+      // Say so rather than leaving an empty square: a cover that arrives
+      // and fails to fetch looks exactly like one that never arrived.
+      art.onerror = () => console.warn(`[music] now-playing artwork failed: ${artworkUrl}`);
+      art.src = artworkUrl;
+    }
+    swapBackdrop(artworkUrl);
   } else if (!artworkUrl) {
     console.info(`[music] no artwork for "${title}"`);
   }
-  fill($('.np-title'), title ?? '');
-  fill($('.np-artist-name'), artist ?? '');
-  fill($('.np-album-name'), album ?? '');
+
+  /* Caption lines trade places with a small staggered rise. Unchanged
+     text (the second snapshot of a skip) falls straight through. */
+  swapText($('.np-title'), title ?? '', 0);
+  swapText($('.np-artist-name'), artist ?? '', 80);
+  swapText($('.np-album-name'), album ?? '', 140);
   /* No record name → no dangling dot. */
   $('.np-artist')?.classList.toggle('no-album', !album);
+}
 
-  // Mini player too, if it's on screen.
-  const miniArt = $('.mini-art');
-  if (miniArt && artworkUrl && miniArt.dataset.src !== artworkUrl) {
-    miniArt.dataset.src = artworkUrl;
-    miniArt.src = artworkUrl;
+/* ── Song-change choreography ─────────────────────────────── */
+
+/** The old cover lifts away over the new one. The incoming image is
+    decoded off-screen first, so the striped placeholder never flashes
+    mid-song. */
+function crossfadeArt(art, url) {
+  const wrap = art.parentElement;
+  if (!wrap) return;
+  const incoming = new Image();
+  incoming.onload = () => {
+    if (!art.isConnected || art.dataset.src === url) return;
+    const ghost = art.cloneNode();          // keeps the old src + .loaded
+    ghost.classList.add('outgoing');
+    wrap.appendChild(ghost);
+
+    art.dataset.src = url;
+    art.classList.remove('loaded');
+    art.onload = null;
+    art.src = url;                          // already decoded — instant
+
+    requestAnimationFrame(() => {
+      ghost.classList.add('gone');
+      art.classList.add('loaded');
+    });
+    const drop = () => ghost.remove();
+    ghost.addEventListener('transitionend', drop, { once: true });
+    setTimeout(drop, 1100);                 // belt for a missed event
+  };
+  incoming.onerror = () => console.warn(`[music] now-playing artwork failed: ${url}`);
+  incoming.src = url;
+}
+
+/** Alternate the two blurred ground layers; CSS owns every opacity so
+    the resting boost keeps applying to whichever layer is current. */
+function swapBackdrop(url) {
+  const layers = $$('.np-backdrop');
+  if (!layers.length) return;
+  const current = layers.find((l) => l.classList.contains('current')) ?? layers[0];
+  if (current.style.backgroundImage.includes(url)) return;
+  if (!current.style.backgroundImage) {
+    current.style.backgroundImage = `url("${url}")`;
+    current.classList.add('current');
+    return;
   }
+  const idle = layers.find((l) => l !== current) ?? current;
+  idle.style.backgroundImage = `url("${url}")`;
+  idle.classList.add('current');
+  current.classList.remove('current');
+}
+
+/**
+ * Ease one line of text out, change it, ease it back in — skipped
+ * entirely when the text is already right, and on first paint.
+ * Shared with the mini pill.
+ */
+export function swapText(el, text, delay = 0) {
+  if (!el || el.textContent === text) return;
+  if (!el.textContent.trim()) { fill(el, text); return; }
+
+  el.style.animationDelay = `${delay}ms`;
+  el.classList.remove('swap-in', 'swap-out');
+  void el.offsetWidth;                       // restart mid-swap cleanly
+  el.classList.add('swap-out');
+
+  let done = false;
+  const commit = () => {
+    if (done) return;
+    done = true;
+    fill(el, text);
+    el.classList.remove('swap-out');
+    void el.offsetWidth;
+    el.classList.add('swap-in');
+    el.addEventListener('animationend', () => el.classList.remove('swap-in'), { once: true });
+  };
+  el.addEventListener('animationend', commit, { once: true });
+  /* Just past the out animation: a missed animationend (restarted swap,
+     hidden tab) may only delay the retext by a frame or two, never let
+     stale words sit. Reduced motion commits at ~1ms via the event. */
+  setTimeout(commit, 240 + delay);
 }
 
 function paintTransport() {

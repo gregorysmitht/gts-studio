@@ -208,6 +208,12 @@
   --dur:       320ms;
   --dur-panel: 480ms;
   --dur-sky:   2400ms;
+  /* The now-playing choreography: art fade-in, the player↔gallery
+     settle, and the between-songs crossfade. Tokenised so reduced
+     motion reaches the whole player, not just the fast bits. */
+  --dur-art:   600ms;
+  --dur-rest:  900ms;
+  --dur-swap:  700ms;
 
   --z-sky: 0;
   --z-hub: 1;
@@ -258,5 +264,8 @@
     --dur: 1ms;
     --dur-panel: 1ms;
     --dur-sky: 1ms;
+    --dur-art: 1ms;
+    --dur-rest: 1ms;
+    --dur-swap: 1ms;
   }
 }

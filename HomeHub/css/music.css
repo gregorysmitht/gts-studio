@@ -76,6 +76,16 @@
 }
 .mini-art { width: 100%; height: 100%; object-fit: cover; display: block; }
 
+/* The pill's own between-songs crossfade: the old cover rides above
+   and fades while the new one sits underneath. */
+.mini-art-wrap { position: relative; }
+.mini-art.outgoing {
+  position: absolute;
+  inset: 0;
+  transition: opacity 400ms var(--ease-out);
+}
+.mini-art.outgoing.gone { opacity: 0; }
+
 /* Wants 140 frame-px but yields when the bar is tight — the title
    ellipsizes rather than the pill colliding with its neighbours. */
 .mini-meta { flex: 1 1 calc(var(--px) * 140); min-width: calc(var(--px) * 60); }
@@ -171,12 +181,16 @@
   background-position: center;
   filter: blur(calc(var(--px) * 90)) saturate(1.5) brightness(0.85);
   transform: scale(1.2);
-  opacity: 0.3;
-  transition: opacity 900ms var(--ease-in-out),
-              background-image var(--dur-panel) var(--ease-out);
+  /* Two of these are stacked; JS alternates .current between songs, so
+     the ground crossfades — background-image itself cannot animate.
+     CSS owns every opacity so the resting boost keeps working on
+     whichever layer holds the record. */
+  opacity: 0;
+  transition: opacity var(--dur-swap) var(--ease-in-out);
   pointer-events: none;
 }
-.panel.resting .np-backdrop { opacity: 0.55; }
+.np-backdrop.current { opacity: 0.3; }
+.panel.resting .np-backdrop.current { opacity: 0.55; transition-duration: var(--dur-rest); }
 /* Keeps the type honest over a bright cover. */
 .np-backdrop-scrim {
   position: absolute;
@@ -202,6 +216,7 @@
   width: min(calc(var(--px) * 380), 40vh);
   aspect-ratio: 1;
   flex: none;
+  position: relative;   /* the outgoing cover overlays during a swap */
   border-radius: calc(var(--px) * 28);
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -212,7 +227,7 @@
   color: var(--fg-4);
   background: repeating-linear-gradient(45deg, #232a42, #232a42 14px, #1c2236 14px, #1c2236 28px);
   /* Grows into the resting gallery and back without a jump. */
-  transition: width 900ms var(--ease-in-out), box-shadow 900ms var(--ease-in-out);
+  transition: width var(--dur-rest) var(--ease-in-out), box-shadow var(--dur-rest) var(--ease-in-out);
 }
 .np-art {
   width: 100%;
@@ -221,9 +236,31 @@
   display: block;
   opacity: 0;
   transform: scale(1.04);
-  transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-out);
+  transition: opacity var(--dur-art) var(--ease-out), transform var(--dur-art) var(--ease-out);
 }
 .np-art.loaded { opacity: 1; transform: none; }
+
+/* Between songs the old cover lifts away over the incoming one. It is
+   inserted already loaded, then .gone starts the ride out. */
+.np-art.outgoing {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transition: opacity var(--dur-swap) var(--ease-in-out), transform var(--dur-swap) var(--ease-in-out);
+}
+.np-art.outgoing.gone { opacity: 0; transform: scale(1.06); }
+
+/* One caption line trading places: ease out, retext, ease back in.
+   Shared by the player captions and the pill title. */
+@keyframes np-text-out {
+  to { opacity: 0; transform: translateY(calc(var(--px) * -8)); }
+}
+@keyframes np-text-in {
+  from { opacity: 0; transform: translateY(calc(var(--px) * 8)); }
+  to { opacity: 1; transform: none; }
+}
+.swap-out { animation: np-text-out 200ms var(--ease-out) both; }
+.swap-in { animation: np-text-in 340ms var(--ease-out) both; }
 
 .np-right {
   display: flex;
@@ -265,8 +302,8 @@
   flex-direction: column;
   gap: calc(var(--px) * 30);
   max-height: calc(var(--px) * 400);
-  transition: opacity 900ms var(--ease-out), transform 900ms var(--ease-out),
-              max-height 900ms var(--ease-in-out);
+  transition: opacity var(--dur-rest) var(--ease-out), transform var(--dur-rest) var(--ease-out),
+              max-height var(--dur-rest) var(--ease-in-out);
 }
 
 .panel.resting .np-controls {
@@ -291,14 +328,14 @@
 }
 .panel .panel-head {
   max-height: calc(var(--u) * 16);
-  transition: opacity 900ms var(--ease-out), max-height 900ms var(--ease-in-out),
-              padding 900ms var(--ease-in-out), min-height 900ms var(--ease-in-out);
+  transition: opacity var(--dur-rest) var(--ease-out), max-height var(--dur-rest) var(--ease-in-out),
+              padding var(--dur-rest) var(--ease-in-out), min-height var(--dur-rest) var(--ease-in-out);
 }
 
 .np-queue-host {
   position: relative;   /* above the absolute backdrop */
   max-height: calc(var(--px) * 120);
-  transition: opacity 900ms var(--ease-out), max-height 900ms var(--ease-in-out);
+  transition: opacity var(--dur-rest) var(--ease-out), max-height var(--dur-rest) var(--ease-in-out);
 }
 .panel.resting .np-queue-host {
   opacity: 0;
@@ -352,7 +389,7 @@
   text-align: right;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 900ms var(--ease-out);
+  transition: opacity var(--dur-rest) var(--ease-out);
 }
 .panel.resting .np-clock { opacity: 1; }
 .np-clock-time {
@@ -1034,6 +1071,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .starting .play-art::after { animation: none; }
+  /* The between-songs choreography collapses to an instant change. */
+  .swap-out, .swap-in { animation-duration: 1ms; }
+  .mini-art.outgoing { transition-duration: 1ms; }
 }
 
 /* ── Narrow / portrait ────────────────────────────────────── */

@@ -15,7 +15,7 @@ import { on } from '../core/store.js';
 import {
   player, hasTrack, togglePlay, next, formatTime, musicAvailable, livePosition,
 } from '../data/music.js';
-import { openMusicPanel } from './music-panel.js';
+import { openMusicPanel, swapText } from './music-panel.js';
 
 let tickTimer = null;
 
@@ -70,9 +70,10 @@ function render(bar) {
 
   const { title, artist, artworkUrl } = player.track;
 
-  // Rebuild only when the track changes; otherwise just refresh state,
-  // so the artwork doesn't flicker every time the position updates.
-  if (bar.dataset.trackId !== player.track.id || !bar.firstChild) {
+  /* The structure is built once per appearance; every change after that
+     — next track, late artwork, play/pause — patches in place, so the
+     pill glides between songs instead of being torn down and rebuilt. */
+  if (!bar.firstChild) {
     bar.dataset.trackId = player.track.id;
     fill(bar,
       h('button.mini-open', {
@@ -107,18 +108,31 @@ function render(bar) {
         h('span.mini-time.num'),
       ),
     );
+  } else if (bar.dataset.trackId !== player.track.id) {
+    bar.dataset.trackId = player.track.id;
+    swapText(bar.querySelector('.mini-title'), title ?? '', 0);
+    swapText(bar.querySelector('.mini-artist'), artist ?? '', 60);
+    bar.querySelector('.mini-open')?.setAttribute('aria-label',
+      `Now playing: ${title} by ${artist}. Open full screen.`);
   }
 
-  /* The cover often lands a beat after the track does (the bridge looks
-     it up in the catalog and pushes again). The rebuild guard above
-     rightly skips same-track pushes — so patch the art in place, or the
-     pill shows the fallback note for the whole song. */
+  /* Artwork is patched outside both branches: it covers the next track
+     AND the cover that lands a beat late (the bridge looks it up in the
+     catalog and pushes again). An old cover crossfades away; a first
+     cover simply appears over the fallback note. */
   const wrap = bar.querySelector('.mini-art-wrap');
   if (artworkUrl && wrap) {
     const img = wrap.querySelector('img.mini-art');
     if (!img) {
       fill(wrap, h('img.mini-art', { src: artworkUrl, alt: '', dataset: { src: artworkUrl } }));
     } else if (img.dataset.src !== artworkUrl) {
+      const ghost = img.cloneNode();
+      ghost.classList.add('outgoing');
+      wrap.appendChild(ghost);
+      requestAnimationFrame(() => ghost.classList.add('gone'));
+      const drop = () => ghost.remove();
+      ghost.addEventListener('transitionend', drop, { once: true });
+      setTimeout(drop, 600);
       img.dataset.src = artworkUrl;
       img.src = artworkUrl;
     }
