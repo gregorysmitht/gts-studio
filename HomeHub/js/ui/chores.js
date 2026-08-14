@@ -7,7 +7,8 @@
 import { h, fill, toast } from '../core/dom.js';
 import { icon } from './icons.js';
 import { makeExpandable, openPanel, onPanelClose, redrawPanel } from '../core/panel.js';
-import { state, save, uid, on, personById, nextColor, PALETTE } from '../core/store.js';
+import { state, save, uid, on, personById } from '../core/store.js';
+import { openSettings } from './settings.js';
 import {
   remindersAvailable, listItems, listName, tickOff, addReminder, isOverdue,
 } from '../data/reminders.js';
@@ -158,11 +159,15 @@ export function openChoresPanel({ source } = {}) {
     tabs: [
       { id: 'today', label: 'Today', render: (body) => renderToday(body) },
       { id: 'all', label: 'All chores', render: (body) => renderAll(body) },
-      { id: 'people', label: 'Family', render: (body) => renderPeople(body) },
     ],
     actions: [
       h('button.icon-btn', { onclick: () => addChore(), 'aria-label': 'Add chore' },
         icon('plus', { size: 24 })),
+      /* People are edited in one place now — Settings → Family. */
+      h('button.icon-btn', {
+        onclick: () => openSettings('family'),
+        'aria-label': 'Family settings',
+      }, icon('users', { size: 24 })),
     ],
   });
 }
@@ -319,52 +324,6 @@ function renderAll(body) {
       }),
       h('button.btn.primary.chore-add', { onclick: () => addChore(body) },
         icon('plus', { size: 22 }), 'Add chore'),
-    ),
-  );
-}
-
-function renderPeople(body) {
-  const nameInput = h('input.text-input', { type: 'text', placeholder: 'Add a family member…' });
-
-  fill(body,
-    h('div.people-grid',
-      ...state.people.map((person) =>
-        h('div.person-card.well',
-          h('span.person-chip.big', { style: { background: person.color } },
-            person.name.slice(0, 1).toUpperCase()),
-          h('div.person-name', person.name),
-          h('div.person-colors',
-            ...PALETTE.slice(0, 6).map((color) =>
-              h(`button.color-dot${person.color === color ? '.on' : ''}`, {
-                style: { background: color },
-                onclick: () => { person.color = color; save('people'); renderPeople(body); },
-                'aria-label': `Set colour for ${person.name}`,
-              })),
-          ),
-          h('button.btn.ghost.small', {
-            onclick: () => {
-              state.people = state.people.filter((p) => p.id !== person.id);
-              for (const chore of state.chores) if (chore.personId === person.id) chore.personId = null;
-              save('people');
-              renderPeople(body);
-            },
-          }, 'Remove'),
-        )),
-    ),
-
-    h('div.list-add',
-      icon('person', { size: 24 }),
-      nameInput,
-      h('button.btn.primary', {
-        onclick: () => {
-          const name = nameInput.value.trim();
-          if (!name) return;
-          state.people.push({ id: uid(), name, color: nextColor(state.people.map((p) => p.color)) });
-          nameInput.value = '';
-          save('people');
-          renderPeople(body);
-        },
-      }, 'Add'),
     ),
   );
 }

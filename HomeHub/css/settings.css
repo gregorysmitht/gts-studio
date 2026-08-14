@@ -298,3 +298,32 @@
   padding: calc(var(--px) * 7) calc(var(--px) * 16);
   font-size: calc(var(--px) * 14);
 }
+
+/* Per-person rows in Chores & Lists: the person's chip beside their
+   name, so the label reads like the chore board will. */
+.link-picker-person {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 1);
+}
+.link-picker-person .person-chip {
+  width: calc(var(--px) * 26);
+  height: calc(var(--px) * 26);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--px) * 13);
+  font-weight: 700;
+  color: rgba(10, 12, 20, 0.85);
+  flex: none;
+}
+.link-picker > .icon-btn { flex: none; align-self: center; }
+
+.empty.small {
+  padding: calc(var(--u) * 2);
+  font-size: var(--t-sm);
+  flex-direction: row;
+  gap: calc(var(--u) * 1.5);
+  text-align: left;
+}

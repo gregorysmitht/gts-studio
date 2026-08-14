@@ -29,164 +29,140 @@ export function openSettings(section = 'location') {
   openPanel({
     id: 'settings',
     title: 'Settings',
+    /* Feature-first: everything about calendars lives under Calendars,
+       everything about chores and lists under Chores & Lists — including
+       the native permissions each one needs. There is no junk-drawer
+       "Device" tab; native-only groups simply hide in Safari. */
     tabs: [
-      { id: 'location',  label: 'Location',  render: renderLocation },
-      { id: 'calendars', label: 'Calendars', render: renderCalendars },
-      { id: 'family',    label: 'Family',    render: renderFamily },
-      { id: 'display',   label: 'Display',   render: renderDisplay },
-      { id: 'ambient',   label: 'Photos',    render: renderAmbient },
-      { id: 'sources',   label: 'Data',      render: renderSources },
-      // Only meaningful inside the native shell; hidden in Safari.
-      ...(isNative() ? [{ id: 'device', label: 'Device', render: renderDevice }] : []),
+      { id: 'location',  label: 'Location',      render: renderLocation },
+      { id: 'calendars', label: 'Calendars',     render: renderCalendars },
+      { id: 'reminders', label: 'Chores & Lists', render: renderReminders },
+      { id: 'family',    label: 'Family',        render: renderFamily },
+      { id: 'display',   label: 'Display',       render: renderDisplay },
+      { id: 'ambient',   label: 'Screensaver',   render: renderAmbient },
+      { id: 'sources',   label: 'Data',          render: renderSources },
     ],
   }).then(() => { if (section !== 'location') setPanelTab(section); });
 }
 
-/* ── Device (native app only) ─────────────────────────────── */
+/* ── Chores & Lists ───────────────────────────────────────── */
 
-function renderDevice(body) {
-  const status = h('div.source-row-value', 'Checking…');
-  const musicStatus = h('div.source-row-value', 'Checking…');
+const REM_STATUS = {
+  granted: 'Connected to Reminders',
+  denied: 'Access denied — enable it in iPadOS Settings › Privacy › Reminders',
+  notDetermined: 'Not connected yet',
+  unavailable: 'Unavailable in this build',
+};
+
+/* One tab for every way the hub touches Apple Reminders: access, whose
+   list backs whose chores, which lists mirror which, and what feeds the
+   agenda. Created on a phone, picked here — from then on the hub reads
+   it live, ticking syncs back, and typing on the wall creates real
+   reminders. */
+function renderReminders(body) {
+  const repaint = () => renderReminders(body);
+  const native = remindersAvailable();
+  const loading = () => h('p.howto-text.dim', 'Loading your Reminders lists…');
   const remStatus = h('div.source-row-value', 'Checking…');
-  const calList = h('div.calendar-list');
-  const remList = h('div.calendar-list');
+  const upNextList = h('div.calendar-list');
+  const choresHost = h('div', native ? loading() : null);
+  const listsHost = h('div', native ? loading() : null);
+  const addHost = h('div.field-row');
 
-  const paint = async () => {
-    // Not awaited: the two permissions are independent, and a slow
-    // MusicKit round trip shouldn't hold up the calendar list.
-    musicAuthStatus().then((auth) => fill(musicStatus, {
-      granted: 'Connected to Apple Music',
-      denied: 'Access denied — enable it in iPadOS Settings › Privacy › Media & Apple Music',
-      notDetermined: 'Not connected yet',
-      unavailable: 'Unavailable in this build',
-    }[auth] ?? auth));
+  const linkSetter = (apply) => (id) => { apply(id); save('settings'); emit('reminders'); };
 
-    if (remindersAvailable()) {
-      reminderAuth().then(async (auth) => {
-        fill(remStatus, {
-          granted: 'Connected to Reminders',
-          denied: 'Access denied — enable it in iPadOS Settings › Privacy › Reminders',
-          notDetermined: 'Not connected yet',
-          unavailable: 'Unavailable in this build',
-        }[auth] ?? auth);
+  const paintPickers = () => {
+    fill(choresHost,
+      ...(state.people.length
+        ? state.people.map((person) => linkPicker(
+            h('span.link-picker-person',
+              h('span.person-chip', { style: { background: person.color } },
+                person.name.slice(0, 1).toUpperCase()),
+              person.name,
+            ),
+            () => state.choreLinks?.[person.id],
+            linkSetter((id) => { state.choreLinks = { ...state.choreLinks, [person.id]: id }; }),
+          ))
+        : [h('div.empty.small', icon('users', { size: 30, stroke: 1.8 }),
+            'Add the family in the Family tab, then connect a chore list to each person here')]),
+      linkPicker('Everyone', () => state.choresLink,
+        linkSetter((id) => { state.choresLink = id; })),
+    );
 
-        if (auth !== 'granted') return fill(remList);
-        const lists = await loadReminderLists();
-        fill(remList, ...lists.map((list) => h('div.calendar-row.well',
-          h('span.color-dot.big', { style: { background: list.color || 'var(--accent)' } }),
-          h('div.calendar-row-main',
-            h('div.calendar-row-name', list.name),
-            h('div.calendar-row-meta', h('span.dim', list.source || 'Reminders')),
-          ),
-          h('button.switch', {
-            role: 'switch',
-            'aria-checked': isListShown(list.id) ? 'true' : 'false',
-            'aria-label': `Show ${list.name}`,
-            onclick: () => { toggleList(list.id); paint(); },
-          }, h('span.switch-knob')),
-        )));
-      });
-    }
+    fill(listsHost, ...state.lists.map((list) => linkPicker(
+      list.name,
+      () => state.listLinks?.[list.id],
+      linkSetter((id) => { state.listLinks = { ...state.listLinks, [list.id]: id }; }),
+      h('button.icon-btn.ghost', {
+        onclick: () => removeList(list, repaint),
+        'aria-label': `Remove ${list.name}`,
+      }, icon('trash', { size: 18 })),
+    )));
+  };
 
-    const auth = await calendarAuthStatus();
-    fill(status, {
-      granted: 'Connected to the iPad’s Calendar app',
-      denied: 'Access denied — enable it in iPadOS Settings › Privacy › Calendars',
-      notDetermined: 'Not connected yet',
-      unavailable: 'Unavailable in this build',
-    }[auth] ?? auth);
+  const paintAdd = () => {
+    fill(addHost,
+      native && reminderState.auth === 'granted'
+        ? h('button.btn.primary', { onclick: pickFromReminders },
+            icon('link', { size: 20 }), 'Add from Reminders')
+        : null,
+      h('button.btn', {
+        onclick: () => {
+          const name = prompt('Name the new list');
+          if (!name?.trim()) return;
+          state.lists.push({ id: uid(), name: name.trim(), icon: 'list', items: [] });
+          save('settings');
+          repaint();
+        },
+      }, icon('plus', { size: 20 }), 'New empty list'),
+    );
+  };
 
-    if (auth !== 'granted') return fill(calList);
+  /** One tap: a hub list named after the Reminders list, already linked. */
+  const pickFromReminders = () => {
+    const taken = new Set(Object.values(state.listLinks ?? {}));
+    const free = (reminderState.lists ?? []).filter((l) => !taken.has(l.id));
+    fill(addHost,
+      h('div.link-picker-options',
+        ...free.map((l) => h('button.chip.small', {
+          onclick: () => {
+            const id = uid();
+            state.lists.push({ id, name: l.name, icon: 'list', items: [] });
+            state.listLinks = { ...state.listLinks, [id]: l.id };
+            save('settings');
+            emit('reminders');
+            repaint();
+            toast(`${l.name} added and connected`);
+          },
+        }, l.name)),
+        free.length ? null : h('span.dim', 'Every list is already connected'),
+        h('button.chip.small', { onclick: paintAdd }, 'Cancel'),
+      ),
+    );
+  };
 
-    try {
-      const calendars = await nativeCalendars();
-      const chosen = state.deviceCalendars ?? [];
-      fill(calList, ...calendars.map((cal) => {
-        const on = !chosen.length || chosen.includes(cal.id);
-        return h('div.calendar-row.well',
-          h('span.color-dot.big', { style: { background: cal.color || 'var(--accent)' } }),
-          h('div.calendar-row-main',
-            h('div.calendar-row-name', cal.name),
-            h('div.calendar-row-meta', h('span.dim', cal.source || 'Calendar')),
-          ),
-          h('button.switch', {
-            role: 'switch',
-            'aria-checked': on ? 'true' : 'false',
-            'aria-label': `Show ${cal.name}`,
-            onclick: () => {
-              // Empty means "all"; materialise the full list before excluding.
-              let next = chosen.length ? [...chosen] : calendars.map((c) => c.id);
-              next = next.includes(cal.id) ? next.filter((id) => id !== cal.id) : [...next, cal.id];
-              state.deviceCalendars = next.length === calendars.length ? [] : next;
-              save('settings');
-              emit('calendars-changed');
-              paint();
-            },
-          }, h('span.switch-knob')),
-        );
-      }));
-    } catch (err) {
-      fill(calList, h('div.calendar-error', icon('alert', { size: 15 }), err.message));
-    }
+  const paintUpNext = () => {
+    fill(upNextList, ...(reminderState.lists ?? []).map((list) => h('div.calendar-row.well',
+      h('span.color-dot.big', { style: { background: list.color || 'var(--accent)' } }),
+      h('div.calendar-row-main',
+        h('div.calendar-row-name', list.name),
+        h('div.calendar-row-meta', h('span.dim', list.source || 'Reminders')),
+      ),
+      h('button.switch', {
+        role: 'switch',
+        'aria-checked': isListShown(list.id) ? 'true' : 'false',
+        'aria-label': `Show ${list.name}`,
+        onclick: () => { toggleList(list.id); paintUpNext(); },
+      }, h('span.switch-knob')),
+    )));
   };
 
   fill(body,
-    group('This iPad', nativeSummary(),
-      h('div.source-row.well',
-        h('div.source-row-main',
-          h('div.source-row-label', 'Calendar access'),
-          status,
-        ),
-        h('button.btn', {
-          /* Hold the button in a local: `currentTarget` is only valid
-             while the event is dispatching, so reading it after an await
-             throws and the repaint below never runs — the permission is
-             granted but the row still reads "Not connected yet". */
-          onclick: async (e) => {
-            const btn = e.currentTarget;
-            btn.disabled = true;
-            try {
-              await requestCalendarAccess();
-              emit('calendars-changed');
-            } catch (err) {
-              toast(err.message, 'warn');
-            }
-            btn.disabled = false;
-            paint();
-          },
-        }, 'Connect'),
-      ),
-
-      /* Apple Music asks for its own permission, and nothing else in the
-         hub can prompt for it — the mini player only exists once music is
-         already playing, which it never will be until this is granted. */
-      musicAvailable()
-        ? h('div.source-row.well',
-            h('div.source-row-main',
-              h('div.source-row-label', 'Apple Music'),
-              musicStatus,
-            ),
-            h('button.btn', {
-              onclick: async (e) => {
-                const btn = e.currentTarget;
-                btn.disabled = true;
-                try {
-                  await ensureMusicAccess();
-                } catch (err) {
-                  toast(err.message, 'warn');
-                }
-                btn.disabled = false;
-                paint();
-              },
-            }, 'Connect'),
-          )
-        : null,
-    ),
-
-    remindersAvailable()
-      ? group('Reminders',
-          'Reminders appear beside events in Up next and on the calendar. ' +
-          'Tap one on the wall and it ticks off on everyone\u2019s phone.',
+    native
+      ? group('Reminders access',
+          'The hub reads and writes the same Reminders database as every ' +
+          'phone in the family — and Siri. Tap a chore on the wall and it ' +
+          'ticks off everywhere.',
           h('div.source-row.well',
             h('div.source-row-main',
               h('div.source-row-label', 'Reminders access'),
@@ -194,68 +170,78 @@ function renderDevice(body) {
             ),
             h('button.btn', {
               onclick: async (e) => {
+                // Held in a local: currentTarget dies at the first await.
                 const btn = e.currentTarget;
                 btn.disabled = true;
                 try { await connectReminders(); }
                 catch (err) { toast(err.message, 'warn'); }
                 btn.disabled = false;
-                paint();
+                repaint();
               },
             }, 'Connect'),
-          ),
-          remList,
-        )
+          ))
+      : group('Reminders',
+          'Chore and list syncing works through Apple Reminders inside the ' +
+          'iPad app. In the browser, lists live on this device only.'),
+
+    group('Chores',
+      'Give each person their own Reminders list and their chores become ' +
+      'their own board — with iOS repeat rules, due times, and Siri adds ' +
+      'for free. "Everyone" is the shared bucket.',
+      choresHost),
+
+    group('Lists',
+      'Groceries, to-dos, the Costco run — each hub list can mirror a ' +
+      'Reminders list, or stay local to the wall.',
+      listsHost,
+      addHost),
+
+    native
+      ? group('Show in Up Next',
+          'Which lists appear beside events on the home screen agenda. ' +
+          'Connected lists always reach their own screens regardless.',
+          upNextList)
       : null,
-
-    /* Which Reminders list feeds which part of the hub. Created on the
-       phone, picked here — from then on the hub reads it live, ticking
-       syncs back, and typing on the wall creates real reminders. */
-    remindersAvailable()
-      ? group('Connected lists',
-          'Create a list in the Reminders app, then pick it here. ' +
-          'Groceries and To Do drive the Lists screen; Chores gets ' +
-          'iOS repeat rules for free.',
-          linkPicker('Groceries', () => state.listLinks?.groceries, (id) => {
-            state.listLinks = { ...state.listLinks, groceries: id };
-            save('settings');
-            emit('reminders');
-          }),
-          linkPicker('To Do', () => state.listLinks?.todo, (id) => {
-            state.listLinks = { ...state.listLinks, todo: id };
-            save('settings');
-            emit('reminders');
-          }),
-          linkPicker('Chores', () => state.choresLink, (id) => {
-            state.choresLink = id;
-            save('settings');
-            emit('reminders');
-          }),
-        )
-      : null,
-
-    group('Calendars on this device',
-      'Reading these directly means nothing to paste and nothing to publish — ' +
-      'anything the family adds on their own phones appears here.',
-      switchRow('Use the iPad’s calendars', state.useDeviceCalendar !== false, (on) => {
-        update({ useDeviceCalendar: on });
-        emit('calendars-changed');
-      }),
-      calList,
-    ),
-
-    group('Screen', null,
-      switchRow('Dim the panel itself at night', state.nativeBrightness !== false, (on) => {
-        update({ nativeBrightness: on });
-        emit('night-changed');
-      }),
-      h('p.howto-text',
-        'With this on, night mode lowers the iPad’s actual brightness instead of ' +
-        'laying a dark layer over the screen — the difference between a dark hallway ' +
-        'and a grey glow.'),
-    ),
   );
 
-  paint();
+  paintAdd();
+
+  if (!native) { paintPickers(); return; }
+
+  reminderAuth().then(async (auth) => {
+    fill(remStatus, REM_STATUS[auth] ?? auth);
+    if (auth !== 'granted') {
+      fill(choresHost, h('p.howto-text.dim', 'Connect Reminders above to pick lists.'));
+      fill(listsHost, ...state.lists.map((list) => linkPicker(
+        list.name, () => state.listLinks?.[list.id], () => {},
+      )));
+      fill(upNextList);
+      return;
+    }
+    await loadReminderLists();
+    paintPickers();
+    paintUpNext();
+    paintAdd();
+  });
+}
+
+function removeList(list, repaint) {
+  if (state.lists.length <= 1) return toast('Keep at least one list', 'warn');
+  const linked = state.listLinks?.[list.id];
+  const open = list.items?.filter((i) => !i.done).length ?? 0;
+  const note = linked
+    ? ' The Reminders list itself is untouched.'
+    : open ? ` Its ${open} open item${open > 1 ? 's' : ''} go with it.` : '';
+  if (!confirm(`Remove “${list.name}” from the hub?${note}`)) return;
+  state.lists = state.lists.filter((l) => l.id !== list.id);
+  if (linked) {
+    const links = { ...state.listLinks };
+    delete links[list.id];
+    state.listLinks = links;
+  }
+  save('settings');
+  emit('reminders');
+  repaint();
 }
 
 /* ── Location ─────────────────────────────────────────────── */
@@ -399,7 +385,103 @@ function renderCalendars(body) {
     ),
 
     group('Where to find the link', null, h('div.howto', ...HOWTO.map(howtoBlock))),
+
+    group('Getting out the door',
+      'Events with a location get a "leave by" line; this is how many ' +
+      'minutes of shoes-and-keys buffer it assumes.',
+      numberField('Minutes of buffer', state.leaveLeadMin ?? 20, 5, 90, (v) => {
+        update({ leaveLeadMin: v });
+      }),
+    ),
   );
+
+  if (isNative()) paintDeviceCalendars(body);
+}
+
+/* The iPad's own calendars: permission, the master switch, and one
+   toggle per calendar. Native shell only — Safari never sees this. */
+function paintDeviceCalendars(body) {
+  const status = h('div.source-row-value', 'Checking…');
+  const calList = h('div.calendar-list');
+
+  const deviceGroup = group('On this iPad',
+    'Reading these directly means nothing to paste and nothing to publish — ' +
+    'anything the family adds on their own phones appears here.',
+    h('div.source-row.well',
+      h('div.source-row-main',
+        h('div.source-row-label', 'Calendar access'),
+        status,
+      ),
+      h('button.btn', {
+        /* Hold the button in a local: `currentTarget` is only valid
+           while the event is dispatching, so reading it after an await
+           throws and the repaint below never runs. */
+        onclick: async (e) => {
+          const btn = e.currentTarget;
+          btn.disabled = true;
+          try {
+            await requestCalendarAccess();
+            emit('calendars-changed');
+          } catch (err) {
+            toast(err.message, 'warn');
+          }
+          btn.disabled = false;
+          paint();
+        },
+      }, 'Connect'),
+    ),
+    switchRow('Use the iPad’s calendars', state.useDeviceCalendar !== false, (on) => {
+      update({ useDeviceCalendar: on });
+      emit('calendars-changed');
+    }),
+    calList,
+  );
+  body.prepend(deviceGroup);
+
+  const paint = async () => {
+    const auth = await calendarAuthStatus();
+    fill(status, {
+      granted: 'Connected to the iPad’s Calendar app',
+      denied: 'Access denied — enable it in iPadOS Settings › Privacy › Calendars',
+      notDetermined: 'Not connected yet',
+      unavailable: 'Unavailable in this build',
+    }[auth] ?? auth);
+
+    if (auth !== 'granted') return fill(calList);
+
+    try {
+      const calendars = await nativeCalendars();
+      const chosen = state.deviceCalendars ?? [];
+      fill(calList, ...calendars.map((cal) => {
+        const on = !chosen.length || chosen.includes(cal.id);
+        return h('div.calendar-row.well',
+          h('span.color-dot.big', { style: { background: cal.color || 'var(--accent)' } }),
+          h('div.calendar-row-main',
+            h('div.calendar-row-name', cal.name),
+            h('div.calendar-row-meta', h('span.dim', cal.source || 'Calendar')),
+          ),
+          h('button.switch', {
+            role: 'switch',
+            'aria-checked': on ? 'true' : 'false',
+            'aria-label': `Show ${cal.name}`,
+            onclick: () => {
+              // Empty means "all"; materialise the full list before excluding.
+              let next = chosen.length ? [...chosen] : calendars.map((c) => c.id);
+              next = next.includes(cal.id) ? next.filter((id) => id !== cal.id) : [...next, cal.id];
+              state.deviceCalendars = next.length === calendars.length ? [] : next;
+              save('settings');
+              emit('calendars-changed');
+              paint();
+            },
+          }, h('span.switch-knob')),
+        );
+      }));
+    } catch (err) {
+      fill(calList, h('div.calendar-error', icon('alert', { size: 15 }), err.message));
+    }
+  };
+
+  paint();
 }
 
 function calendarRow(cal, body) {
@@ -511,6 +593,15 @@ function renderFamily(body) {
         h('div.list-add.grow', icon('person', { size: 22 }), input),
         h('button.btn.primary', { onclick: add }, 'Add'),
       ),
+
+      remindersAvailable()
+        ? h('div.field-row',
+            h('p.howto-text.dim',
+              'Each person can have their own Reminders chore list — connect them in Chores & Lists.'),
+            h('button.btn.ghost.small', { onclick: () => setPanelTab('reminders') },
+              'Open Chores & Lists'),
+          )
+        : null,
     ),
   );
 }
@@ -561,6 +652,16 @@ function renderDisplay(body) {
         }),
         h('span.slider-label', 'Dark'),
       ),
+      isNative()
+        ? switchRow('Dim the panel itself, not a dark overlay', state.nativeBrightness !== false, (on) => {
+            update({ nativeBrightness: on });
+            emit('night-changed');
+          })
+        : null,
+      isNative()
+        ? h('p.howto-text.dim',
+            'Lowering real brightness is the difference between a dark hallway and a grey glow.')
+        : null,
     ),
 
     group('Screen care', null,
@@ -573,7 +674,8 @@ function renderDisplay(body) {
       }),
     ),
 
-    group('Install on the iPad', null,
+    // Pointless advice inside the app it describes installing.
+    isNative() ? null : group('Install on the iPad', null,
       h('div.howto-block.well',
         h('div.howto-title', 'Add to Home Screen'),
         h('p.howto-text',
@@ -663,7 +765,7 @@ function renderAmbient(body) {
       }),
     ),
 
-    group('Screen care',
+    group('Overnight & rest',
       'A panel showing the same thing in the same pixels for years can keep a ghost of it. ' +
       'None of this is meant to be noticeable: the information drifts, changes corner now and ' +
       'then, and the screen takes a short rest every so often.',
@@ -760,6 +862,8 @@ function renderSources(body) {
       ], state.demo, (value) => { update({ demo: value }); emit('demo-changed'); }),
     ),
 
+    isNative() ? connectionsGroup(body) : null,
+
     group('About', null,
       h('p.howto-text',
         'HomeHub is a self-contained web app. Everything you add — calendars, lists, chores, ' +
@@ -775,6 +879,43 @@ function renderSources(body) {
   );
 }
 
+/* Apple Music's permission has nowhere else to live: the mini player
+   only exists once music is already playing, which it never will be
+   until this is granted. Calendar and Reminders access sit in their own
+   tabs; this group is the leftover — and the device summary. */
+function connectionsGroup(body) {
+  const musicStatus = h('div.source-row-value', 'Checking…');
+
+  const paint = () => musicAuthStatus().then((auth) => fill(musicStatus, {
+    granted: 'Connected to Apple Music',
+    denied: 'Access denied — enable it in iPadOS Settings › Privacy › Media & Apple Music',
+    notDetermined: 'Not connected yet',
+    unavailable: 'Unavailable in this build',
+  }[auth] ?? auth));
+  paint();
+
+  return group('This iPad', nativeSummary(),
+    musicAvailable()
+      ? h('div.source-row.well',
+          h('div.source-row-main',
+            h('div.source-row-label', 'Apple Music'),
+            musicStatus,
+          ),
+          h('button.btn', {
+            onclick: async (e) => {
+              const btn = e.currentTarget;
+              btn.disabled = true;
+              try { await ensureMusicAccess(); }
+              catch (err) { toast(err.message, 'warn'); }
+              btn.disabled = false;
+              paint();
+            },
+          }, 'Connect'),
+        )
+      : null,
+  );
+}
+
 /* ── Shared controls ──────────────────────────────────────── */
 
 /**
@@ -782,7 +923,7 @@ function renderSources(body) {
  * the device's lists as chips on the right. Tapping the active chip
  * unlinks; the picker never deletes anything on either side.
  */
-function linkPicker(label, get, set) {
+function linkPicker(label, get, set, trailing = null) {
   const row = h('div.link-picker.well');
   const paint = () => {
     const lists = reminderState.lists ?? [];
@@ -798,6 +939,7 @@ function linkPicker(label, get, set) {
             onclick: () => { set(current === list.id ? null : list.id); paint(); },
           }, list.name)),
       ),
+      trailing,
     );
   };
   paint();

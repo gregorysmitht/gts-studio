@@ -75,8 +75,11 @@ export async function loadReminders() {
        Groceries list excluded from Up Next still has to feed the Lists
        panel. Union the linked ids into the request ([] still means all). */
     const chosen = state.reminderLists ?? [];
-    const linked = [...Object.values(state.listLinks ?? {}), state.choresLink]
-      .filter(Boolean);
+    const linked = [
+      ...Object.values(state.listLinks ?? {}),
+      ...Object.values(state.choreLinks ?? {}),
+      state.choresLink,
+    ].filter(Boolean);
     const ids = chosen.length ? [...new Set([...chosen, ...linked])] : [];
     reminderState.items = await nativeReminders(horizon, ids);
     reminderState.error = null;

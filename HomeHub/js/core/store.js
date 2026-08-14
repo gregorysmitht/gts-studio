@@ -46,11 +46,15 @@ const DEFAULTS = {
   leaveLeadMin: 20,
 
   /* iOS Reminders as the source of truth. listLinks maps a hub list to
-     a Reminders list (hub list id → EKCalendar identifier); choresLink
-     backs the whole chores feature with one Reminders list, whose
-     native repeat rules make recurring chores free. Empty = local. */
+     a Reminders list (hub list id → EKCalendar identifier); choreLinks
+     does the same per person (person id → EKCalendar identifier), so
+     Audrey's chores and Everest's chores stay separate boards; the older
+     choresLink survives as a shared "Everyone" bucket. reminderLists is
+     the Up Next visibility filter (empty = all). Empty/null = local. */
   listLinks: {},
+  choreLinks: {},
   choresLink: null,
+  reminderLists: [],
 
   ambient: {
     enabled: true,
