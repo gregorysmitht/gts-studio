@@ -1,32 +1,27 @@
-/* Ambient mode.
+/* Ambient mode — the photo screensaver (design handoff 16b, "Glass rail").
 
    After a quiet stretch the hub fades into a slow photo slideshow. The
-   photograph fills the wall; everything worth reading collects into one
-   frosted panel over it — the time, the weather, what is left of today,
-   and anything overdue. The point is that nobody should have to walk
-   over and tap the screen to find out whether they need to leave.
+   photograph fills the wall; everything worth reading lives in one
+   frosted rail down the left edge — clock, date, weather, any warning,
+   what is left of today, and the record playing. The point is that
+   nobody should have to walk over and tap the screen to find out
+   whether they need to leave.
 
-   That panel is also the burn-in strategy. It drifts continuously,
-   changes corner every few minutes, and the whole screen takes a short
-   rest every so often. See the ── Screen care ── section at the foot of
-   this file.
+   The rail never moves (it is the design), so burn-in is handled by a
+   slow pixel drift on the content column plus the screen rests in the
+   ── Screen care ── section at the foot of this file.
 
-   With no photos loaded it shows the same panel over the live sky,
-   which is a perfectly good thing for a wall to be doing at 2am. */
+   With no photos loaded the rail sits over the live sky, which is a
+   perfectly good thing for a wall to be doing at 2am. */
 
 import { h, fill, $ } from '../core/dom.js';
-import { clockParts, fullDate, clockTime, isToday } from '../core/time.js';
+import { clockParts, fullDate, clockTime } from '../core/time.js';
 import { temp } from '../core/format.js';
 import { state, photos, on, isNightNow } from '../core/store.js';
 import { live, topAlert } from '../data/hub.js';
-import { eventsOnDay, upcoming, isNow } from '../data/calendar.js';
-import {
-  remindersAvailable, openReminders, isOverdue,
-} from '../data/reminders.js';
-import {
-  nextPrecipWindow, nextThunderWindow, nowcastSentence,
-} from '../data/weather.js';
-import { weatherIcon, icon } from './icons.js';
+import { eventsOnDay } from '../data/calendar.js';
+import { player, hasTrack } from '../data/music.js';
+import { weatherIcon } from './icons.js';
 
 let active = false;
 let photoTimer = null;
@@ -55,8 +50,8 @@ export async function enterAmbient() {
 
   fill(host,
     h('div.ambient-stage'),
-    h('div.ambient-vignette'),
-    h('div.ambient-panel'),
+    h('div.ambient-rail'),
+    h('div.ambient-rail-content'),
     h('div.ambient-rest', h('div.ambient-rest-clock')),
   );
 
@@ -82,7 +77,7 @@ export async function enterAmbient() {
   unsubscribes = [
     on('weather', paint),
     on('calendar', paint),
-    on('reminders', paint),
+    on('music', paint),   // the now-playing block follows the record
     on('photos', reloadReel),
   ];
 }
@@ -106,9 +101,6 @@ export function exitAmbient() {
   active = false;
   clearTimeout(photoTimer);
   clearTimeout(clockTimer);
-  clearInterval(rotateTimer);
-  rotateTimer = null;
-  rotateIndex = 0;
   stopScreenCare();
   for (const off of unsubscribes) off?.();
   unsubscribes = [];
@@ -237,299 +229,142 @@ function releaseLayer(layer) {
   for (const [id, held] of shownUrls) if (held === url) shownUrls.delete(id);
 }
 
-/* ── What the panel says ──────────────────────────────────────
-   A quarter of the wall used to be a frosted rectangle, and on a real
-   family photo it landed squarely on somebody's face. The rectangle was
-   most of the problem: it blocked a bounding box, not the text inside
-   it. So there is no card any more — type sits on the photograph over a
-   soft pool of shade that fades out in every direction.
-
-   The rest was quantity. Six stacked blocks were on screen at all times
-   whether or not any of them mattered. Now three lines are permanent —
-   time, date, weather — and everything else earns its place: anything
-   happening within the hour pins itself and stays, and the remainder
-   takes turns on one rotating line. A quiet afternoon is three lines. A
-   busy one grows to five and shrinks back on its own. */
-
-/** How near a thing has to be before it stops taking turns and stays put. */
-const SOON = 60 * 60e3;
-
-let rotateTimer = null;
-let rotateIndex = 0;
+/* ── The glass rail (handoff 16b) ─────────────────────────────
+   One frosted column, top to bottom: clock, date, weather with today's
+   range, a warning chip when one is in force, TODAY's remaining events,
+   and the record playing pinned at the foot. High-fidelity to the
+   handoff: sizes are frame pixels via --px, colours are the design's
+   own (amber #f4c363, cool blue #9fc0ea). */
 
 function paint() {
-  const panel = $('.ambient-panel');
-  if (!panel) return;
+  const col = $('.ambient-rail-content');
+  if (!col) return;
 
   const night = isNightNow();
-  panel.classList.toggle('night', night);
-  /* No photos means the panel is the whole composition, not a caption on
-     one — the type scales up to wall-clock size (see .ambient-panel.sky). */
-  panel.classList.toggle('sky', !reel.length);
+  col.classList.toggle('night', night);
 
   const { hour, minute, period } = clockParts(new Date());
+  const now = live.weather?.current;
+  const today = live.weather?.daily?.[0];
+  const alert = topAlert();
 
-  /* At 3am a hallway wants the time, not a list of errands. Overnight
-     the panel is only ever its three permanent lines — which also means
-     far less of the screen is lit for the eight hours nobody reads it. */
-  const { pins, spare } = night ? { pins: [], spare: [] } : composeLines();
-
-  fill(panel,
-    h('div.ambient-head',
-      h('div.ambient-clock',
-        h('span.num', `${hour}:${minute}`),
-        period ? h('span.ambient-period', period) : null,
-      ),
-      h('div.ambient-date', fullDate(new Date())),
+  fill(col,
+    h('div.rail-clock',
+      h('span', `${hour}:${minute}`),
+      period ? h('span.rail-ampm', period) : null,
     ),
-    weatherLine(),
-    ...pins,
-    spare.length ? h('div.ambient-rotator') : null,
+    h('div.rail-date', fullDate(new Date())),
+    h('div.rail-rule'),
+
+    now
+      ? h('div.rail-wx',
+          weatherIcon(now.condition, { size: 34, night: now.night }),
+          h('span.rail-temp', temp(now.temp)),
+        )
+      : null,
+    now
+      ? h('div.rail-cond',
+          h('span', now.summary || ''),
+          today ? h('span.rail-cond-dot', ' · ') : null,
+          today ? h('span.rail-hi', temp(today.hi)) : null,
+          today ? h('span', ' / ') : null,
+          today ? h('span.rail-lo', temp(today.lo)) : null,
+        )
+      : null,
+    alert
+      ? h('div.rail-chip',
+          h('span.rail-chip-dot'),
+          h('span.rail-chip-label', alert.event),
+        )
+      : null,
+
+    ...todayBlock(night),
+    h('div.rail-spacer'),
+    nowPlayingBlock(),
   );
 
-  startRotation(spare);
   paintRestClock();
 }
 
-/**
- * One line, not a block: icon, temperature, today's range, conditions.
- *
- * The three of these used to be a 64px glyph beside a stacked
- * temperature and a right-aligned summary, which needed 85px of height
- * and most of the panel's width to say what fits on a line.
- */
-function weatherLine() {
-  const now = live.weather?.current;
-  if (!now) return null;
-  const today = live.weather?.daily?.[0];
-
-  return h('div.ambient-wx',
-    weatherIcon(now.condition, { size: 40, night: now.night }),
-    h('span.ambient-temp.num', temp(now.temp)),
-    today
-      ? h('span.ambient-hilo',
-          h('span.hi', temp(today.hi)),
-          h('span.lo', temp(today.lo)),
-        )
-      : null,
-    h('span.ambient-wx-summary', now.summary || ''),
-  );
+/* Remaining events only, capped at four. The section hides when the
+   day is done and stands down overnight — a hallway at 3am has no use
+   for a list of errands, and less lit type is less burn-in. */
+function todayBlock(night) {
+  if (night || state.ambient.showAgenda === false) return [];
+  const events = restOfToday().slice(0, 4);
+  if (!events.length) return [];
+  return [
+    h('div.rail-rule'),
+    h('div.rail-today', 'Today'),
+    h('div.rail-events', ...events.map((ev) =>
+      h('div.rail-event',
+        h('span.rail-event-bar', { style: { background: ev.color || 'var(--accent)' } }),
+        h('div.rail-event-main',
+          h('div.rail-event-title', ev.title),
+          h('div.rail-event-time', ev.allDay ? 'All day' : clockTime(ev.start)),
+        ),
+      ))),
+  ];
 }
 
-/* ── What competes for the space ─────────────────────────────
-   One ranked list, split in two. The top three pin themselves and stay;
-   everything below takes turns on a single line.
-
-   Built as one list on purpose. The first version had a pinned builder
-   and a rotating builder that each decided independently what belonged
-   to them, and anything the pin cap threw away fell down the gap
-   between the two and was never shown at all — including, in the case
-   that found it, a storm warning already in force. */
-
-const RANK = {
-  alert: 0,        // a warning in force
-  eventNow: 1,     // already under way; you may be late
-  overdue: 2,      // somebody dropped something
-  eventSoon: 3,    // starts within the hour
-  weatherSoon: 4,  // rain or storms within the hour
-  eventLater: 5,   // later today, or tomorrow once today is done
-  task: 6,         // due today, not yet late
-  weatherLater: 7, // a window further out — context, not news
-};
-
-/* Exported for the probes: it is a pure function of `live`, and the
-   thing most worth testing about this screen is which of the day's
-   facts win the three pinned slots and that none are dropped on the
-   floor. Checking that through the DOM means waiting out an eight
-   second rotation to see the tail of the queue. */
-export function composeLines() {
-  const all = [];
-  const now = Date.now();
-  const add = (rank, el) => { if (el) all.push({ rank, el }); };
-
-  const alert = topAlert();
-  if (alert) {
-    const loud = /extreme|severe/i.test(alert.severity ?? '');
-    add(RANK.alert, line(`alert${loud ? ' severe' : ''}`,
-      alert.isTropical ? 'hurricane' : alert.isThunder ? 'bolt' : 'alert',
-      alert.event));
-  }
-
-  if (state.ambient.showAgenda !== false) {
-    const today = restOfToday();
-    for (const ev of today) {
-      /* An all-day event is technically "in progress" from midnight to
-         midnight, which would let a birthday outrank overdue work and a
-         storm window all day long. It is context, not urgency. */
-      const running = !ev.allDay && isNow(ev);
-      const soon = running || (!ev.allDay && +ev.start - now <= SOON);
-      add(ev.allDay ? RANK.eventLater : running ? RANK.eventNow : soon ? RANK.eventSoon : RANK.eventLater,
-        eventLine(ev, running ? 'Now' : clockTime(ev.start)));
-    }
-    /* Once today is done, "nothing else today" is a weak thing to leave
-       on a wall all evening. By nine the useful question is the school
-       run, not the leftovers. */
-    if (!today.length) {
-      for (const ev of upcoming(live.calendar?.events ?? [], { limit: 2, days: 2 })
-        .filter((ev) => !isToday(ev.start))) {
-        add(RANK.eventLater, eventLine(ev, `Tomorrow ${clockTime(ev.start)}`));
-      }
-    }
-  }
-
-  if (state.ambient.showReminders !== false) {
-    for (const r of dueReminders()) {
-      add(isOverdue(r) ? RANK.overdue : RANK.task,
-        isOverdue(r)
-          ? line('task overdue', 'alert', r.title, 'Overdue')
-          : line('task', 'clock', r.title, r.hasTime ? clockTime(r.due) : 'Today'));
-    }
-  }
-
-  const weather = weatherLineFor(now);
-  if (weather) add(weather.rank, weather.el);
-
-  all.sort((a, b) => a.rank - b.rank);
-  /* Only the most important line gets coloured text. A stack of orange
-     reads as a malfunction; one orange line above neutral ones reads as
-     news. The icons keep their colour everywhere — a mark, not a block. */
-  all[0]?.el.classList.add('lead');
-  /* Three is the ceiling for pinning. It is for the handful of things
-     worth interrupting a photograph for, and a morning where six are
-     true at once is exactly when the wall should not become a list
-     again. */
-  return {
-    pins: all.slice(0, 3).map((x) => x.el),
-    spare: all.slice(3).map((x) => x.el),
-  };
-}
-
-/** Rain right now, or the next window — ranked by how soon it matters. */
-function weatherLineFor(now) {
-  const sentence = nowcastSentence(live.nowcast);
-  if (sentence) {
-    return { rank: RANK.weatherSoon, el: line('timing now', 'umbrella', sentence) };
-  }
-  const model = live.weather;
-  if (!model) return null;
-  const storm = nextThunderWindow(model);
-  const window = storm ?? nextPrecipWindow(model);
-  if (!window) return null;
-  return {
-    rank: +window.from - now <= SOON ? RANK.weatherSoon : RANK.weatherLater,
-    el: line(`timing ${storm ? 'storm' : 'rain'}`, storm ? 'bolt' : 'umbrella',
-      `${storm ? 'Storms' : 'Rain'} ${clockTime(window.from)} – ${clockTime(new Date(+window.to + 3600e3))}`),
-  };
-}
-
-/**
- * Take turns on one line rather than stacking.
- *
- * Eight seconds each: long enough to read across a room without
- * hurrying, short enough that a queue of four has come round twice
- * before the photograph changes.
- */
-function startRotation(lines) {
-  clearInterval(rotateTimer);
-  rotateTimer = null;
-  const host = $('.ambient-rotator');
-  if (!host || !lines.length) return;
-
-  if (rotateIndex >= lines.length) rotateIndex = 0;
-
-  const put = (el) => {
-    fill(host, el.cloneNode(true));
-    requestAnimationFrame(() => host.classList.add('in'));
-  };
-
-  put(lines[rotateIndex % lines.length]);
-  rotateIndex++;
-
-  if (lines.length < 2) return;
-  rotateTimer = setInterval(() => {
-    /* Out, swap, in — rather than replacing the contents underneath a
-       running transition, which reads as a flicker rather than as a
-       change. */
-    host.classList.remove('in');
-    setTimeout(() => {
-      if (!host.isConnected) return;
-      put(lines[rotateIndex % lines.length]);
-      rotateIndex++;
-    }, 320);
-  }, 8000);
-}
-
-/* ── Line builders ───────────────────────────────────────────── */
-
-/** Every line is the same shape: a mark, a label, and an optional time. */
-function line(kind, iconName, text, when) {
-  return h(`div.ambient-line.${kind.split(' ').join('.')}`,
-    icon(iconName, { size: 19, stroke: 2.2 }),
-    h('span.ambient-line-text', text),
-    when ? h('span.ambient-line-when', when) : null,
-  );
-}
-
-function eventLine(ev, when) {
-  return h('div.ambient-line.event',
-    h('span.ambient-dot', { style: { background: ev.color || 'var(--accent)' } }),
-    h('span.ambient-line-text', ev.title),
-    h('span.ambient-line-when', ev.allDay ? 'All day' : when),
+/* Only while something is actually playing: art, title, artist, and
+   three small equaliser bars breathing in amber. */
+function nowPlayingBlock() {
+  if (!hasTrack() || player.state !== 'playing') return null;
+  const t = player.track;
+  return h('div.rail-np',
+    t.artworkUrl
+      ? h('img.rail-np-art', { src: t.artworkUrl, alt: '' })
+      : h('div.rail-np-art'),
+    h('div.rail-np-meta',
+      h('div.rail-np-title', t.title ?? ''),
+      h('div.rail-np-artist', t.artist ?? ''),
+    ),
+    h('div.rail-eq', h('span'), h('span'), h('span')),
   );
 }
 
 /* `upcoming(events, { days: 1 })` looks like the right call for "the
    rest of today" and is not: its cutoff is twenty-four hours out, so at
-   six in the evening it starts listing tomorrow morning. */
+   six in the evening it starts listing tomorrow morning. Each row
+   drops off the rail after its end time — the minute tick repaints.
+   Deduped the same way Up Next is: two subscribed calendars carrying
+   the same event must not put it on the wall twice. */
 function restOfToday() {
   const now = Date.now();
+  const seen = new Set();
   return eventsOnDay(live.calendar?.events ?? [], new Date())
-    .filter((ev) => +ev.end > now);
-}
-
-/* Already sorted overdue-first by openReminders. Undated ones are left
-   out on purpose: "someday" belongs in the app, not on a wall. */
-function dueReminders() {
-  if (!remindersAvailable()) return [];
-  return openReminders().filter((r) => isOverdue(r) || (r.due && isToday(r.due)));
+    .filter((ev) => +ev.end > now)
+    .filter((ev) => {
+      const key = `${ev.title}|${+ev.start}|${+ev.end}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 /* ── Screen care ──────────────────────────────────────────────
-   Three layers, on very different clocks.
+   Two layers now. The rail is fixed to the left edge by design, so the
+   old corner-hopping is gone; what protects the panel is a continuous
+   pixel drift on the content column, and the whole screen still takes
+   its short rests. */
 
-   The global nudge in idle.js only ever moved `.shift-root`, which is
-   the hub — so the one screen that stays up for eight hours at a time
-   never moved at all. Ambient owns its own motion rather than getting
-   that class, because two systems translating the same element just
-   fight over the transform. */
-
-const ANCHORS = ['bl', 'tr', 'tl', 'br'];
-/** Smallest period we will schedule on, in minutes — see scheduleMove. */
+/** Smallest period we will schedule on, in minutes — see scheduleRest. */
 const MIN_PERIOD = 0.05;
-let anchorStep = 0;
 let driftTimer = null;
-let moveTimer = null;
 let restTimer = null;
 let restingUntil = 0;
 
 function startScreenCare() {
-  const panel = $('.ambient-panel');
-  if (!panel) return;
-  anchorStep = 0;
-  applyAnchor();
-
   drift();
   driftTimer = setInterval(drift, 30000);
-
-  scheduleMove();
   scheduleRest();
 }
 
 function stopScreenCare() {
   clearInterval(driftTimer);
-  clearTimeout(moveTimer);
   clearTimeout(restTimer);
-  driftTimer = moveTimer = restTimer = null;
+  driftTimer = restTimer = null;
   restingUntil = 0;
 }
 
@@ -540,60 +375,17 @@ function stopScreenCare() {
  * up — so the path does not retrace itself for a little over three
  * hours. A thirty-second tick paired with a thirty-second linear
  * transition is smooth without an animation frame loop running all
- * evening for something nobody can see happening.
+ * evening. A few pixels only: the rail's glass gradient is low-contrast
+ * and safe; it is the type that must not sit still.
  */
 function drift() {
-  const panel = $('.ambient-panel');
-  if (!panel) return;
+  const col = $('.ambient-rail-content');
+  if (!col) return;
   const t = Date.now() / 1000;
-  const dx = Math.sin((t / 660) * Math.PI * 2) * 2.5;
-  const dy = Math.cos((t / 1020) * Math.PI * 2) * 2.5;
-  panel.style.setProperty('--drift-x', `${dx.toFixed(2)}vw`);
-  panel.style.setProperty('--drift-y', `${dy.toFixed(2)}vh`);
-}
-
-function scheduleMove() {
-  /* The floor is a guard against a zero or a NaN turning this into a
-     runaway timer, not a policy — Settings already refuses anything
-     under a minute, and duplicating that here just gives the two places
-     a chance to disagree. */
-  const minutes = Math.max(MIN_PERIOD, state.ambient.moveMinutes ?? 6);
-  moveTimer = setTimeout(() => {
-    hopAnchor();
-    scheduleMove();
-  }, minutes * 60e3);
-}
-
-/**
- * Corner to corner, as far as each hop can manage.
- *
- * Every hop cannot be a diagonal: the only diagonal pairs are bl↔tr and
- * tl↔br, which are two disjoint edges, so no cycle through all four
- * corners can use diagonals alone. bl → tr → tl → br alternates a
- * diagonal with a long side, which is the most travel available from a
- * four-corner cycle — and it beats a rotation, which would be four
- * short hops around the rim.
- */
-function hopAnchor() {
-  const panel = $('.ambient-panel');
-  if (!panel) return;
-  panel.classList.add('moving');
-  setTimeout(() => {
-    anchorStep = (anchorStep + 1) % ANCHORS.length;
-    applyAnchor();
-    panel.classList.remove('moving');
-  }, 420);
-}
-
-function applyAnchor() {
-  const panel = $('.ambient-panel');
-  if (!panel) return;
-  const at = ANCHORS[anchorStep];
-  for (const a of ANCHORS) panel.classList.toggle(`at-${a}`, a === at);
-  /* The shade is painted on the full-screen layer, so it has to be told
-     which corner the type went to. */
-  const vignette = $('.ambient-vignette');
-  for (const a of ANCHORS) vignette?.classList.toggle(`at-${a}`, a === at);
+  const dx = Math.sin((t / 660) * Math.PI * 2) * 5;
+  const dy = Math.cos((t / 1020) * Math.PI * 2) * 7;
+  col.style.setProperty('--drift-x', `${dx.toFixed(1)}px`);
+  col.style.setProperty('--drift-y', `${dy.toFixed(1)}px`);
 }
 
 function scheduleRest() {

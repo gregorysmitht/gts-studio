@@ -785,24 +785,19 @@ function renderAmbient(body) {
     ),
 
     group('What it shows',
-      'The time, the date and the weather are always there. These two are the rest of it.',
+      'The glass rail always carries the time, the date and the weather; ' +
+      'a warning chip appears when one is in force, and the record playing ' +
+      'sits at the foot. This controls the one optional block.',
 
       switchRow("Today's schedule", state.ambient.showAgenda !== false, (on) => {
         state.ambient.showAgenda = on; save('ambient');
       }),
-      switchRow('Reminders', state.ambient.showReminders !== false, (on) => {
-        state.ambient.showReminders = on; save('ambient');
-      }),
     ),
 
     group('Overnight & rest',
-      'A panel showing the same thing in the same pixels for years can keep a ghost of it. ' +
-      'None of this is meant to be noticeable: the information drifts, changes corner now and ' +
-      'then, and the screen takes a short rest every so often.',
-
-      numberField('Change corner every (minutes)', state.ambient.moveMinutes, 1, 60, (v) => {
-        state.ambient.moveMinutes = v; save('ambient');
-      }),
+      'A panel showing the same thing in the same pixels for years can keep ' +
+      'a ghost of it. The rail’s type drifts a few pixels continuously, and ' +
+      'the screen takes a short rest every so often.',
 
       switchRow('Rest the screen', state.ambient.rest !== false, (on) => {
         state.ambient.rest = on; save('ambient');

@@ -59,12 +59,10 @@ const DEFAULTS = {
   ambient: {
     enabled: true,
     idleMinutes: 8,
-    seconds: 22,          // per photo
+    seconds: 75,          // per photo — the glass-rail handoff suggests 60–90s
     kenBurns: true,
     urls: [],             // remote photos; local ones live in IndexedDB
-    showAgenda: true,     // the rest of today, on the ambient panel
-    showReminders: true,  // overdue and due today
-    moveMinutes: 6,       // how often the panel changes corner
+    showAgenda: true,     // the TODAY block on the glass rail
     rest: true,           // periodic black rest, for the panel's sake
     restMinutes: 60,
     restSeconds: 25,
