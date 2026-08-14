@@ -415,7 +415,11 @@ function onScrub(event) {
 const WAKE_EVENTS = ['pointerdown', 'pointermove', 'keydown'];
 
 function armFade(root) {
-  const wake = () => {
+  const wake = (event) => {
+    /* Tapping the moon must not wake the player it is about to leave:
+       the wake would collapse the resting gallery and fade the button
+       out from under the finger before the tap lands. */
+    if (event?.target?.closest?.('.np-saver-btn')) return;
     root.classList.remove('resting');
     clearTimeout(fadeTimer);
     fadeTimer = setTimeout(() => root.classList.add('resting'), FADE_AFTER);

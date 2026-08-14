@@ -435,7 +435,14 @@
   display: grid;
   place-items: center;
   z-index: 2;
+  /* A gallery resident, like the clock above it: while the controls
+     are up this corner belongs to the queue bar's caption, so the
+     moon only fades in once the player settles into the screensaver. */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-rest) var(--ease-out);
 }
+.panel.resting .np-saver-btn { opacity: 1; pointer-events: auto; }
 .np-saver-btn:active { background: rgba(255, 255, 255, 0.12); color: var(--hh-text); }
 
 .np-scrub { display: flex; flex-direction: column; gap: calc(var(--px) * 10); }
