@@ -151,104 +151,93 @@
 }
 #mini-player.paused .mini-art { filter: saturate(0.7) brightness(0.85); }
 
-/* ── Now Playing ──────────────────────────────────────────────
-   The album art is the composition. Everything else sits on a
-   blurred enlargement of the same image, so the whole wall takes
-   the colour of the record. */
+/* ── Now Playing — the "Split" set (handoff 18c/18d) ──────────
+   Controls: the record owns the left 46% of the frame, full height,
+   melting into the canvas; title, scrubber, transport and queue in a
+   column on the right. Untouched for FADE_AFTER while playing, the same
+   DOM becomes the ambient screen (.panel.resting): art full-bleed, a
+   quiet lower-third caption with its own transport, clock top right.
+   One crossfade carries every piece between the two. */
 
 .np-stage {
   position: relative;
   flex: 1;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
   border-radius: inherit;
-  /* Handoff 2b ground: the night palette with a bottom ambient glow. */
-  background: radial-gradient(900px 620px at 50% 118%, rgba(80, 100, 170, 0.28), transparent 65%),
-              #0b0e18;
-  padding: calc(var(--px) * 24) calc(var(--px) * 40) calc(var(--px) * 24);
-  gap: calc(var(--px) * 20);
+  background: #0b0e18;
+  /* Controls ⇄ ambient crossfade (18d asks for 400–600ms). */
+  --np-mode: 560ms;
 }
 
-/* The record colouring the room: the artwork blown far past the frame
-   and heavily blurred, so the ground shifts with every album. Kept low
-   in the active player; it breathes up when the gallery takes over. */
-.np-backdrop {
-  position: absolute;
-  inset: calc(var(--px) * -80);
-  background-size: cover;
-  background-position: center;
-  filter: blur(calc(var(--px) * 90)) saturate(1.5) brightness(0.85);
-  transform: scale(1.2);
-  /* Two of these are stacked; JS alternates .current between songs, so
-     the ground crossfades — background-image itself cannot animate.
-     CSS owns every opacity so the resting boost keeps working on
-     whichever layer holds the record. */
-  opacity: 0;
-  transition: opacity var(--dur-swap) var(--ease-in-out);
-  pointer-events: none;
-}
-.np-backdrop.current { opacity: 0.3; }
-.panel.resting .np-backdrop.current { opacity: 0.55; transition-duration: var(--dur-rest); }
-/* Keeps the type honest over a bright cover. */
-.np-backdrop-scrim {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(120% 90% at 50% 40%, transparent 30%, rgba(11, 14, 24, 0.55) 100%),
-              rgba(11, 14, 24, 0.30);
-  pointer-events: none;
-}
-
-.np-content {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: calc(var(--px) * 64);
-  align-items: center;
-  padding: 0 calc(var(--px) * 24);
-}
-
-/* 380px art, 28px radius, drop shadow + ambient glow (handoff 2b). */
+/* The record. Left 46% while the controls are up; the whole frame at
+   rest. The img never resizes itself — cover-fit just re-crops as its
+   box grows, which is what makes the mode change one movement. */
 .np-art-wrap {
-  width: min(calc(var(--px) * 380), 40vh);
-  aspect-ratio: 1;
-  flex: none;
-  position: relative;   /* the outgoing cover overlays during a swap */
-  border-radius: calc(var(--px) * 28);
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 46%;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55),
-              0 0 120px rgba(90, 110, 180, 0.18);
   display: grid;
   place-items: center;
   color: var(--fg-4);
   background: repeating-linear-gradient(45deg, #232a42, #232a42 14px, #1c2236 14px, #1c2236 28px);
-  /* Grows into the resting gallery and back without a jump. */
-  transition: width var(--dur-rest) var(--ease-in-out), box-shadow var(--dur-rest) var(--ease-in-out);
+  transition: width var(--np-mode) var(--ease-in-out), height var(--np-mode) var(--ease-in-out);
 }
+.panel.resting .np-art-wrap { width: 100%; }
+
 .np-art {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
   opacity: 0;
-  transform: scale(1.04);
+  transform: scale(1.03);
   transition: opacity var(--dur-art) var(--ease-out), transform var(--dur-art) var(--ease-out);
 }
 .np-art.loaded { opacity: 1; transform: none; }
 
 /* Between songs the old cover lifts away over the incoming one. It is
-   inserted already loaded, then .gone starts the ride out. */
+   inserted already loaded, then .gone starts the ride out (~500ms per
+   the handoff). */
 .np-art.outgoing {
+  z-index: 1;
+  transition: opacity 520ms var(--ease-in-out), transform 520ms var(--ease-in-out);
+}
+.np-art.outgoing.gone { opacity: 0; transform: scale(1.05); }
+
+/* 18c: no hard edge — the art dissolves into the canvas colour. */
+.np-art-melt {
   position: absolute;
   inset: 0;
-  z-index: 1;
-  transition: opacity var(--dur-swap) var(--ease-in-out), transform var(--dur-swap) var(--ease-in-out);
+  background: linear-gradient(to right, transparent 60%, #0b0e18);
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity var(--np-mode) var(--ease-in-out);
 }
-.np-art.outgoing.gone { opacity: 0; transform: scale(1.06); }
+.panel.resting .np-art-melt { opacity: 0; }
+
+/* 18d: footing for the lower-third; the top half of the art stays
+   clean. Over a very light record (.bright-art, measured from the
+   cover) the veil reaches the top so the clock keeps its contrast. */
+.np-art-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(8, 10, 16, 0.85), rgba(8, 10, 16, 0.25) 32%, transparent 55%);
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity var(--np-mode) var(--ease-in-out);
+}
+.panel.resting .np-art-scrim { opacity: 1; }
+.np-stage.bright-art .np-art-scrim {
+  background: linear-gradient(to top, rgba(8, 10, 16, 0.85), rgba(8, 10, 16, 0.25) 32%,
+              rgba(8, 10, 16, 0.1) 55%, rgba(8, 10, 16, 0.1));
+}
 
 /* One caption line trading places: ease out, retext, ease back in.
    Shared by the player captions and the pill title. */
@@ -262,61 +251,24 @@
 .swap-out { animation: np-text-out 200ms var(--ease-out) both; }
 .swap-in { animation: np-text-in 340ms var(--ease-out) both; }
 
+/* ── The right column (18c) ───────────────────────────────── */
+
 .np-right {
+  position: absolute;
+  left: 52%;
+  right: calc(var(--px) * 48);
+  top: calc(var(--px) * 36);
+  bottom: calc(var(--px) * 36);
   display: flex;
   flex-direction: column;
-  gap: calc(var(--px) * 30);
   min-width: 0;
+  transition: opacity var(--np-mode) var(--ease-out);
 }
+.panel.resting .np-right { opacity: 0; pointer-events: none; }
 
-.np-meta { min-width: 0; }
-.np-title {
-  font-family: var(--font-display);
-  font-size: calc(var(--px) * 52);
-  font-weight: 500;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-}
-.np-artist {
-  display: flex;
-  align-items: baseline;
-  gap: calc(var(--px) * 8);
-  font-size: calc(var(--px) * 22);
-  color: rgba(231, 234, 244, 0.6);
-  margin-top: calc(var(--px) * 8);
-  min-width: 0;
-}
-.np-artist span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.np-artist.no-album .np-artist-dot,
-.np-artist.no-album .np-album-name { display: none; }
-
-/* ── Transport, and the resting gallery ───────────────────────
-   Untouched for a few seconds, the screen stops being a player and
-   becomes the artwork: chrome collapses away, the record grows to the
-   middle of the wall, the title sits under it like a caption, and a
-   quiet clock keeps the corner honest. Any touch brings it all back. */
-
-.np-controls {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--px) * 30);
-  max-height: calc(var(--px) * 400);
-  transition: opacity var(--dur-rest) var(--ease-out), transform var(--dur-rest) var(--ease-out),
-              max-height var(--dur-rest) var(--ease-in-out);
-}
-
-.panel.resting .np-controls {
-  opacity: 0;
-  transform: translateY(calc(var(--u) * 2));
-  pointer-events: none;
-  max-height: 0;
-  overflow: hidden;
-}
-/* Gone, not just dimmed: an invisible header still held its strip of
-   lighter panel above the stage, which read as a grey bar across the
-   top of the artwork. Collapse it so the gallery owns every pixel. */
-.panel.resting .panel-head {
+/* The split stage owns the whole frame — the art reaches the top edge —
+   so the panel's own header folds away; the .np-head row stands in. */
+.panel.np-split .panel-head {
   opacity: 0;
   pointer-events: none;
   max-height: 0;
@@ -332,135 +284,92 @@
               padding var(--dur-rest) var(--ease-in-out), min-height var(--dur-rest) var(--ease-in-out);
 }
 
-.np-queue-host {
-  position: relative;   /* above the absolute backdrop */
-  max-height: calc(var(--px) * 120);
-  transition: opacity var(--dur-rest) var(--ease-out), max-height var(--dur-rest) var(--ease-in-out);
-}
-.panel.resting .np-queue-host {
-  opacity: 0;
-  max-height: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-/* The gallery composition: one centred column, art dominant. */
-.panel.resting .np-content {
-  grid-template-columns: 1fr;
-  justify-items: center;
-  align-content: center;
-  gap: calc(var(--px) * 36);
-}
-.panel.resting .np-art-wrap {
-  width: min(56vh, 44vw);
-  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.7),
-              0 0 180px rgba(90, 110, 180, 0.28);
-}
-.panel.resting .np-right { align-items: center; gap: 0; }
-.panel.resting .np-meta { text-align: center; }
-/* The caption, set like a gallery card: the work, the artist, and the
-   record as a small tracked footnote. */
-.panel.resting .np-title { font-size: calc(var(--px) * 46); }
-.panel.resting .np-artist {
-  flex-direction: column;
+.np-head {
+  display: flex;
   align-items: center;
-  gap: calc(var(--px) * 9);
-  margin-top: calc(var(--px) * 14);
+  gap: calc(var(--px) * 16);
+  flex: none;
 }
-.panel.resting .np-artist-name {
-  font-size: calc(var(--px) * 20);
-  font-weight: 500;
-  color: rgba(231, 234, 244, 0.72);
+.np-back {
+  width: calc(var(--px) * 44);
+  height: calc(var(--px) * 44);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: none;
+  color: rgba(231, 234, 244, 0.7);
+  display: grid;
+  place-items: center;
+  flex: none;
 }
-.panel.resting .np-artist-dot { display: none; }
-.panel.resting .np-album-name {
-  font-size: calc(var(--px) * 12);
+.np-head-label {
+  font-size: calc(var(--px) * 13);
   font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: rgba(231, 234, 244, 0.42);
-}
-
-/* The corner clock — top right, lit only while resting. */
-.np-clock {
-  position: absolute;
-  right: calc(var(--px) * 44);
-  top: calc(var(--px) * 36);
-  text-align: right;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur-rest) var(--ease-out);
-}
-.panel.resting .np-clock { opacity: 1; }
-.np-clock-time {
-  font-family: var(--font-display);
-  font-size: calc(var(--px) * 32);
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums lining-nums;
-}
-.np-clock-date {
-  margin-top: calc(var(--px) * 5);
-  font-size: calc(var(--px) * 12);
-  font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: rgba(231, 234, 244, 0.45);
 }
-.np-clock-temp {
-  margin-top: calc(var(--px) * 8);
+.np-seg {
+  margin-left: auto;
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: calc(var(--px) * 7);
-  font-size: calc(var(--px) * 17);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: var(--r-pill);
+  padding: calc(var(--px) * 3);
+}
+.np-seg-btn {
+  padding: calc(var(--px) * 8) calc(var(--px) * 16);
+  border-radius: var(--r-pill);
+  border: none;
+  background: none;
+  font-size: calc(var(--px) * 13);
+  color: rgba(231, 234, 244, 0.6);
+}
+.np-seg-btn.on {
+  background: #e7eaf4;
+  color: #0b0e18;
+  font-weight: 600;
+}
+
+.np-meta { margin-top: calc(var(--px) * 56); min-width: 0; }
+.np-title {
+  font-family: var(--font-display);
+  font-size: calc(var(--px) * 66);
   font-weight: 500;
-  color: rgba(231, 234, 244, 0.7);
-  font-variant-numeric: tabular-nums;
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
-.np-clock-temp .wx-icon { width: calc(var(--px) * 20); height: calc(var(--px) * 20); }
-
-/* Bottom right: the way across to the photo screensaver. Quiet always,
-   present in both states — a passer-by should find it, not notice it. */
-.np-saver-btn {
-  position: absolute;
-  right: calc(var(--px) * 44);
-  bottom: calc(var(--px) * 34);
-  width: calc(var(--px) * 48);
-  height: calc(var(--px) * 48);
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(11, 14, 24, 0.35);
-  color: rgba(231, 234, 244, 0.55);
-  display: grid;
-  place-items: center;
-  z-index: 2;
-  /* A gallery resident, like the clock above it: while the controls
-     are up this corner belongs to the queue bar's caption, so the
-     moon only fades in once the player settles into the screensaver. */
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur-rest) var(--ease-out);
-}
-.panel.resting .np-saver-btn { opacity: 1; pointer-events: auto; }
-.np-saver-btn:active { background: rgba(255, 255, 255, 0.12); color: var(--hh-text); }
-
-.np-scrub { display: flex; flex-direction: column; gap: calc(var(--px) * 10); }
-.np-times {
+.np-artist {
   display: flex;
-  justify-content: space-between;
-  font-size: calc(var(--px) * 14);
-  color: rgba(231, 234, 244, 0.45);
-  font-variant-numeric: tabular-nums lining-nums;
+  align-items: baseline;
+  gap: calc(var(--px) * 8);
+  font-size: calc(var(--px) * 21);
+  color: rgba(231, 234, 244, 0.6);
+  margin-top: calc(var(--px) * 14);
+  min-width: 0;
 }
+.np-artist span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-artist .np-album-name { color: rgba(231, 234, 244, 0.4); }
+.np-artist.no-album .np-artist-dot,
+.np-artist.no-album .np-album-name { display: none; }
 
-/* 6px track, light fill, 16px white thumb (handoff 2b). */
+/* ── Scrubber (18c: 5px track, light fill, 15px thumb) ────── */
+
+.np-scrub {
+  margin-top: calc(var(--px) * 36);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 10);
+}
 .np-track {
   position: relative;
-  height: calc(var(--px) * 6);
+  height: calc(var(--px) * 5);
   border-radius: calc(var(--px) * 3);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.14);
   cursor: pointer;
+  touch-action: none;   /* the drag owns the gesture, not the scroll */
 }
 /* A taller invisible hit area — the visible bar is too thin for a finger. */
 .np-track::before {
@@ -472,21 +381,31 @@
   height: 100%;
   width: 0;
   border-radius: inherit;
-  background: #d6dcf0;
+  background: #e7eaf4;
 }
 .np-track-knob {
   position: absolute;
   top: 50%;
-  width: calc(var(--px) * 16);
-  height: calc(var(--px) * 16);
+  width: calc(var(--px) * 15);
+  height: calc(var(--px) * 15);
   margin-left: calc(var(--px) * -8);
   transform: translateY(-50%);
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
+.np-times {
+  display: flex;
+  justify-content: space-between;
+  font-size: calc(var(--px) * 14);
+  color: rgba(231, 234, 244, 0.45);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ── Transport (18c: ghost 48 · ring 62 · filled 84) ──────── */
 
 .np-buttons {
+  margin-top: calc(var(--px) * 26);
   display: flex;
   align-items: center;
   gap: calc(var(--px) * 26);
@@ -501,87 +420,28 @@
 }
 .np-btn:active { transform: scale(0.88); }
 .np-btn.on { color: var(--hh-amber); }
-
-/* Ghost 52px (shuffle/repeat), outlined 64px (prev/next), filled 92px
-   play — the handoff's three transport weights. */
 .np-btn.ghost-btn {
-  width: calc(var(--px) * 52);
-  height: calc(var(--px) * 52);
+  width: calc(var(--px) * 48);
+  height: calc(var(--px) * 48);
   background: none;
   border: none;
   opacity: 0.5;
 }
 .np-btn.ghost-btn.on { opacity: 1; }
 .np-btn.ring-btn {
-  width: calc(var(--px) * 64);
-  height: calc(var(--px) * 64);
+  width: calc(var(--px) * 62);
+  height: calc(var(--px) * 62);
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
 }
 .np-play {
-  width: calc(var(--px) * 92);
-  height: calc(var(--px) * 92);
+  width: calc(var(--px) * 84);
+  height: calc(var(--px) * 84);
   background: #e7eaf4;
   color: #0b0e18;
-  box-shadow: 0 12px 36px rgba(230, 234, 244, 0.25);
+  box-shadow: 0 12px 36px rgba(231, 234, 244, 0.22);
 }
 .np-play:active { transform: scale(0.93); }
-
-/* ── Queue bar (handoff 2b foot) ──────────────────────────── */
-
-.np-queue {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--px) * 14);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: calc(var(--px) * 18);
-  padding: calc(var(--px) * 14) calc(var(--px) * 22);
-  flex: none;
-  min-width: 0;
-}
-.np-queue-label {
-  font-size: calc(var(--px) * 12);
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(231, 234, 244, 0.4);
-  margin-right: calc(var(--px) * 10);
-  flex: none;
-}
-.np-queue-art {
-  width: calc(var(--px) * 36);
-  height: calc(var(--px) * 36);
-  border-radius: calc(var(--px) * 10);
-  overflow: hidden;
-  flex: none;
-  display: grid;
-  place-items: center;
-  background: repeating-linear-gradient(45deg, #2a3050, #2a3050 8px, #222741 8px, #222741 16px);
-  color: var(--fg-4);
-}
-.np-queue-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.np-queue-meta { flex: 1; min-width: 0; }
-.np-queue-title {
-  font-size: calc(var(--px) * 16);
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.np-queue-artist {
-  font-size: calc(var(--px) * 13);
-  color: rgba(231, 234, 244, 0.45);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.np-queue-count {
-  font-size: calc(var(--px) * 14);
-  color: rgba(231, 234, 244, 0.4);
-  white-space: nowrap;
-  flex: none;
-}
 
 /* Repeat-one gets a dot rather than a different glyph. */
 .np-repeat { position: relative; }
@@ -593,6 +453,230 @@
   font-weight: 700;
   color: var(--accent);
 }
+
+/* ── Queue (18c: pinned to the column's foot) ─────────────── */
+
+.np-queue-host { margin-top: auto; }
+.np-queue {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: calc(var(--px) * 20);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 14);
+}
+.np-queue-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.np-queue-label {
+  font-size: calc(var(--px) * 12);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(231, 234, 244, 0.45);
+}
+.np-queue-count {
+  font-size: calc(var(--px) * 13);
+  color: rgba(231, 234, 244, 0.4);
+  font-variant-numeric: tabular-nums;
+}
+.np-queue-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 14);
+  min-height: calc(var(--px) * 44);
+}
+.np-queue-art {
+  width: calc(var(--px) * 40);
+  height: calc(var(--px) * 40);
+  border-radius: calc(var(--px) * 9);
+  overflow: hidden;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: repeating-linear-gradient(45deg, #2a3050, #2a3050 8px, #222741 8px, #222741 16px);
+  color: var(--fg-4);
+}
+.np-queue-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.np-queue-meta { flex: 1; min-width: 0; }
+.np-queue-title {
+  font-size: calc(var(--px) * 16);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.np-queue-artist {
+  font-size: calc(var(--px) * 13);
+  color: rgba(231, 234, 244, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.np-queue-dur {
+  font-size: calc(var(--px) * 13);
+  color: rgba(231, 234, 244, 0.35);
+  font-variant-numeric: tabular-nums lining-nums;
+  flex: none;
+}
+
+/* ── Ambient (18d): lower-third, clock, moon ──────────────── */
+
+.np-lower {
+  position: absolute;
+  left: calc(var(--px) * 52);
+  right: calc(var(--px) * 52);
+  bottom: calc(var(--px) * 44);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: calc(var(--px) * 30);
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(calc(var(--px) * 10));
+  transition: opacity var(--np-mode) var(--ease-out), transform var(--np-mode) var(--ease-out);
+}
+.panel.resting .np-lower { opacity: 1; pointer-events: auto; transform: none; }
+
+.np-lower-info { min-width: 0; }
+.np-lower-kicker {
+  font-size: calc(var(--px) * 12);
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(231, 234, 244, 0.55);
+}
+.np-lower-title {
+  font-family: var(--font-display);
+  font-size: calc(var(--px) * 52);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  margin-top: calc(var(--px) * 10);
+  text-shadow: 0 3px 30px rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Long names step down before they ellipsize (handoff). */
+.np-lower-title.long { font-size: calc(var(--px) * 44); }
+.np-lower-sub {
+  font-size: calc(var(--px) * 19);
+  color: rgba(231, 234, 244, 0.7);
+  margin-top: calc(var(--px) * 6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.np-lower-line {
+  width: calc(var(--px) * 340);
+  max-width: 100%;
+  height: calc(var(--px) * 4);
+  border-radius: calc(var(--px) * 2);
+  background: rgba(255, 255, 255, 0.2);
+  position: relative;
+  margin-top: calc(var(--px) * 18);
+  overflow: hidden;
+}
+.np-lower-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-radius: inherit;
+  background: #fff;
+}
+
+.np-lower-controls {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 18);
+  flex: none;
+}
+.np-amb-btn {
+  width: calc(var(--px) * 56);
+  height: calc(var(--px) * 56);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(11, 14, 24, 0.12);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--hh-text);
+  display: grid;
+  place-items: center;
+}
+.np-amb-play {
+  width: calc(var(--px) * 76);
+  height: calc(var(--px) * 76);
+  border-radius: 50%;
+  border: none;
+  background: rgba(231, 234, 244, 0.94);
+  color: #0b0e18;
+  display: grid;
+  place-items: center;
+}
+.np-amb-btn:active, .np-amb-play:active { transform: scale(0.92); }
+
+/* The clock — top right, lit only while ambient (18d). */
+.np-clock {
+  position: absolute;
+  top: calc(var(--px) * 38);
+  right: calc(var(--px) * 52);
+  text-align: right;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.6);
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--np-mode) var(--ease-out);
+}
+.panel.resting .np-clock { opacity: 1; }
+.np-clock-time {
+  font-family: var(--font-display);
+  font-size: calc(var(--px) * 34);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.np-clock-ampm {
+  font-family: var(--font);
+  font-size: calc(var(--px) * 16);
+  color: rgba(231, 234, 244, 0.6);
+}
+.np-clock-date {
+  margin-top: calc(var(--px) * 5);
+  font-size: calc(var(--px) * 11.5);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(231, 234, 244, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Top left, opposite the clock: the way across to the photo
+   screensaver. Ambient-only — while the controls are up, this screen
+   is for playing music, not leaving it. */
+.np-saver-btn {
+  position: absolute;
+  left: calc(var(--px) * 44);
+  top: calc(var(--px) * 36);
+  width: calc(var(--px) * 48);
+  height: calc(var(--px) * 48);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(11, 14, 24, 0.35);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: rgba(231, 234, 244, 0.6);
+  display: grid;
+  place-items: center;
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--np-mode) var(--ease-out);
+}
+.panel.resting .np-saver-btn { opacity: 1; pointer-events: auto; }
+.np-saver-btn:active { background: rgba(255, 255, 255, 0.12); color: var(--hh-text); }
 
 .np-empty {
   flex: 1;
@@ -611,7 +695,17 @@
 }
 .np-empty-note { font-size: var(--t-sm); max-width: 42ch; }
 
-/* ── Browse (4a) & search (4b) ────────────────────────────── */
+/* ── Browse — the "Mosaic" (17c) & search (4b) ────────────── */
+
+/* The flush tab body is the 17c canvas: near-black with a faint blue
+   glow top-left, one column — search, mosaic, chips, now bar. */
+.panel-body.music-browse {
+  flex-direction: column;
+  gap: calc(var(--px) * 22);
+  padding: calc(var(--px) * 24) calc(var(--px) * 40) calc(var(--px) * 26);
+  background: radial-gradient(900px 560px at 15% -10%, rgba(90, 110, 180, 0.16), transparent 60%),
+              #0b0e18;
+}
 
 .browse-body {
   display: flex;
@@ -622,18 +716,16 @@
   overflow-y: auto;
 }
 
-.browse-top { display: flex; align-items: center; gap: calc(var(--px) * 18); flex: none; }
-
 /* The search pill: quiet at rest, brightened with a halo when active. */
 .search-pill {
-  flex: 1;
+  flex: none;
   display: flex;
   align-items: center;
   gap: calc(var(--px) * 14);
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--r-pill);
-  padding: calc(var(--px) * 16) calc(var(--px) * 26);
+  padding: calc(var(--px) * 14) calc(var(--px) * 24);
   color: rgba(231, 234, 244, 0.45);
   cursor: text;
   transition: background var(--dur-fast) var(--ease-out),
@@ -650,7 +742,7 @@
   background: none;
   border: none;
   outline: none;
-  font-size: calc(var(--px) * 18);
+  font-size: calc(var(--px) * 17);
   font-weight: 500;
   color: var(--hh-text);
   min-width: 0;
@@ -685,9 +777,161 @@
 }
 .music-status.ok .music-status-dot { background: var(--hh-good); }
 
-/* Mood chips. */
-.browse-chips { display: flex; gap: calc(var(--px) * 10); flex: none; flex-wrap: wrap; }
-.searching + .browse-chips, .searching .browse-chips { display: none; }
+/* ── The mosaic (17c) ─────────────────────────────────────── */
+
+.mosaic {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: 1fr 1fr;
+  gap: calc(var(--px) * 16);
+  flex: 1;
+  min-height: 0;
+}
+.mosaic-tile {
+  position: relative;
+  border-radius: calc(var(--px) * 22);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  padding: calc(var(--px) * 22);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  text-align: left;
+  overflow: hidden;
+  min-height: 0;
+  min-width: 0;
+}
+.mosaic-continue {
+  grid-row: span 2;
+  grid-column: span 2;
+  padding: calc(var(--px) * 26);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.mosaic-kicker {
+  font-size: calc(var(--px) * 12);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(231, 234, 244, 0.5);
+}
+.mosaic-continue > .mosaic-kicker {
+  position: absolute;
+  top: calc(var(--px) * 22);
+  left: calc(var(--px) * 26);
+  letter-spacing: 0.16em;
+  color: rgba(231, 234, 244, 0.55);
+}
+.mosaic-hero {
+  font-family: var(--font-display);
+  font-size: calc(var(--px) * 36);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.mosaic-title {
+  font-size: calc(var(--px) * 20);
+  font-weight: 600;
+  margin-top: calc(var(--px) * 6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.mosaic-sub {
+  font-size: calc(var(--px) * 13);
+  color: rgba(231, 234, 244, 0.5);
+  margin-top: calc(var(--px) * 3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.mosaic-continue .mosaic-sub {
+  font-size: calc(var(--px) * 16);
+  color: rgba(231, 234, 244, 0.55);
+  margin-top: calc(var(--px) * 6);
+}
+.mosaic-actions { display: flex; gap: calc(var(--px) * 10); margin-top: calc(var(--px) * 18); }
+.mosaic-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--px) * 8);
+  border-radius: var(--r-pill);
+  padding: calc(var(--px) * 10) calc(var(--px) * 26);
+  font-size: calc(var(--px) * 15);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: none;
+  color: rgba(231, 234, 244, 0.8);
+}
+.mosaic-pill.primary {
+  background: #e7eaf4;
+  color: #0b0e18;
+  border: none;
+  font-weight: 600;
+}
+.mosaic-tile.ghost {
+  background: rgba(255, 255, 255, 0.03);
+  border-style: dashed;
+}
+
+/* The tile's own "that tap worked" ring — the mosaic has no .play-art
+   thumb to host the shared spinner, so the tile centre carries it. */
+.mosaic-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: calc(var(--u) * 5);
+  height: calc(var(--u) * 5);
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
+  pointer-events: none;
+}
+.mosaic-tile.starting { filter: brightness(0.55) saturate(0.8); }
+.mosaic-tile.starting::after {
+  opacity: 1;
+  transform: scale(1);
+  border: 3px solid rgba(255, 246, 232, 0.25);
+  border-top-color: var(--hh-amber);
+  animation: shelf-spin 720ms linear infinite;
+}
+.mosaic-tile.started { filter: brightness(0.62); }
+.mosaic-tile.started::after {
+  opacity: 1;
+  transform: scale(1);
+  background: var(--hh-amber);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 62% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 62% no-repeat;
+}
+
+/* ── Library chips (17c) ──────────────────────────────────── */
+
+.lib-chips { display: flex; gap: calc(var(--px) * 10); flex: none; }
+.music-browse.searching .lib-chips { display: none; }
+.lib-chip {
+  border-radius: var(--r-pill);
+  padding: calc(var(--px) * 9) calc(var(--px) * 20);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: none;
+  font-size: calc(var(--px) * 14);
+  color: rgba(231, 234, 244, 0.75);
+}
+.lib-chip:active { background: rgba(255, 255, 255, 0.08); }
+.lib-back {
+  border: none;
+  background: none;
+  font-size: calc(var(--px) * 14);
+  font-weight: 600;
+  color: rgba(231, 234, 244, 0.6);
+  padding: 0 calc(var(--px) * 6) 0 0;
+}
+
+/* Chips shared with the rest of the app (settings, editors). */
 .chip {
   border-radius: var(--r-pill);
   padding: calc(var(--px) * 10) calc(var(--px) * 22);
@@ -811,24 +1055,27 @@
   flex: none;
 }
 
-/* Now-playing foot bar (4a/4b). */
+/* Now-playing foot bar (17c). Hidden when nothing is queued — the host
+   simply empties and the mosaic keeps the room. */
+.browse-now-host { flex: none; }
 .browse-now {
   display: flex;
   align-items: center;
   gap: calc(var(--px) * 14);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: calc(var(--px) * 18);
-  padding: calc(var(--px) * 12) calc(var(--px) * 20);
+  border-radius: calc(var(--px) * 16);
+  padding: calc(var(--px) * 11) calc(var(--px) * 18);
   flex: none;
   text-align: left;
   width: 100%;
   min-width: 0;
+  cursor: pointer;
 }
 .browse-now-art {
   width: calc(var(--px) * 36);
   height: calc(var(--px) * 36);
-  border-radius: calc(var(--px) * 10);
+  border-radius: calc(var(--px) * 9);
   overflow: hidden;
   flex: none;
   display: grid;
@@ -837,13 +1084,23 @@
   color: var(--fg-4);
 }
 .browse-now-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.browse-now-title {
+.browse-now-meta {
   flex: 1;
-  font-size: calc(var(--px) * 15);
-  font-weight: 600;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.browse-now-title {
+  font-size: calc(var(--px) * 15);
+  font-weight: 600;
+  /* Inline-block so the between-songs swap can translate it. */
+  display: inline-block;
+  vertical-align: bottom;
+}
+.browse-now-artist {
+  font-size: calc(var(--px) * 14);
+  color: rgba(231, 234, 244, 0.5);
 }
 .browse-now-time {
   font-size: calc(var(--px) * 13);
@@ -852,10 +1109,12 @@
   flex: none;
 }
 .browse-now-state {
-  width: calc(var(--px) * 34);
-  height: calc(var(--px) * 34);
+  width: calc(var(--px) * 32);
+  height: calc(var(--px) * 32);
   border-radius: 50%;
+  border: none;
   background: rgba(255, 255, 255, 0.1);
+  color: var(--hh-text);
   display: grid;
   place-items: center;
   flex: none;
@@ -1081,6 +1340,9 @@
   /* The between-songs choreography collapses to an instant change. */
   .swap-out, .swap-in { animation-duration: 1ms; }
   .mini-art.outgoing { transition-duration: 1ms; }
+  .np-art.outgoing { transition-duration: 1ms; }
+  /* And so does the controls ⇄ ambient crossfade. */
+  .np-stage { --np-mode: 1ms; }
 }
 
 /* ── Narrow / portrait ────────────────────────────────────── */
@@ -1089,17 +1351,20 @@
   /* The countdown is the pill's most expendable tenant on a tight bar. */
   .mini-time { display: none; }
 
-  /* Portrait stacks the 2b grid: art above, stack below, centred. */
-  .np-content {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    gap: calc(var(--px) * 36);
-    align-content: center;
+  /* Portrait: the record becomes a hero band across the top, the column
+     slides under it, and the melt turns downward. Ambient is unchanged —
+     full-bleed art reads the same either way up. */
+  .np-art-wrap { width: 100%; bottom: auto; height: 40%; }
+  .np-art-melt { background: linear-gradient(to bottom, transparent 55%, #0b0e18); }
+  .np-right {
+    left: calc(var(--px) * 48);
+    top: calc(40% + var(--px) * 8);
   }
-  .np-art-wrap { width: min(56vw, 36vh); }
-  .np-right { width: 100%; max-width: calc(var(--px) * 620); }
-  .np-meta { text-align: center; }
-  .np-buttons { justify-content: center; }
+  .panel.resting .np-art-wrap { height: 100%; }
+  .np-meta { margin-top: calc(var(--px) * 24); }
+  .np-title { font-size: calc(var(--px) * 52); }
+  .np-lower-title { font-size: calc(var(--px) * 42); }
+  .np-lower-title.long { font-size: calc(var(--px) * 34); }
 }
 
 /* Below this the bar is too narrow to hold a centred pill: an absolutely

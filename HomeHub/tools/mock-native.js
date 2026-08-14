@@ -303,7 +303,7 @@
 
   const asItem = (t) => ({
     id: t.id, type: 'song', title: t.title, subtitle: t.artist,
-    artist: t.artist, artworkUrl: t.art,
+    artist: t.artist, artworkUrl: t.art, duration: t.duration,
   });
 
   const music = {
@@ -581,6 +581,8 @@
     /** Nothing queued anywhere on the device — the system player's
         truly-empty state (track:null), which __stopMusic cannot reach. */
     __clearQueue: () => { music.cleared = true; push(); },
+    /** Paused from the phone or Control Center — the observer pushes. */
+    __externalPause: () => { settle(); music.state = 'paused'; push(); },
     /** Music started outside the hub — Siri, the Music app. The system
         player picks it up and the observer pushes, same as a skip. */
     __externalPlay: (index = 0) => {

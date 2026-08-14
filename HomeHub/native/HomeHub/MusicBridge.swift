@@ -260,8 +260,13 @@ final class MusicBridge {
                    same fire-and-forget lookup, which pushes a fresh
                    snapshot when it lands. */
                 var art = artworkURL(entry.artwork, size: 200)
+                /* The queue rows print a duration; like the album line on
+                   the current track, it lives on the underlying song, not
+                   the entry. */
+                var duration: Any = NSNull()
                 if case let .song(song)? = entry.item {
                     if let own = song.artwork { art = artworkURL(own, size: 200) }
+                    if let secs = song.duration { duration = secs }
                     if art is NSNull {
                         let key = song.id.rawValue
                         if let cached = artCache[key], !cached.isEmpty {
@@ -280,6 +285,7 @@ final class MusicBridge {
                     "title": entry.title,
                     "subtitle": entry.subtitle ?? "",
                     "artworkUrl": art,
+                    "duration": duration,
                 ]
             }
 

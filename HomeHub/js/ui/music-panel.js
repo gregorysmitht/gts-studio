@@ -1,20 +1,19 @@
 /* Full-screen Now Playing, and the browse/search view behind it.
 
-   This is the one screen that should look like the room it's in: the
-   album art is the composition, and everything else is laid over a
-   blurred, darkened enlargement of the same image so the wall takes on
-   the colour of whatever is playing.
+   The "Split" set (handoff 18c/18d). Controls: the record owns the left
+   half of the frame, melting into the canvas; type, transport and queue
+   in a column on the right. Left alone while playing, the same screen
+   becomes the ambient state: art full-bleed, a quiet lower-third
+   caption, a clock in the corner — the point of a wall display is the
+   art, not the buttons. Any touch brings the controls back. */
 
-   Controls fade out after a few quiet seconds and come back on the
-   first touch — the point of a wall display is the art, not the
-   buttons. */
-
-import { h, fill, $, $$, toast } from '../core/dom.js';
-import { clockParts, fullDate } from '../core/time.js';
+import { h, fill, $, toast } from '../core/dom.js';
+import { clockParts, clockTime, weekday, monthDay } from '../core/time.js';
 import { temp } from '../core/format.js';
 import { live } from '../data/hub.js';
-import { icon, weatherIcon } from './icons.js';
-import { openPanel, closePanel, onPanelClose, onTabClose, setPanelTab } from '../core/panel.js';
+import { eventsOnDay } from '../data/calendar.js';
+import { icon } from './icons.js';
+import { openPanel, closePanel, onPanelClose, onTabClose, setPanelTab, activeTabId } from '../core/panel.js';
 import { enterAmbient } from './ambient.js';
 import { on } from '../core/store.js';
 import {
@@ -24,8 +23,12 @@ import {
   musicAuthStatus, requestMusicAccess, musicBlockedReason,
 } from '../data/music.js';
 
-/** How long the controls stay up after the last touch. */
-const FADE_AFTER = 6000;
+/** How long the controls stay up after the last touch — ~30s per the
+    handoff. Probes shorten it through the global rather than waiting
+    half a minute to watch one rest. */
+const FADE_AFTER = globalThis.__NP_FADE_AFTER ?? 30000;
+
+let musicSubscribed = false;   // one panel, one music listener
 
 export function openMusicPanel({ source, tab = 'playing' } = {}) {
   openPanel({
@@ -34,106 +37,176 @@ export function openMusicPanel({ source, tab = 'playing' } = {}) {
     source,
     tabs: [
       { id: 'playing', label: 'Now Playing', render: renderNowPlaying, flush: true },
-      { id: 'browse', label: 'Browse', render: renderBrowse },
+      { id: 'browse', label: 'Browse', render: renderBrowse, flush: true },
     ],
+    /* 17c header: the Apple Music status dot lives up in the chrome. */
+    actions: [connectionStatus()],
   }).then(() => {
-    if (tab !== 'playing') setPanelTab(tab);
+    /* Even when the panel was already open: the music saver may be
+       steering a panel that is sitting on Browse. */
+    if (activeTabId() !== tab) setPanelTab(tab);
 
+    /* Steering an already-open panel must not stack a second music
+       subscription on it — one panel, one listener. */
+    if (musicSubscribed) return;
+    musicSubscribed = true;
+
+    let lastState = player.state;
     const stop = on('music', () => {
-      // Only the transport needs repainting on a state change; rebuilding
-      // the whole tab would restart the artwork's fade-in every few
-      // seconds and interrupt anyone scrolling the browse list.
-      paintTransport();
-      paintTrack();
-      paintQueue();
+      /* A track appearing on a silent screen (or the queue emptying
+         under a playing one) swaps the whole tab between the stage and
+         the empty state. Everything else is a patch in place: rebuilding
+         the tab would restart the artwork's fade-in every few seconds
+         and interrupt anyone scrolling the browse list. */
+      if (activeTabId() === 'playing'
+          && (hasTrack() ? !!$('.panel .np-empty') : !!$('.panel .np-stage'))) {
+        setPanelTab('playing');
+      } else {
+        paintTransport();
+        paintTrack();
+        paintQueue();
+      }
       paintBrowseBar();
+      /* On a play⇄pause flip only — track changes must not disturb the
+         ambient screen. Pausing exits ambient (18d), wherever the pause
+         came from; resuming re-arms the way back into it. */
+      if (player.state !== lastState) {
+        lastState = player.state;
+        wakeNow?.();
+      }
     });
-    onPanelClose(stop);
+    onPanelClose(() => { musicSubscribed = false; stop(); });
   });
 }
 
 /* ── Now Playing ──────────────────────────────────────────── */
 
-let fadeTimer = null;
+let fadeTimer = null;      // controls → ambient
+let settleTimer = null;    // the music saver's fast path into ambient
 let rafId = null;
+let scrubbing = false;     // a finger on the scrubber; the loop holds off
+let wakeNow = null;        // armFade's wake, reachable by the music push
+let restNow = null;        // armFade's rest, reachable by the music saver
+
+/* Ambient transport: the tap acts first, then brings the controls back
+   ("any tap on ambient returns to controls"). The wake listener skips
+   these buttons — a pointerdown wake would fold their pointer-events
+   away before the click could land on them. */
+const ambientAct = (fn) => () => { fn().catch(reportError); wakeNow?.(); };
 
 function renderNowPlaying(body, panel) {
-  if (!hasTrack()) return fill(body, emptyState());
+  if (!hasTrack()) {
+    panel?.classList.remove('np-split', 'resting');
+    return fill(body, emptyState());
+  }
+  /* The split stage owns the whole frame — the art reaches the top edge
+     — so the panel's own header folds away and the right column carries
+     a back button and tab pill of its own. */
+  panel?.classList.add('np-split');
 
-  /* The 2b composition: album art left, everything else in a stack to
-     its right, queue bar along the foot. The ground is the night
-     palette with a bottom ambient glow rather than a blurred blow-up
-     of the record — flatter, per the handoff. */
+  /* 18c and 18d in one DOM; `.panel.resting` is the mode switch. The
+     art never re-renders between them — cover-fit just re-crops as its
+     box grows, one smooth movement instead of two screens. */
   const stage = h('div.np-stage',
-    /* The record colours the room: the same artwork, blown up and
-       heavily blurred, breathes behind the composition. Two layers, so
-       a track change crossfades the ground instead of hard-cutting —
-       background-image itself cannot animate. A scrim keeps the type
-       honest on bright covers. */
-    h('div.np-backdrop'),
-    h('div.np-backdrop'),
-    h('div.np-backdrop-scrim'),
-    h('div.np-content',
-      h('div.np-art-wrap', h('img.np-art', { alt: '' })),
-      h('div.np-right',
-        h('div.np-meta',
-          h('div.np-title'),
-          /* Artist and record as separate spans: one line with a dot in
-             the player, a stacked caption in the resting gallery. */
-          h('div.np-artist',
-            h('span.np-artist-name'),
-            h('span.np-artist-dot', '·'),
-            h('span.np-album-name'),
-          ),
-        ),
-        h('div.np-controls',
-          h('div.np-scrub',
-            h('div.np-track', { onclick: onScrub },
-              h('div.np-track-fill'),
-              h('div.np-track-knob'),
-            ),
-            h('div.np-times',
-              h('span.np-elapsed.num', '0:00'),
-              h('span.np-remaining.num', '-0:00'),
-            ),
-          ),
-          h('div.np-buttons',
-            h('button.np-btn.ghost-btn.np-shuffle', {
-              onclick: () => setShuffle(!player.shuffle).catch(reportError),
-              'aria-label': 'Shuffle',
-            }, icon('shuffle', { size: 22 })),
-            h('button.np-btn.ring-btn', {
-              onclick: () => previous().catch(reportError),
-              'aria-label': 'Previous track',
-            }, icon('skipBack', { size: 26 })),
-            h('button.np-btn.np-play', {
-              onclick: () => togglePlay().catch(reportError),
-              'aria-label': 'Play or pause',
-            }),
-            h('button.np-btn.ring-btn', {
-              onclick: () => next().catch(reportError),
-              'aria-label': 'Next track',
-            }, icon('skipForward', { size: 26 })),
-            h('button.np-btn.ghost-btn.np-repeat', {
-              onclick: () => setRepeat(nextRepeat(player.repeat)).catch(reportError),
-              'aria-label': 'Repeat',
-            }, icon('refresh', { size: 22 })),
-          ),
+    h('div.np-art-wrap',
+      h('img.np-art', { alt: '' }),
+      /* 18c: no hard edge — the cover dissolves into the canvas. */
+      h('div.np-art-melt'),
+      /* 18d: the caption's footing; the top of the art stays clean. */
+      h('div.np-art-scrim'),
+    ),
+    h('div.np-right',
+      h('div.np-head',
+        h('button.np-back.no-expand', {
+          onclick: () => closePanel(),
+          'aria-label': 'Back to home',
+        }, icon('chevronLeft', { size: 22 })),
+        h('span.np-head-label', 'Now Playing'),
+        h('div.np-seg',
+          h('button.np-seg-btn.on.no-expand', 'Playing'),
+          h('button.np-seg-btn.no-expand', {
+            onclick: () => setPanelTab('browse'),
+          }, 'Browse'),
         ),
       ),
+      h('div.np-meta',
+        h('div.np-title'),
+        /* Artist and record as separate spans: an em-dash line in the
+           controls, a dotted caption in the ambient lower-third. */
+        h('div.np-artist',
+          h('span.np-artist-name'),
+          h('span.np-artist-dot', '—'),
+          h('span.np-album-name'),
+        ),
+      ),
+      h('div.np-scrub',
+        h('div.np-track',
+          h('div.np-track-fill'),
+          h('div.np-track-knob'),
+        ),
+        h('div.np-times',
+          h('span.np-elapsed.num', '0:00'),
+          h('span.np-remaining.num', '−0:00'),
+        ),
+      ),
+      h('div.np-buttons',
+        h('button.np-btn.ghost-btn.np-shuffle', {
+          onclick: () => setShuffle(!player.shuffle).catch(reportError),
+          'aria-label': 'Shuffle',
+        }, icon('shuffle', { size: 20 })),
+        h('button.np-btn.ring-btn', {
+          onclick: () => previous().catch(reportError),
+          'aria-label': 'Previous track',
+        }, icon('skipBack', { size: 24 })),
+        h('button.np-btn.np-play', {
+          onclick: () => togglePlay().catch(reportError),
+          'aria-label': 'Play or pause',
+        }),
+        h('button.np-btn.ring-btn', {
+          onclick: () => next().catch(reportError),
+          'aria-label': 'Next track',
+        }, icon('skipForward', { size: 24 })),
+        h('button.np-btn.ghost-btn.np-repeat', {
+          onclick: () => setRepeat(nextRepeat(player.repeat)).catch(reportError),
+          'aria-label': 'Repeat',
+        }, icon('refresh', { size: 20 })),
+      ),
+      /* A stable slot pinned to the column's foot: the queue itself is
+         repainted on every push, so the rows move with the track. */
+      h('div.np-queue-host'),
     ),
-    /* A stable slot: the queue itself is repainted on every push, so
-       track changes move the Up Next thumbs along. */
-    h('div.np-queue-host'),
-    /* Only lit while the controls are resting: the room's clock, so the
-       full-art screen still answers the wall's first question. */
+    /* 18d lower-third: caption left, its own transport right. */
+    h('div.np-lower',
+      h('div.np-lower-info',
+        h('div.np-lower-kicker', 'Now Playing · Apple Music'),
+        h('div.np-lower-title'),
+        h('div.np-lower-sub'),
+        h('div.np-lower-line', h('div.np-lower-fill')),
+      ),
+      h('div.np-lower-controls',
+        h('button.np-amb-btn.no-expand', {
+          onclick: ambientAct(previous),
+          'aria-label': 'Previous track',
+        }, icon('skipBack', { size: 20 })),
+        h('button.np-amb-play.no-expand', {
+          onclick: ambientAct(togglePlay),
+          'aria-label': 'Play or pause',
+        }),
+        h('button.np-amb-btn.no-expand', {
+          onclick: ambientAct(next),
+          'aria-label': 'Next track',
+        }, icon('skipForward', { size: 20 })),
+      ),
+    ),
+    /* Only lit while ambient: the room's clock, so the full-art screen
+       still answers the wall's first question. */
     h('div.np-clock',
       h('div.np-clock-time.num'),
       h('div.np-clock-date'),
-      h('div.np-clock-temp'),
     ),
-    /* The way out to the photo screensaver, for when the room would
-       rather look at the holiday than the record. */
+    /* The way across to the photo screensaver, for when the room would
+       rather look at the holiday than the record. Top left — the 18d
+       corners belong to the clock and the transport. */
     h('button.np-saver-btn.no-expand', {
       onclick: () => { closePanel().then(() => enterAmbient()); },
       'aria-label': 'Switch to the photo screensaver',
@@ -141,6 +214,7 @@ function renderNowPlaying(body, panel) {
   );
 
   fill(body, stage);
+  armScrub(stage.querySelector('.np-track'));
   paintTrack();
   paintTransport();
   paintQueue();
@@ -151,48 +225,54 @@ function renderNowPlaying(body, panel) {
   onTabClose(() => {
     cancelAnimationFrame(rafId);
     clearTimeout(fadeTimer);
+    clearTimeout(settleTimer);
     rafId = null;
+    scrubbing = false;
+    panel?.classList.remove('np-split');
   });
 }
 
 const nextRepeat = (mode) => ({ off: 'all', all: 'one', one: 'off' }[mode] ?? 'off');
 
-/* "UP NEXT · two thumbs · Queue · N tracks" (handoff 2b). Repainted on
-   every push, so the thumbs move along when the track does. Only when
-   the bridge actually reports a queue. */
+/* The 18c queue, pinned to the column's foot: "UP NEXT / Queue · N"
+   over the next two rows — thumb, title and artist, duration. Repainted
+   on every push, so the rows move along when the track does. Only when
+   the bridge actually reports upcoming tracks. */
 function paintQueue() {
   const host = $('.np-queue-host');
   if (!host) return;
   const queue = player.queue ?? [];
   if (!queue.length) return fill(host);
   fill(host, h('div.np-queue',
-    h('span.np-queue-label', 'Up next'),
-    ...queue.slice(0, 2).flatMap((track) => [
+    h('div.np-queue-head',
+      h('span.np-queue-label', 'Up next'),
+      h('span.np-queue-count', `Queue · ${queue.length}`),
+    ),
+    ...queue.slice(0, 2).map((track) => h('div.np-queue-row',
       h('div.np-queue-art', artOrNote(track.artworkUrl, 18, `queued "${track.title}"`)),
       h('div.np-queue-meta',
         h('div.np-queue-title', track.title),
         h('div.np-queue-artist', track.subtitle ?? track.artist ?? ''),
       ),
-    ]),
-    queue.length > 2 ? h('span.np-queue-count', `Queue · ${queue.length} tracks`) : null,
+      track.duration ? h('span.np-queue-dur.num', formatTime(track.duration)) : null,
+    )),
   ));
 }
 
-/* The resting clock. Cheap to keep honest: the scrub loop already runs
-   once a second and calls this when the minute turns. */
+/* The ambient clock: "9:12 AM" over "FRI, AUG 14 · 82°" (18d). Cheap to
+   keep honest: the scrub loop already runs once a second and calls this
+   when the minute turns. */
 function paintNpClock() {
   const time = $('.np-clock-time');
-  const date = $('.np-clock-date');
   if (!time) return;
-  const { hour, minute, period } = clockParts(new Date());
-  fill(time, `${hour}:${minute}${period ? ` ${period}` : ''}`);
-  fill(date, fullDate(new Date()));
+  const now = new Date();
+  const { hour, minute, period } = clockParts(now);
+  fill(time, `${hour}:${minute}`, period ? h('span.np-clock-ampm', ` ${period}`) : null);
 
-  const tempEl = $('.np-clock-temp');
-  const now = live.weather?.current;
-  if (tempEl && now) {
-    fill(tempEl, weatherIcon(now.condition, { size: 20, night: now.night }), temp(now.temp));
-  }
+  const bits = [`${weekday(now)}, ${monthDay(now)}`];
+  const t = live.weather?.current?.temp;
+  if (t != null) bits.push(temp(t));
+  fill($('.np-clock-date'), bits.join(' · '));
 }
 
 function reportError(err) {
@@ -226,7 +306,7 @@ function paintTrack() {
       art.onerror = () => console.warn(`[music] now-playing artwork failed: ${artworkUrl}`);
       art.src = artworkUrl;
     }
-    swapBackdrop(artworkUrl);
+    assessArt(stage, artworkUrl);
   } else if (!artworkUrl) {
     console.info(`[music] no artwork for "${title}"`);
   }
@@ -236,8 +316,17 @@ function paintTrack() {
   swapText($('.np-title'), title ?? '', 0);
   swapText($('.np-artist-name'), artist ?? '', 80);
   swapText($('.np-album-name'), album ?? '', 140);
-  /* No record name → no dangling dot. */
+  /* No record name → no dangling dash. */
   $('.np-artist')?.classList.toggle('no-album', !album);
+
+  /* The 18d caption follows the same choreography. */
+  const lowerTitle = $('.np-lower-title');
+  if (lowerTitle) {
+    /* Long names step down to 44px before they ellipsize (handoff). */
+    lowerTitle.classList.toggle('long', (title ?? '').length > 22);
+    swapText(lowerTitle, title ?? '', 0);
+  }
+  swapText($('.np-lower-sub'), [artist, album].filter(Boolean).join(' · '), 60);
 }
 
 /* ── Song-change choreography ─────────────────────────────── */
@@ -272,22 +361,34 @@ function crossfadeArt(art, url) {
   incoming.src = url;
 }
 
-/** Alternate the two blurred ground layers; CSS owns every opacity so
-    the resting boost keeps applying to whichever layer is current. */
-function swapBackdrop(url) {
-  const layers = $$('.np-backdrop');
-  if (!layers.length) return;
-  const current = layers.find((l) => l.classList.contains('current')) ?? layers[0];
-  if (current.style.backgroundImage.includes(url)) return;
-  if (!current.style.backgroundImage) {
-    current.style.backgroundImage = `url("${url}")`;
-    current.classList.add('current');
-    return;
-  }
-  const idle = layers.find((l) => l !== current) ?? current;
-  idle.style.backgroundImage = `url("${url}")`;
-  idle.classList.add('current');
-  current.classList.remove('current');
+/** 18d: over a very light record, the ambient scrim reaches the top so
+    the clock keeps its contrast. Sampled tiny and fire-and-forget; a
+    cross-origin cover that taints the canvas just keeps the default. */
+function assessArt(stage, url) {
+  stage.dataset.trackArt = url;
+  const probe = new Image();
+  probe.crossOrigin = 'anonymous';
+  probe.onload = () => {
+    let bright;
+    try {
+      const c = document.createElement('canvas');
+      c.width = c.height = 8;
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(probe, 0, 0, 8, 8);
+      const px = ctx.getImageData(0, 0, 8, 8).data;
+      let sum = 0;
+      for (let i = 0; i < px.length; i += 4) {
+        sum += 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
+      }
+      bright = sum / (px.length / 4) / 255 > 0.6;
+    } catch { return; }
+    /* Only if this is still the cover on the wall — the lookup is a
+       fetch away, and the room may have skipped on. */
+    if (stage.isConnected && stage.dataset.trackArt === url) {
+      stage.classList.toggle('bright-art', bright);
+    }
+  };
+  probe.src = url;
 }
 
 /**
@@ -324,7 +425,11 @@ export function swapText(el, text, delay = 0) {
 function paintTransport() {
   const playBtn = $('.np-play');
   if (playBtn) {
-    fill(playBtn, icon(player.state === 'playing' ? 'pause' : 'play', { size: 44 }));
+    fill(playBtn, icon(player.state === 'playing' ? 'pause' : 'play', { size: 40 }));
+  }
+  const ambPlay = $('.np-amb-play');
+  if (ambPlay) {
+    fill(ambPlay, icon(player.state === 'playing' ? 'pause' : 'play', { size: 30 }));
   }
   $('.np-shuffle')?.classList.toggle('on', player.shuffle);
   const repeatBtn = $('.np-repeat');
@@ -338,17 +443,58 @@ function paintTransport() {
   }
 }
 
-/* Keep the browse foot bar honest without rebuilding the tab. */
+/* The browse foot bar (17c), kept honest without rebuilding the tab.
+   It lives in a stable host so it can appear the moment music starts
+   anywhere and retreat when the queue empties — the mosaic keeps the
+   room (the host simply collapses). */
 function paintBrowseBar() {
-  const bar = $('.browse-now');
-  if (!bar || !player.track) return;
-  fill($('.browse-now-title'),
-    [player.track.title, player.track.artist].filter(Boolean).join(' — '));
-  fill($('.browse-now-state'), icon(player.state === 'playing' ? 'pause' : 'play', { size: 16 }));
-  const remaining = $('.browse-now-time');
-  const duration = player.track.duration ?? 0;
-  if (remaining && duration) {
-    fill(remaining, `-${formatTime(Math.max(0, duration - livePosition()))}`);
+  const host = $('.browse-now-host');
+  if (!host) return;
+  if (!hasTrack()) return fill(host);
+
+  let bar = host.querySelector('.browse-now');
+  if (!bar) {
+    bar = h('div.browse-now.tappable', {
+      onclick: () => setPanelTab('playing'),
+      role: 'button',
+      tabindex: 0,
+      'aria-label': 'Open Now Playing',
+    },
+      h('div.browse-now-art'),
+      h('div.browse-now-meta',
+        h('span.browse-now-title'),
+        h('span.browse-now-artist'),
+      ),
+      h('span.browse-now-time.num'),
+      /* The one control that acts in place — everything else on the bar
+         is a doorway to the full player. */
+      h('button.browse-now-state.no-expand', {
+        onclick: (event) => { event.stopPropagation(); togglePlay().catch(reportError); },
+        'aria-label': 'Play or pause',
+      }),
+    );
+    fill(host, bar);
+  }
+
+  const t = player.track;
+  const art = bar.querySelector('.browse-now-art');
+  if (art.dataset.src !== (t.artworkUrl ?? '')) {
+    art.dataset.src = t.artworkUrl ?? '';
+    fill(art, artOrNote(t.artworkUrl, 16, `"${t.title}"`));
+  }
+  swapText(bar.querySelector('.browse-now-title'), t.title ?? '');
+  fill(bar.querySelector('.browse-now-artist'), t.artist ? ` — ${t.artist}` : '');
+  fill(bar.querySelector('.browse-now-state'),
+    icon(player.state === 'playing' ? 'pause' : 'play', { size: 16 }));
+  const remaining = bar.querySelector('.browse-now-time');
+  const duration = t.duration ?? 0;
+  if (duration) fill(remaining, `−${formatTime(Math.max(0, duration - livePosition()))}`);
+
+  /* The big Continue tile mirrors the deck while it is on screen. */
+  const contSub = $('.mosaic-continue-sub');
+  if (contSub?.dataset.live === '1') {
+    fill(contSub, [t.artist, player.state === 'playing' ? 'Playing now' : 'Paused']
+      .filter(Boolean).join(' · '));
   }
 }
 
@@ -361,6 +507,7 @@ function startScrubLoop() {
      device that is meant to sit on a wall all day. */
   const bar = $('.np-track-fill');
   const knob = $('.np-track-knob');
+  const lowerFill = $('.np-lower-fill');
   const elapsed = $('.np-elapsed');
   const remaining = $('.np-remaining');
   if (!bar) return;
@@ -372,19 +519,25 @@ function startScrubLoop() {
     const at = livePosition();
     const pct = duration ? Math.min(100, (at / duration) * 100) : 0;
 
-    bar.style.width = `${pct}%`;
-    knob.style.left = `${pct}%`;
+    /* A finger on the scrubber owns these pixels until it lets go. */
+    if (!scrubbing) {
+      bar.style.width = `${pct}%`;
+      knob.style.left = `${pct}%`;
 
-    // The clocks only change once a second; writing them every frame is
-    // layout work for text that is identical 59 times out of 60.
-    const second = Math.floor(at);
-    if (second !== lastSecond) {
-      lastSecond = second;
-      elapsed.textContent = formatTime(at);
-      remaining.textContent = `-${formatTime(Math.max(0, duration - at))}`;
-      // The resting wall clock only needs the minute boundary.
-      if (new Date().getSeconds() === 0) paintNpClock();
+      // The clocks only change once a second; writing them every frame is
+      // layout work for text that is identical 59 times out of 60.
+      const second = Math.floor(at);
+      if (second !== lastSecond) {
+        lastSecond = second;
+        elapsed.textContent = formatTime(at);
+        remaining.textContent = `−${formatTime(Math.max(0, duration - at))}`;
+        // The ambient wall clock only needs the minute boundary.
+        if (new Date().getSeconds() === 0) paintNpClock();
+      }
     }
+
+    /* The 18d progress line rides the same loop. */
+    if (lowerFill) lowerFill.style.width = `${pct}%`;
 
     /* The mini player drives its own hairline on a one-second timer, so
        there is nothing to do for it here — it has to keep moving while
@@ -395,18 +548,49 @@ function startScrubLoop() {
   rafId = requestAnimationFrame(step);
 }
 
-function onScrub(event) {
-  const track = event.currentTarget;
-  const rect = track.getBoundingClientRect();
-  const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-  const duration = player.track?.duration ?? 0;
-  if (duration) seek(ratio * duration).catch(reportError);
+/* Draggable, with the clocks running under the finger; the seek itself
+   is committed on release — every move would otherwise be a bridge
+   round-trip. A plain tap is just a zero-length drag. */
+function armScrub(track) {
+  if (!track) return;
+  const paint = (clientX) => {
+    const rect = track.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const duration = player.track?.duration ?? 0;
+    track.querySelector('.np-track-fill').style.width = `${ratio * 100}%`;
+    track.querySelector('.np-track-knob').style.left = `${ratio * 100}%`;
+    const at = ratio * duration;
+    const el = $('.np-elapsed');
+    const rem = $('.np-remaining');
+    if (el) el.textContent = formatTime(at);
+    if (rem) rem.textContent = `−${formatTime(Math.max(0, duration - at))}`;
+    return ratio;
+  };
+  track.addEventListener('pointerdown', (event) => {
+    scrubbing = true;
+    try { track.setPointerCapture(event.pointerId); } catch { /* stale pointer id */ }
+    let ratio = paint(event.clientX);
+    const move = (ev) => { ratio = paint(ev.clientX); };
+    const done = () => {
+      track.removeEventListener('pointermove', move);
+      track.removeEventListener('pointerup', done);
+      track.removeEventListener('pointercancel', done);
+      scrubbing = false;
+      const duration = player.track?.duration ?? 0;
+      if (duration) seek(ratio * duration).catch(reportError);
+    };
+    track.addEventListener('pointermove', move);
+    track.addEventListener('pointerup', done);
+    track.addEventListener('pointercancel', done);
+  });
 }
 
 /**
- * Everything but the record dims away when nobody is touching the wall —
- * the header and tabs go too, so a full-screen player really is just the
- * album art. Any pointer or key activity brings it all straight back.
+ * The controls give way to the ambient screen when nobody has touched
+ * the wall for FADE_AFTER — but only while music is actually playing
+ * (18d): a paused player keeps its controls, and true idleness belongs
+ * to the photo screensaver. Any pointer or key activity brings the
+ * controls straight back.
  *
  * Listeners sit on the whole panel rather than the stage, because the
  * faded chrome stops taking pointer events and a tap up there has to
@@ -415,21 +599,32 @@ function onScrub(event) {
 const WAKE_EVENTS = ['pointerdown', 'pointermove', 'keydown'];
 
 function armFade(root) {
+  const rest = () => {
+    if (hasTrack() && player.state === 'playing') root.classList.add('resting');
+  };
   const wake = (event) => {
     /* Tapping the moon must not wake the player it is about to leave:
-       the wake would collapse the resting gallery and fade the button
-       out from under the finger before the tap lands. */
-    if (event?.target?.closest?.('.np-saver-btn')) return;
+       the wake would fade the button out from under the finger before
+       the tap lands. The ambient transport handles its own wake, after
+       acting, for the same reason. */
+    if (event?.target?.closest?.('.np-saver-btn, .np-lower-controls')) return;
     root.classList.remove('resting');
     clearTimeout(fadeTimer);
-    fadeTimer = setTimeout(() => root.classList.add('resting'), FADE_AFTER);
+    /* Only a real touch cancels the music saver's fast settle — the
+       initial arm (no event) may be the very render that saver opened,
+       with its settle already ticking. */
+    if (event) clearTimeout(settleTimer);
+    fadeTimer = setTimeout(rest, FADE_AFTER);
   };
+  wakeNow = wake;
+  restNow = rest;
   for (const ev of WAKE_EVENTS) root.addEventListener(ev, wake, { passive: true });
 
   onTabClose(() => {
     for (const ev of WAKE_EVENTS) root.removeEventListener(ev, wake);
     // Leaving Now Playing must not leave the rest of the panel dimmed.
     root.classList.remove('resting');
+    wakeNow = restNow = null;
   });
   wake();
 }
@@ -442,36 +637,15 @@ function emptyState() {
   );
 }
 
-/* ── Browse (handoff 4a) & search results (4b) ───────────────
-   One body, two states. Idle: search pill, mood chips, Recently
-   played grid, Your playlists grid, now-playing bar. Typing: the
-   4b results grid replaces the browse sections live. */
-
-/* Each chip is a curated catalog search — the mood is the query. */
-const MOODS = [
-  ['For tonight', 'evening acoustic'],
-  ['Dinner', 'dinner jazz'],
-  ['Focus', 'focus instrumental'],
-  ['Kids', 'kids songs'],
-  ['Rainy day', 'rainy day'],
-  ['Wind down', 'wind down sleep'],
-];
+/* ── Browse — the "Mosaic" (handoff 17c) & search (4b) ───────
+   One body, three states. Home: a mosaic of tiles sized by relevance —
+   Continue Listening big, four contextual picks small — over a library
+   chip row and a pinned now-playing bar. Typing swaps the mosaic for
+   the 4b results grid live; a library chip opens the full shelf in
+   place. */
 
 function renderBrowse(body) {
   const results = h('div.browse-body');
-  const chips = h('div.browse-chips',
-    ...MOODS.map(([label, term]) =>
-      h('button.chip.no-expand', {
-        onclick: (e) => {
-          const on = e.currentTarget.classList.contains('on');
-          chips.querySelectorAll('.chip.on').forEach((c) => c.classList.remove('on'));
-          input.value = '';
-          if (on) return runSearch('', body, results);
-          e.currentTarget.classList.add('on');
-          runSearch(term, body, results, { immediate: true });
-        },
-      }, label)),
-  );
 
   const input = h('input.search-input', {
     type: 'search',
@@ -484,31 +658,35 @@ function renderBrowse(body) {
     // Boolean, not the string 'false' — which is truthy, and quietly
     // turned spellchecking back on.
     spellcheck: false,
-    oninput: () => {
-      chips.querySelectorAll('.chip.on').forEach((c) => c.classList.remove('on'));
-      runSearch(input.value, body, results);
-    },
+    oninput: () => runSearch(input.value, body, results),
   });
   const clear = h('button.search-clear.no-expand', {
     onclick: () => { input.value = ''; runSearch('', body, results); input.focus(); },
   }, '✕ clear');
 
+  /* The flush body is the 17c canvas: its own inset, the faint blue
+     glow, one column — search pill, mosaic, chips, now bar. */
+  body.classList.add('music-browse');
   fill(body,
-    h('div.browse-top',
-      h('label.search-pill',
-        icon('search', { size: 20 }),
-        input,
-        clear,
-      ),
-      connectionStatus(),
+    h('label.search-pill',
+      icon('search', { size: 20 }),
+      input,
+      clear,
     ),
-    chips,
     results,
-    browseNowBar(),
+    h('div.lib-chips',
+      libChip('Your Library', () => showLibrary(results, 'playlists')),
+      libChip('Recently Played', () => showLibrary(results, 'recent')),
+    ),
+    h('div.browse-now-host'),
   );
 
-  loadHome(results);
+  loadMosaic(results);
+  paintBrowseBar();
 }
+
+const libChip = (label, open) =>
+  h('button.lib-chip.no-expand', { onclick: open }, label);
 
 function connectionStatus() {
   const el = h('div.music-status',
@@ -519,32 +697,277 @@ function connectionStatus() {
     const ok = status === 'granted';
     el.classList.toggle('ok', ok);
     fill(el.querySelector('.music-status-text'),
-      ok ? 'Apple Music connected' : musicBlockedReason() || 'Apple Music');
+      ok ? 'Apple Music' : musicBlockedReason() || 'Apple Music');
   }).catch(() => {});
   return el;
 }
 
-/* The pinned bar at the foot of browse: what's playing, one tap back
-   to the full-screen player. */
-function browseNowBar() {
-  if (!hasTrack()) return null;
-  const t = player.track;
-  return h('button.browse-now.no-expand', {
-    onclick: () => setPanelTab('playing'),
-    'aria-label': 'Open Now Playing',
+/* ── 17c: the mosaic home ────────────────────────────────── */
+
+/* TONIGHT pairs the next calendar event with a playlist by keyword,
+   falling back to a time-of-day pick (the handoff blesses simple
+   heuristics). */
+const EVENT_MOODS = [
+  [/dinner|lunch|brunch|cook|kitchen|bbq|grill/i, 'dinner jazz'],
+  [/party|birthday|friends|game night/i, 'party classics'],
+  [/homework|study|school|reading|quiet/i, 'focus instrumental'],
+  [/gym|run|workout|practice|soccer|swim|bike/i, 'workout energy'],
+  [/movie|film|night in/i, 'cozy evening'],
+];
+
+function suggestSlot() {
+  const now = new Date();
+  const hour = now.getHours();
+  const daypart = hour < 11
+    ? { kicker: 'This morning', term: 'morning coffee acoustic',
+        title: 'Morning Coffee', sub: 'Ease into the day' }
+    : hour < 17
+      ? { kicker: 'This afternoon', term: 'afternoon acoustic',
+          title: 'Afternoon Light', sub: 'A daytime backdrop' }
+      : { kicker: 'Tonight', term: 'evening chill',
+          title: 'Evening Chill', sub: 'Wind the day down' };
+
+  const next = eventsOnDay(live.calendar?.events ?? [], now)
+    .filter((ev) => !ev.allDay && ev.start > now)
+    .sort((a, b) => a.start - b.start)[0];
+  if (!next) return daypart;
+
+  const term = EVENT_MOODS.find(([re]) => re.test(next.title))?.[1] ?? daypart.term;
+  return {
+    kicker: daypart.kicker,
+    term,
+    title: term.replace(/(^|\s)\S/g, (c) => c.toUpperCase()),
+    sub: `${next.title} at ${clockTime(next.start)}`,
+  };
+}
+
+async function loadMosaic(host) {
+  fill(host, h('div.empty', 'Loading…'));
+
+  /* allSettled, not all: these are independent requests, and one
+     failure must not take the search box down with it. */
+  const [recentR, mineR] = await Promise.allSettled([recentlyPlayed(), playlists()]);
+  if (!host.isConnected) return;
+  const recent = recentR.status === 'fulfilled' ? recentR.value : [];
+  const mine = mineR.status === 'fulfilled' ? mineR.value : [];
+
+  if (!recent.length && !mine.length && !hasTrack()) {
+    const failed = [recentR, mineR].find((r) => r.status === 'rejected');
+    /* Prefer the reason we understand. MusicKit reports a missing
+       subscription and a missing permission the same way — as a bare
+       MusicDataRequest error. */
+    const known = musicBlockedReason();
+    return fill(host, h('div.empty',
+      icon('music', { size: 34 }),
+      h('div', known || (failed ? failed.reason.message : 'Nothing to show yet')),
+      h('div.empty-hint',
+        known ? '' :
+        failed ? 'Searching still works — try an artist or album above.'
+               : 'Search for a song, album or playlist above.'),
+    ));
+  }
+
+  /* Each tile claims something the earlier tiles have not. */
+  const used = new Set();
+  const claim = (pool, pred) => {
+    const found = pool.find((x) => x && !used.has(x.id) && (!pred || pred(x)));
+    if (found) used.add(found.id);
+    return found;
+  };
+
+  tileHue = 1;
+  const tiles = [];
+
+  /* Continue Listening (2×2): the deck if it holds anything, else the
+     most recent thing on the account. */
+  if (hasTrack()) {
+    const t = player.track;
+    tiles.push(continueTile({
+      title: t.album || t.title,
+      sub: [t.artist, player.state === 'playing' ? 'Playing now' : 'Paused']
+        .filter(Boolean).join(' · '),
+      liveDeck: true,
+      art: t.artworkUrl,
+      label: t.album || t.title,
+      resume: () => (player.state === 'playing' ? Promise.resolve() : togglePlay()),
+      restart: async () => {
+        await seek(0);
+        if (player.state !== 'playing') await togglePlay();
+      },
+    }));
+  } else {
+    const item = claim([...recent, ...mine]);
+    tiles.push(item ? continueTile({
+      title: item.title,
+      sub: item.subtitle ?? 'Pick up where you left off',
+      art: item.artworkUrl,
+      label: item.title,
+      resume: () => playItem(item.type ?? 'album', item.id),
+    }) : ghostTile('Continue listening', 'Play something and it will wait here'));
+  }
+
+  tiles.push(termTile(suggestSlot()));
+
+  const made = claim(mine, (x) => /mix|for you|daily|weekly|station/i.test(x.title))
+    ?? claim(mine);
+  tiles.push(made ? itemTile('Made for you', made, made.subtitle ?? 'Apple Music')
+                  : ghostTile('Made for you', 'Mixes land here as Apple Music learns'));
+
+  const rec = claim(recent);
+  tiles.push(rec ? itemTile('Recent', rec, rec.subtitle ?? 'Apple Music')
+                 : ghostTile('Recent', 'Recently played lands here'));
+
+  /* The habitual pick: a day-of-week name match first, then whatever
+     the shelves still hold. */
+  const day = new Date().getDay();
+  const habit = claim(mine, (x) => /weekend|saturday|sunday|friday|chores|pancake/i.test(x.title))
+    ?? claim([...mine, ...recent]);
+  tiles.push(habit
+    ? itemTile(day === 0 || day === 6 ? 'Weekend' : 'House favorite', habit,
+               habit.subtitle ?? '')
+    : ghostTile('Weekend', 'A habitual pick lands here'));
+
+  fill(host, h('div.mosaic', ...tiles));
+}
+
+function continueTile({ title, sub, art, liveDeck, label, resume, restart }) {
+  const subEl = h('div.mosaic-sub.mosaic-continue-sub', sub);
+  if (liveDeck) subEl.dataset.live = '1';
+  const tile = h('div.mosaic-tile.mosaic-continue.tappable', {
+    role: 'button',
+    tabindex: 0,
+    onclick: () => runTile(tile, resume, label),
   },
-    h('div.browse-now-art', artOrNote(t.artworkUrl, 16, `"${t.title}"`)),
-    h('div.browse-now-title', [t.title, t.artist].filter(Boolean).join(' — ')),
-    h('span.browse-now-time.num'),
-    h('span.browse-now-state', icon(player.state === 'playing' ? 'pause' : 'play', { size: 16 })),
+    h('div.mosaic-kicker', 'Continue listening'),
+    h('div.mosaic-hero', title),
+    subEl,
+    h('div.mosaic-actions',
+      h('button.mosaic-pill.primary.no-expand', {
+        onclick: (event) => { event.stopPropagation(); runTile(tile, resume, label); },
+      }, icon('play', { size: 14 }), 'Resume'),
+      restart ? h('button.mosaic-pill.no-expand', {
+        onclick: (event) => { event.stopPropagation(); runTile(tile, restart, label); },
+      }, 'Start over') : null,
+    ),
   );
+  tileGradient(tile, art, 0);
+  return tile;
+}
+
+function itemTile(kicker, item, sub) {
+  const tile = h('div.mosaic-tile.tappable', {
+    role: 'button',
+    tabindex: 0,
+    onclick: () => runTile(tile, () => playItem(item.type ?? 'album', item.id), item.title),
+  },
+    h('div.mosaic-kicker', kicker),
+    h('div.mosaic-title', item.title),
+    h('div.mosaic-sub', sub),
+  );
+  tileGradient(tile, item.artworkUrl, tileHue++);
+  return tile;
+}
+
+/* A tile that plays a search term rather than a known item — the
+   TONIGHT suggestion. First playlist hit wins, then album, then song. */
+function termTile({ kicker, title, sub, term }) {
+  const tile = h('div.mosaic-tile.tappable', {
+    role: 'button',
+    tabindex: 0,
+    onclick: () => runTile(tile, async () => {
+      const found = await search(term);
+      const item = found.playlists?.[0] ?? found.albums?.[0] ?? found.songs?.[0];
+      if (!item) throw new Error(`Nothing found for “${term}”`);
+      await playItem(item.type ?? 'playlist', item.id);
+    }, title),
+  },
+    h('div.mosaic-kicker', kicker),
+    h('div.mosaic-title', title),
+    h('div.mosaic-sub', sub),
+  );
+  tileGradient(tile, null, tileHue++);
+  return tile;
+}
+
+/* A slot with nothing to offer says what would fill it, quietly. */
+function ghostTile(kicker, note) {
+  return h('div.mosaic-tile.ghost',
+    h('div.mosaic-kicker', kicker),
+    h('div.mosaic-sub', note),
+  );
+}
+
+/* Artwork-derived tile grounds: sample the cover small, average it, and
+   run the handoff's 135° ramp into near-black. The reference hues paint
+   first so a slow (or tainted, or absent) cover never leaves a hole. */
+const REF_HUES = [
+  ['#3c4a6e', '#1d2438'],   // navy
+  ['#6e4a52', '#2a2438'],   // rose
+  ['#54487a', '#241d38'],   // plum
+  ['#4a6e5c', '#1d3028'],   // moss
+  ['#7a6a4e', '#38301f'],   // sand
+];
+let tileHue = 1;
+
+function tileGradient(tile, url, index) {
+  const [a, b] = REF_HUES[index % REF_HUES.length];
+  tile.style.background = `linear-gradient(135deg, ${a}, ${b})`;
+  if (!url) return;
+  const probe = new Image();
+  probe.crossOrigin = 'anonymous';
+  probe.onload = () => {
+    try {
+      const c = document.createElement('canvas');
+      c.width = c.height = 8;
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(probe, 0, 0, 8, 8);
+      const px = ctx.getImageData(0, 0, 8, 8).data;
+      let r = 0, g = 0, bl = 0;
+      for (let k = 0; k < px.length; k += 4) { r += px[k]; g += px[k + 1]; bl += px[k + 2]; }
+      const n = px.length / 4;
+      if (tile.isConnected) {
+        tile.style.background = `linear-gradient(135deg,
+          rgba(${Math.round(r / n)}, ${Math.round(g / n)}, ${Math.round(bl / n)}, 0.6),
+          rgba(11, 14, 24, 0.97)), #0b0e18`;
+      }
+    } catch { /* cross-origin canvas taint — the reference hue stays */ }
+  };
+  probe.src = url;
+}
+
+/* ── The library chips' shelf view ───────────────────────── */
+
+async function showLibrary(host, kind) {
+  fill(host, h('div.empty', 'Loading…'));
+  try {
+    const items = kind === 'recent' ? await recentlyPlayed() : await playlists();
+    if (!host.isConnected) return;
+    if (!items.length) return fill(host, h('div.empty', 'Nothing here yet'));
+    fill(host,
+      h('section.browse-section.grow',
+        h('div.section-head',
+          h('button.lib-back.no-expand', {
+            onclick: () => loadMosaic(host),
+            'aria-label': 'Back to browse',
+          }, '‹ Browse'),
+          h('div.label', kind === 'recent' ? 'Recently played' : 'Your playlists'),
+          h('div.note', `${items.length} ${kind === 'recent' ? 'items' : 'playlists'}`),
+        ),
+        kind === 'recent'
+          ? h('div.recent-grid', ...items.slice(0, 10).map((item) => recentTile(item, false)))
+          : h('div.pl-grid', ...items.map(playlistCard)),
+      ),
+    );
+  } catch (err) {
+    if (host.isConnected) fill(host, h('div.empty', err.message));
+  }
 }
 
 let searchTimer = null;
 function runSearch(term, body, host, { immediate } = {}) {
   clearTimeout(searchTimer);
   body.classList.toggle('searching', !!term.trim());
-  if (!term.trim()) return loadHome(host);
+  if (!term.trim()) return loadMosaic(host);
   searchTimer = setTimeout(async () => {
     try {
       const found = await search(term);
@@ -553,55 +976,6 @@ function runSearch(term, body, host, { immediate } = {}) {
       fill(host, h('div.empty', err.message));
     }
   }, immediate ? 0 : 250);
-}
-
-/* ── 4a: browse home ─────────────────────────────────────── */
-
-async function loadHome(host) {
-  fill(host, h('div.empty', 'Loading…'));
-
-  /* allSettled, not all: these are two independent requests, and with
-     Promise.all a single failure replaced the entire tab — search box
-     included — with one error line. */
-  const [recent, mine] = await Promise.allSettled([recentlyPlayed(), playlists()]);
-
-  const sections = [];
-  if (recent.status === 'fulfilled' && recent.value.length) {
-    sections.push(
-      h('section.browse-section',
-        h('div.section-head', h('div.label', 'Recently played')),
-        h('div.recent-grid',
-          ...recent.value.slice(0, 5).map((item, i) => recentTile(item, i === 0)),
-        ),
-      ),
-    );
-  }
-  if (mine.status === 'fulfilled' && mine.value.length) {
-    sections.push(
-      h('section.browse-section.grow',
-        h('div.section-head',
-          h('div.label', 'Your playlists'),
-          h('div.note', `${mine.value.length} playlists`),
-        ),
-        h('div.pl-grid', ...mine.value.slice(0, 6).map(playlistCard)),
-      ),
-    );
-  }
-  if (sections.length) return fill(host, ...sections);
-
-  const failed = [recent, mine].find((r) => r.status === 'rejected');
-  /* Prefer the reason we understand. MusicKit reports a missing
-     subscription and a missing permission the same way — as a bare
-     MusicDataRequest error. */
-  const known = musicBlockedReason();
-  fill(host, h('div.empty',
-    icon('music', { size: 34 }),
-    h('div', known || (failed ? failed.reason.message : 'Nothing to show yet')),
-    h('div.empty-hint',
-      known ? '' :
-      failed ? 'Searching still works — try an artist or album above.'
-             : 'Search for a song, album or playlist above.'),
-  ));
 }
 
 function recentTile(item, first) {
@@ -762,18 +1136,19 @@ function artOrNote(url, size, label = '') {
  * itself the moment it is pressed, and on success the panel switches to
  * Now Playing, where the cover fills the wall. That is the same answer
  * tapping a record in Music gives, and it is impossible to miss.
+ * Shared by the mosaic tiles and the search results.
  */
-async function start(tile, type, item) {
+async function runTile(tile, action, label = '') {
   if (tile.classList.contains('starting')) return;   // no double-taps
   tile.closest('.browse-body')?.querySelectorAll('.starting, .started')
     .forEach((el) => el.classList.remove('starting', 'started'));
   tile.classList.add('starting');
 
   try {
-    await playItem(type, item.id);
+    await action();
     tile.classList.remove('starting');
     tile.classList.add('started');
-    toast(`Playing ${item.title}`);
+    if (label) toast(`Playing ${label}`);
     /* Long enough to register as confirmation on the tile itself, short
        enough that the Now Playing screen still feels like a response to
        the tap rather than a separate event. */
@@ -784,18 +1159,26 @@ async function start(tile, type, item) {
   }
 }
 
+const start = (tile, type, item) =>
+  runTile(tile, () => playItem(type, item.id), item.title);
+
 /* ── The music screensaver ────────────────────────────────────
    While something is playing, the idle timeout lands here instead of
-   the photo slideshow: the full-screen player opens (or stays), and
-   its own six-second fade takes it to the resting gallery. The button
-   in the gallery's corner is the way across to the photos. */
+   the photo slideshow: the full-screen player opens (or stays), then
+   settles into the ambient screen. The moon in its corner is the way
+   across to the photos. */
 
 export function enterMusicSaver() {
   if (!hasTrack() || player.state !== 'playing') return false;
   /* Already on the wall: reopening would rebuild the stage and wake the
      controls — the opposite of a screensaver settling in. */
-  if ($('.panel .np-stage')) return true;
-  openMusicPanel({ tab: 'playing' });
+  if (!$('.panel .np-stage')) openMusicPanel({ tab: 'playing' });
+  /* The idle timer has already decided the room is empty — settle into
+     the ambient artwork after a beat, not another half a minute. Its
+     own timer, because armFade's first wake() (the stage may only just
+     have rendered) clears fadeTimer as it arms. */
+  clearTimeout(settleTimer);
+  settleTimer = setTimeout(() => restNow?.(), 2200);
   return true;
 }
 
