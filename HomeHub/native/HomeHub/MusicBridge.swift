@@ -1,6 +1,10 @@
 import Foundation
 import MusicKit
-import MediaPlayer
+/* No `import MediaPlayer` here, deliberately: it drags in AudioToolbox,
+   whose ancient C MIDI API also names a `MusicPlayer` — making
+   MusicKit's own MusicPlayer "ambiguous for type lookup". Nothing in
+   this file used MediaPlayer; the MusicKit.MusicPlayer spellings below
+   are belt-and-braces against any future re-import. */
 
 /// Apple Music, via MusicKit.
 ///
@@ -201,7 +205,7 @@ final class MusicBridge {
         case "all": player.state.repeatMode = .all
         // Spelled out: repeatMode is optional, so a bare `.none` would be
         // read as Optional.none and silently mean "unset" instead of "off".
-        default:    player.state.repeatMode = MusicPlayer.RepeatMode.none
+        default:    player.state.repeatMode = MusicKit.MusicPlayer.RepeatMode.none
         }
         return snapshot()
     }
@@ -299,7 +303,7 @@ final class MusicBridge {
         }
     }
 
-    private func track(from entry: MusicPlayer.Queue.Entry) -> [String: Any] {
+    private func track(from entry: MusicKit.MusicPlayer.Queue.Entry) -> [String: Any] {
         var album = ""
         var duration: Any = NSNull()
         var artwork = entry.artwork
@@ -536,7 +540,7 @@ final class MusicBridge {
                 song = try? await request.response().items.first
             }
             guard let song else { throw notFound }
-            player.queue = MusicPlayer.Queue(for: [song], startingAt: song)
+            player.queue = MusicKit.MusicPlayer.Queue(for: [song], startingAt: song)
 
         case "album":
             var album = try? await MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: musicId)
@@ -555,7 +559,7 @@ final class MusicBridge {
             guard let tracks = try await album.with(.tracks).tracks, let first = tracks.first else {
                 throw BridgeError.upstream("That album has no tracks to play")
             }
-            player.queue = MusicPlayer.Queue(for: tracks, startingAt: first)
+            player.queue = MusicKit.MusicPlayer.Queue(for: tracks, startingAt: first)
 
         case "playlist":
             var list = try? await MusicCatalogResourceRequest<Playlist>(matching: \.id, equalTo: musicId)
@@ -569,7 +573,7 @@ final class MusicBridge {
             guard let tracks = try await list.with(.tracks).tracks, let first = tracks.first else {
                 throw BridgeError.upstream("That playlist is empty")
             }
-            player.queue = MusicPlayer.Queue(for: tracks, startingAt: first)
+            player.queue = MusicKit.MusicPlayer.Queue(for: tracks, startingAt: first)
 
         case "station":
             // Stations live only in the catalog; there is no library to
@@ -577,7 +581,7 @@ final class MusicBridge {
             let station = try await MusicCatalogResourceRequest<Station>(matching: \.id, equalTo: musicId)
                 .response().items.first
             guard let station else { throw notFound }
-            player.queue = MusicPlayer.Queue(for: [station], startingAt: station)
+            player.queue = MusicKit.MusicPlayer.Queue(for: [station], startingAt: station)
 
         default:
             throw BridgeError.badParams("Unknown music item type: \(type)")
