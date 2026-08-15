@@ -60,10 +60,6 @@ export function renderCalendarWidget(card) {
   const overdue = reminders.filter(isOverdue);
   const dueToday = reminders.filter((r) => !isOverdue(r) && r.due && isToday(r.due));
 
-  if (!today.length && !overdue.length && !dueToday.length) {
-    return fill(card, header(0, 0), emptyState(events));
-  }
-
   /* The pin: the running event, else the soonest still ahead. All-day
      events never pin — there is nothing to count down to. Falls through
      to tomorrow's first once today is out of events. */
@@ -76,26 +72,9 @@ export function renderCalendarWidget(card) {
     pinnedTomorrow = !!pinned;
   }
 
-  const rows = [];
-
-  for (const r of overdue) rows.push(reminderRow(r, { boxed: true }));
-
-  const remaining = today.filter((ev) => +ev.end > now).length + dueToday.length;
-  rows.push(h('div.up-section',
-    h('span.label', 'Today'),
-    h('span.section-head-count.note', String(today.length + dueToday.length)),
-  ));
-
-  /* One list in time order: events and timed reminders interleaved. */
-  const entries = [
-    ...today.filter((ev) => ev !== pinned).map((ev) => ({ at: +ev.start, el: eventRow(ev, now) })),
-    ...dueToday.map((r) => ({ at: r.due ? +r.due : Infinity, el: reminderRow(r, {}) })),
-  ].sort((a, b) => a.at - b.at);
-  rows.push(...entries.map((e) => e.el));
-
-  /* Then the days ahead, grouped under their own headers, until the
-     card runs out of room — trimToWholeRows cuts at the last day that
-     fits whole. A wall with three events today has space to say what
+  /* The days ahead, grouped under their own headers, until the card
+     runs out of room — trimToWholeRows cuts at the last day that fits
+     whole. A wall with three events today has space to say what
      Saturday holds. */
   const ahead = upcoming(events, { limit: 14, days: 21 })
     .filter((ev) => !isToday(ev.start) && ev !== pinned)
@@ -105,6 +84,36 @@ export function renderCalendarWidget(card) {
       seen.add(key);
       return true;
     });
+
+  /* A free day is not an empty calendar. Only a window with nothing at
+     all — today, the pin, and three weeks ahead — says so; otherwise a
+     quiet today simply lets the days ahead do the talking. This card
+     used to bail to the empty state whenever *today* was clear, which
+     read as "nothing on the calendar" on every free Saturday. */
+  if (!today.length && !overdue.length && !dueToday.length
+      && !pinned && !ahead.length) {
+    return fill(card, header('Nothing scheduled', 0), emptyState(events));
+  }
+
+  const rows = [];
+
+  for (const r of overdue) rows.push(reminderRow(r, { boxed: true }));
+
+  const remaining = today.filter((ev) => +ev.end > now).length + dueToday.length;
+  if (today.length + dueToday.length) {
+    rows.push(h('div.up-section',
+      h('span.label', 'Today'),
+      h('span.section-head-count.note', String(today.length + dueToday.length)),
+    ));
+  }
+
+  /* One list in time order: events and timed reminders interleaved. */
+  const entries = [
+    ...today.filter((ev) => ev !== pinned).map((ev) => ({ at: +ev.start, el: eventRow(ev, now) })),
+    ...dueToday.map((r) => ({ at: r.due ? +r.due : Infinity, el: reminderRow(r, {}) })),
+  ].sort((a, b) => a.at - b.at);
+  rows.push(...entries.map((e) => e.el));
+
   for (const { day, events: dayEvents } of groupByDay(ahead)) {
     rows.push(h('div.up-section',
       h('span.label', relativeDay(day)),
@@ -113,22 +122,25 @@ export function renderCalendarWidget(card) {
     rows.push(...dayEvents.map((ev) => eventRow(ev, now)));
   }
 
+  const note = remaining ? `${remaining} remaining`
+    : today.length + dueToday.length ? 'All done today'
+    : 'Nothing today';
   fill(card,
-    header(remaining, overdue.length),
+    header(note, overdue.length),
     pinned ? pinRow(pinned, { now, tomorrow: pinnedTomorrow }) : null,
     h('div.up-rows', ...rows),
   );
   requestAnimationFrame(() => trimToWholeRows(card));
 }
 
-function header(remaining, overdueCount) {
+function header(note, overdueCount) {
   return h('div.section-head',
     h('div.label', 'Up next'),
     overdueCount
       ? h('button.note.overdue-note.no-expand', {
           onclick: (e) => { e.stopPropagation(); openCalendarPanel({}); },
         }, `${overdueCount} overdue ›`)
-      : h('div.note', `${remaining} remaining`),
+      : h('div.note', note),
   );
 }
 
