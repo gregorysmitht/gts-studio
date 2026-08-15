@@ -17,7 +17,9 @@ import MusicKit
 /// choice, and its app-private queue was exactly why Siri- and
 /// Music-app-started audio never appeared on the wall.) The web layer
 /// never touches audio — it renders the snapshot this file produces and
-/// sends transport commands back.
+/// sends transport commands back. One asymmetry: the system queue is
+/// write-only for apps, so Up Next rows exist only for music the hub
+/// itself started (see `hubQueue`).
 ///
 /// MusicKit JS was the alternative and was rejected: it needs a
 /// server-signed developer token, plays through the web view's own audio
@@ -45,6 +47,15 @@ final class MusicBridge {
        there genuinely isn't one", so we ask only once. */
     private var artCache: [String: String] = [:]
     private var artPending: Set<String> = []
+
+    /* The hub's own record of the queue it last handed the system
+       player, in snapshot row shape. It exists because the system
+       queue is write-only for apps: `MusicPlayer.Queue` exposes only
+       `currentEntry` (`entries` is `ApplicationMusicPlayer.Queue`'s
+       addition), so Up Next can only be shown for music the hub itself
+       started. A session started in the Music app or by Siri plays and
+       mirrors fine — it just lists no upcoming rows. */
+    private var hubQueue: [(id: String, title: String, row: [String: Any])] = []
 
     // MARK: - Authorisation
 
@@ -137,7 +148,11 @@ final class MusicBridge {
     }
 
     /// Cheap on purpose — read off the player, with no artwork or queue
-    /// serialisation, because this runs on every tick.
+    /// serialisation, because this runs on every tick. The system queue
+    /// itself cannot be enumerated (the base `MusicPlayer.Queue` exposes
+    /// only `currentEntry`), so advancement is read off the current
+    /// entry; an external insert-next that leaves it alone is invisible,
+    /// by design.
     private var playerSignature: String {
         let state = player.state
         return [
@@ -145,7 +160,6 @@ final class MusicBridge {
             String(describing: player.queue.currentEntry?.id),
             String(describing: state.shuffleMode),
             String(describing: state.repeatMode),
-            String(player.queue.entries.count),
         ].joined(separator: "|")
     }
 
@@ -239,57 +253,53 @@ final class MusicBridge {
         }
         out["track"] = track(from: entry)
 
-        /* Only what fits on screen; the rest of the queue is not shown.
-           The system queue is not always one the hub built — the Music
-           app or Siri may own it, it can be large (a library shuffle),
-           and the current entry is not guaranteed to appear in
-           `entries`. So: no full materialisation, and when the current
-           entry can't be located, say "no upcoming" rather than showing
-           the queue's first three as if they were next. */
-        let entries = player.queue.entries
-        guard let at = entries.firstIndex(where: { $0.id == entry.id }) else {
-            out["queue"] = []
-            return out
-        }
-        out["queue"] = Array(entries[entries.index(after: at)...].prefix(3))
-            .map { entry -> [String: Any] in
-                /* Same story as the current track: a queue entry from a
-                   playlist carries the playlist's cover (or none), and
-                   the underlying song is a stub whose artwork lives in
-                   the catalog. Reuse the cache; a miss kicks off the
-                   same fire-and-forget lookup, which pushes a fresh
-                   snapshot when it lands. */
-                var art = artworkURL(entry.artwork, size: 200)
-                /* The queue rows print a duration; like the album line on
-                   the current track, it lives on the underlying song, not
-                   the entry. */
-                var duration: Any = NSNull()
-                if case let .song(song)? = entry.item {
-                    if let own = song.artwork { art = artworkURL(own, size: 200) }
-                    if let secs = song.duration { duration = secs }
-                    if art is NSNull {
-                        let key = song.id.rawValue
-                        if let cached = artCache[key], !cached.isEmpty {
-                            art = cached
-                        } else if artCache[key] == nil {
-                            findArtwork(for: song.id)
-                        }
-                    }
+        /* Up Next comes from the hub's own record of the queue it last
+           built (`hubQueue`): the system player's upcoming entries are
+           not readable — the base `MusicPlayer.Queue` exposes only
+           `currentEntry`, and `entries` lives on
+           `ApplicationMusicPlayer.Queue`. Do not "fix" this back. */
+        out["queue"] = []
+        if case let .song(song)? = entry.item {
+            /* Catalog vs library ids can drift between what was queued
+               and what the entry reports, so the title is the fallback. */
+            let at = hubQueue.firstIndex(where: {
+                $0.id == song.id.rawValue || $0.title == song.title
+            })
+            if let at {
+                /* Shuffle scrambles the real order — better no rows than
+                   wrong ones. */
+                if player.state.shuffleMode != .songs {
+                    out["queue"] = hubQueue[(at + 1)...].prefix(3).map { $0.row }
                 }
-                return [
-                    // Every id crosses into JavaScript, so it has to be a
-                    // String: JSONSerialization rejects anything else and
-                    // the push would silently vanish.
-                    "id": String(describing: entry.id),
-                    "type": "song",
-                    "title": entry.title,
-                    "subtitle": entry.subtitle ?? "",
-                    "artworkUrl": art,
-                    "duration": duration,
-                ]
+            } else if !hubQueue.isEmpty {
+                /* The current song is not one the hub queued: another
+                   app replaced the session, and the record is stale
+                   forever. */
+                hubQueue = []
             }
+        }
 
         return out
+    }
+
+    /// One Up Next row, in the snapshot's queue shape, recorded at
+    /// queue-build time — the only moment the track list is in hand.
+    private func queueRow(id: String, title: String, artist: String,
+                          artwork: Artwork?, duration: TimeInterval?)
+        -> (id: String, title: String, row: [String: Any]) {
+        var dur: Any = NSNull()
+        if let duration { dur = duration }
+        return (id: id, title: title, row: [
+            // Ids cross into JavaScript, so they have to be Strings:
+            // JSONSerialization rejects anything else and the push would
+            // silently vanish.
+            "id": id,
+            "type": "song",
+            "title": title,
+            "subtitle": artist,
+            "artworkUrl": artworkURL(artwork, size: 200),
+            "duration": dur,
+        ])
     }
 
     private var stateName: String {
@@ -547,6 +557,9 @@ final class MusicBridge {
             }
             guard let song else { throw notFound }
             player.queue = MusicKit.MusicPlayer.Queue(for: [song], startingAt: song)
+            hubQueue = [queueRow(id: song.id.rawValue, title: song.title,
+                                 artist: song.artistName, artwork: song.artwork,
+                                 duration: song.duration)]
 
         case "album":
             var album = try? await MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: musicId)
@@ -566,6 +579,12 @@ final class MusicBridge {
                 throw BridgeError.upstream("That album has no tracks to play")
             }
             player.queue = MusicKit.MusicPlayer.Queue(for: tracks, startingAt: first)
+            /* Album tracks usually carry no artwork of their own — the
+               record's cover is the right picture for every row. */
+            hubQueue = tracks.map { queueRow(id: $0.id.rawValue, title: $0.title,
+                                             artist: $0.artistName,
+                                             artwork: $0.artwork ?? album.artwork,
+                                             duration: $0.duration) }
 
         case "playlist":
             var list = try? await MusicCatalogResourceRequest<Playlist>(matching: \.id, equalTo: musicId)
@@ -580,6 +599,10 @@ final class MusicBridge {
                 throw BridgeError.upstream("That playlist is empty")
             }
             player.queue = MusicKit.MusicPlayer.Queue(for: tracks, startingAt: first)
+            hubQueue = tracks.map { queueRow(id: $0.id.rawValue, title: $0.title,
+                                             artist: $0.artistName,
+                                             artwork: $0.artwork ?? list.artwork,
+                                             duration: $0.duration) }
 
         case "station":
             // Stations live only in the catalog; there is no library to
@@ -588,6 +611,8 @@ final class MusicBridge {
                 .response().items.first
             guard let station else { throw notFound }
             player.queue = MusicKit.MusicPlayer.Queue(for: [station], startingAt: station)
+            // A station has no fixed track list to record.
+            hubQueue = []
 
         default:
             throw BridgeError.badParams("Unknown music item type: \(type)")

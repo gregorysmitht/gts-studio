@@ -317,6 +317,11 @@
        playing anywhere on the device), which snapshots as track:null.
        The fixture starts full; __clearQueue empties it. */
     cleared: false,
+    /* And Up Next exists only for hub-started sessions — the system
+       queue is not readable, so the bridge serves its own record (see
+       MusicBridge.hubQueue). The fixture session reads as hub-started;
+       __externalPlay drops the record, playItem rebuilds it. */
+    hubQueue: true,
   };
 
   /** Advance the playhead the way native playback would have. */
@@ -356,7 +361,11 @@
       position: music.position,
       shuffle: music.shuffle,
       repeat: music.repeat,
-      queue: TRACKS.slice(music.index + 1, music.index + 4).map(asItem),
+      /* Mirrors MusicBridge: no record of the session (started outside
+         the hub) or shuffle on → no Up Next rows. */
+      queue: music.hubQueue && !music.shuffle
+        ? TRACKS.slice(music.index + 1, music.index + 4).map(asItem)
+        : [],
       auth: musicAuth,
     };
   }
@@ -526,6 +535,7 @@
     'music.playItem': ({ type, id }) => {
       // Songs jump to that track; a collection just starts from the top.
       music.cleared = false;
+      music.hubQueue = true;   // the hub built this session's queue
       const i = TRACKS.findIndex((t) => t.id === id);
       music.index = type === 'song' && i >= 0 ? i : 0;
       music.position = 0;
@@ -584,9 +594,11 @@
     /** Paused from the phone or Control Center — the observer pushes. */
     __externalPause: () => { settle(); music.state = 'paused'; push(); },
     /** Music started outside the hub — Siri, the Music app. The system
-        player picks it up and the observer pushes, same as a skip. */
+        player picks it up and the observer pushes, same as a skip — but
+        the hub has no record of that queue, so Up Next goes empty. */
     __externalPlay: (index = 0) => {
       music.cleared = false;
+      music.hubQueue = false;
       music.index = index % TRACKS.length;
       music.position = 0;
       music.since = Date.now();
