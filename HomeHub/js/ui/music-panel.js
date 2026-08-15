@@ -1,20 +1,23 @@
 /* Full-screen Now Playing, and the browse/search view behind it.
 
-   The "Split" set (handoff 18c/18d). Controls: the record owns the left
-   half of the frame, melting into the canvas; type, transport and queue
-   in a column on the right. Left alone while playing, the same screen
-   becomes the ambient state: art full-bleed, a quiet lower-third
-   caption, a clock in the corner — the point of a wall display is the
-   art, not the buttons. Any touch brings the controls back. */
+   The "Immersive" set (handoff 18a/18b): the album's light fills the
+   room. A warm glow derived from the cover sits behind everything;
+   controls put the lit art card left with the full hierarchy right and
+   a glass queue bar at the foot. Left alone while playing, the same
+   screen becomes the ambient state: the art floats centered in its own
+   glow with a pulsing EQ, a clock in the corner, a hairline of progress
+   along the bottom edge — the point of a wall display is the art, not
+   the buttons. Any touch brings the controls back. */
 
 import { h, fill, $, toast } from '../core/dom.js';
-import { clockParts, clockTime, weekday, monthDay } from '../core/time.js';
+import { clockParts, clockTime, fullDate } from '../core/time.js';
 import { temp } from '../core/format.js';
 import { live } from '../data/hub.js';
 import { eventsOnDay } from '../data/calendar.js';
 import { icon } from './icons.js';
 import { openPanel, closePanel, onPanelClose, onTabClose, setPanelTab, activeTabId } from '../core/panel.js';
 import { enterAmbient } from './ambient.js';
+import { setBrightness, getBrightness } from '../core/native.js';
 import { on } from '../core/store.js';
 import {
   player, livePosition, formatTime, hasTrack,
@@ -88,129 +91,114 @@ let scrubbing = false;     // a finger on the scrubber; the loop holds off
 let wakeNow = null;        // armFade's wake, reachable by the music push
 let restNow = null;        // armFade's rest, reachable by the music saver
 
-/* Ambient transport: the tap acts first, then brings the controls back
-   ("any tap on ambient returns to controls"). The wake listener skips
-   these buttons — a pointerdown wake would fold their pointer-events
-   away before the click could land on them. */
-const ambientAct = (fn) => () => { fn().catch(reportError); wakeNow?.(); };
+/* 18b's ☾: the screen drops to ~25% for the night; any tap restores.
+   Dimming is a lights-out, not an exit — the ambient screen stays. The
+   CSS veil carries the effect where there is no display bridge. */
+const nightDim = { active: false, prev: 1 };
+
+async function setNightDim(on) {
+  if (on === nightDim.active) return;
+  nightDim.active = on;
+  $('.np-stage')?.classList.toggle('night-dim', on);
+  try {
+    if (on) {
+      nightDim.prev = (await getBrightness()) ?? 1;
+      await setBrightness(0.25);
+    } else {
+      await setBrightness(nightDim.prev);
+    }
+  } catch { /* plain web view — the veil is the whole effect */ }
+}
 
 function renderNowPlaying(body, panel) {
   if (!hasTrack()) {
-    panel?.classList.remove('np-split', 'resting');
+    panel?.classList.remove('resting');
     return fill(body, emptyState());
   }
-  /* The split stage owns the whole frame — the art reaches the top edge
-     — so the panel's own header folds away and the right column carries
-     a back button and tab pill of its own. */
-  panel?.classList.add('np-split');
 
-  /* 18c and 18d in one DOM; `.panel.resting` is the mode switch. The
-     art never re-renders between them — cover-fit just re-crops as its
-     box grows, one smooth movement instead of two screens. */
+  /* 18a and 18b in one DOM; `.panel.resting` is the mode switch. The
+     panel's own header IS the 18a header row (back · Music · tabs), so
+     it stays up in the controls and folds only for the ambient state. */
   const stage = h('div.np-stage',
-    h('div.np-art-wrap',
-      h('img.np-art', { alt: '' }),
-      /* 18c: no hard edge — the cover dissolves into the canvas. */
-      h('div.np-art-melt'),
-      /* 18d: the caption's footing; the top of the art stays clean. */
-      h('div.np-art-scrim'),
-    ),
-    h('div.np-right',
-      h('div.np-head',
-        h('button.np-back.no-expand', {
-          onclick: () => closePanel(),
-          'aria-label': 'Back to home',
-        }, icon('chevronLeft', { size: 22 })),
-        h('span.np-head-label', 'Now Playing'),
-        h('div.np-seg',
-          h('button.np-seg-btn.on.no-expand', 'Playing'),
-          h('button.np-seg-btn.no-expand', {
-            onclick: () => setPanelTab('browse'),
-          }, 'Browse'),
+    /* The warm glow, twice: JS alternates .current between songs so the
+       room's light crossfades — background-image itself cannot animate.
+       The cool counter-glow is part of the stage's own ground. */
+    h('div.np-glow'),
+    h('div.np-glow'),
+    h('div.np-body',
+      h('div.np-art-wrap', h('img.np-art', { alt: '' })),
+      h('div.np-right',
+        h('div.np-meta',
+          h('div.np-kicker'),
+          h('div.np-title'),
+          /* Artist and record as separate spans: the controls show the
+             name alone; the record joins it in the ambient caption. */
+          h('div.np-artist',
+            h('span.np-artist-name'),
+            h('span.np-artist-dot', '·'),
+            h('span.np-album-name'),
+          ),
         ),
-      ),
-      h('div.np-meta',
-        h('div.np-title'),
-        /* Artist and record as separate spans: an em-dash line in the
-           controls, a dotted caption in the ambient lower-third. */
-        h('div.np-artist',
-          h('span.np-artist-name'),
-          h('span.np-artist-dot', '—'),
-          h('span.np-album-name'),
+        h('div.np-scrub',
+          h('div.np-track',
+            h('div.np-track-fill'),
+            h('div.np-track-knob'),
+          ),
+          h('div.np-times',
+            h('span.np-elapsed.num', '0:00'),
+            h('span.np-remaining.num', '−0:00'),
+          ),
         ),
-      ),
-      h('div.np-scrub',
-        h('div.np-track',
-          h('div.np-track-fill'),
-          h('div.np-track-knob'),
+        h('div.np-buttons',
+          h('button.np-btn.ghost-btn.np-shuffle', {
+            onclick: () => setShuffle(!player.shuffle).catch(reportError),
+            'aria-label': 'Shuffle',
+          }, icon('shuffle', { size: 20 })),
+          h('button.np-btn.ring-btn', {
+            onclick: () => previous().catch(reportError),
+            'aria-label': 'Previous track',
+          }, icon('skipBack', { size: 24 })),
+          h('button.np-btn.np-play', {
+            onclick: () => togglePlay().catch(reportError),
+            'aria-label': 'Play or pause',
+          }),
+          h('button.np-btn.ring-btn', {
+            onclick: () => next().catch(reportError),
+            'aria-label': 'Next track',
+          }, icon('skipForward', { size: 24 })),
+          h('button.np-btn.ghost-btn.np-repeat', {
+            onclick: () => setRepeat(nextRepeat(player.repeat)).catch(reportError),
+            'aria-label': 'Repeat',
+          }, icon('refresh', { size: 20 })),
         ),
-        h('div.np-times',
-          h('span.np-elapsed.num', '0:00'),
-          h('span.np-remaining.num', '−0:00'),
-        ),
-      ),
-      h('div.np-buttons',
-        h('button.np-btn.ghost-btn.np-shuffle', {
-          onclick: () => setShuffle(!player.shuffle).catch(reportError),
-          'aria-label': 'Shuffle',
-        }, icon('shuffle', { size: 20 })),
-        h('button.np-btn.ring-btn', {
-          onclick: () => previous().catch(reportError),
-          'aria-label': 'Previous track',
-        }, icon('skipBack', { size: 24 })),
-        h('button.np-btn.np-play', {
-          onclick: () => togglePlay().catch(reportError),
-          'aria-label': 'Play or pause',
-        }),
-        h('button.np-btn.ring-btn', {
-          onclick: () => next().catch(reportError),
-          'aria-label': 'Next track',
-        }, icon('skipForward', { size: 24 })),
-        h('button.np-btn.ghost-btn.np-repeat', {
-          onclick: () => setRepeat(nextRepeat(player.repeat)).catch(reportError),
-          'aria-label': 'Repeat',
-        }, icon('refresh', { size: 20 })),
-      ),
-      /* A stable slot pinned to the column's foot: the queue itself is
-         repainted on every push, so the rows move with the track. */
-      h('div.np-queue-host'),
-    ),
-    /* 18d lower-third: caption left, its own transport right. */
-    h('div.np-lower',
-      h('div.np-lower-info',
-        h('div.np-lower-kicker', 'Now Playing · Apple Music'),
-        h('div.np-lower-title'),
-        h('div.np-lower-sub'),
-        h('div.np-lower-line', h('div.np-lower-fill')),
-      ),
-      h('div.np-lower-controls',
-        h('button.np-amb-btn.no-expand', {
-          onclick: ambientAct(previous),
-          'aria-label': 'Previous track',
-        }, icon('skipBack', { size: 20 })),
-        h('button.np-amb-play.no-expand', {
-          onclick: ambientAct(togglePlay),
-          'aria-label': 'Play or pause',
-        }),
-        h('button.np-amb-btn.no-expand', {
-          onclick: ambientAct(next),
-          'aria-label': 'Next track',
-        }, icon('skipForward', { size: 20 })),
+        /* 18b: the pulse under the caption — ambient-only, dancing only
+           while something actually plays (frozen low when paused). */
+        h('div.np-eq', h('span'), h('span'), h('span'), h('span')),
       ),
     ),
-    /* Only lit while ambient: the room's clock, so the full-art screen
-       still answers the wall's first question. */
+    /* A stable slot at the stage's foot: the 18a glass queue bar is
+       repainted on every push, so the rows move with the track. */
+    h('div.np-queue-host'),
+    /* 18b: a hairline of progress along the very bottom edge. */
+    h('div.np-edge', h('div.np-edge-fill')),
+    /* Only lit while ambient: the room's clock, so the floating-art
+       screen still answers the wall's first question. */
     h('div.np-clock',
       h('div.np-clock-time.num'),
       h('div.np-clock-date'),
     ),
     /* The way across to the photo screensaver, for when the room would
-       rather look at the holiday than the record. Top left — the 18d
-       corners belong to the clock and the transport. */
+       rather look at the holiday than the record. Top left — bottom
+       right belongs to the night-dim. */
     h('button.np-saver-btn.no-expand', {
       onclick: () => { closePanel().then(() => enterAmbient()); },
       'aria-label': 'Switch to the photo screensaver',
-    }, icon('moon', { size: 20 })),
+    }, icon('photo', { size: 20 })),
+    /* 18b ☾: lights out for the night; any tap restores. */
+    h('button.np-dim-btn.no-expand', {
+      onclick: () => { setNightDim(true); },
+      'aria-label': 'Dim the screen for the night',
+    }, icon('moon', { size: 18 })),
   );
 
   fill(body, stage);
@@ -228,14 +216,15 @@ function renderNowPlaying(body, panel) {
     clearTimeout(settleTimer);
     rafId = null;
     scrubbing = false;
-    panel?.classList.remove('np-split');
+    /* Crossing away while dimmed must not strand a 25% screen. */
+    setNightDim(false);
   });
 }
 
 const nextRepeat = (mode) => ({ off: 'all', all: 'one', one: 'off' }[mode] ?? 'off');
 
-/* The 18c queue, pinned to the column's foot: "UP NEXT / Queue · N"
-   over the next two rows — thumb, title and artist, duration. Repainted
+/* The 18a queue: one glass bar along the stage's foot — "UP NEXT", the
+   next two tracks inline, the queue count off to the right. Repainted
    on every push, so the rows move along when the track does. Only when
    the bridge actually reports upcoming tracks. */
 function paintQueue() {
@@ -244,24 +233,22 @@ function paintQueue() {
   const queue = player.queue ?? [];
   if (!queue.length) return fill(host);
   fill(host, h('div.np-queue',
-    h('div.np-queue-head',
-      h('span.np-queue-label', 'Up next'),
-      h('span.np-queue-count', `Queue · ${queue.length}`),
-    ),
-    ...queue.slice(0, 2).map((track) => h('div.np-queue-row',
+    h('span.np-queue-label', 'Up next'),
+    ...queue.slice(0, 2).map((track) => h('div.np-queue-item',
       h('div.np-queue-art', artOrNote(track.artworkUrl, 18, `queued "${track.title}"`)),
       h('div.np-queue-meta',
         h('div.np-queue-title', track.title),
         h('div.np-queue-artist', track.subtitle ?? track.artist ?? ''),
       ),
-      track.duration ? h('span.np-queue-dur.num', formatTime(track.duration)) : null,
     )),
+    h('span.np-queue-count',
+      `Queue · ${queue.length} track${queue.length === 1 ? '' : 's'} ›`),
   ));
 }
 
-/* The ambient clock: "9:12 AM" over "FRI, AUG 14 · 82°" (18d). Cheap to
-   keep honest: the scrub loop already runs once a second and calls this
-   when the minute turns. */
+/* The ambient clock: "9:12 AM" over "FRIDAY, AUGUST 14 · 82°" (18b).
+   Cheap to keep honest: the scrub loop already runs once a second and
+   calls this when the minute turns. */
 function paintNpClock() {
   const time = $('.np-clock-time');
   if (!time) return;
@@ -269,7 +256,7 @@ function paintNpClock() {
   const { hour, minute, period } = clockParts(now);
   fill(time, `${hour}:${minute}`, period ? h('span.np-clock-ampm', ` ${period}`) : null);
 
-  const bits = [`${weekday(now)}, ${monthDay(now)}`];
+  const bits = [fullDate(now)];
   const t = live.weather?.current?.temp;
   if (t != null) bits.push(temp(t));
   fill($('.np-clock-date'), bits.join(' · '));
@@ -313,20 +300,12 @@ function paintTrack() {
 
   /* Caption lines trade places with a small staggered rise. Unchanged
      text (the second snapshot of a skip) falls straight through. */
-  swapText($('.np-title'), title ?? '', 0);
-  swapText($('.np-artist-name'), artist ?? '', 80);
+  swapText($('.np-kicker'), ['Apple Music', album].filter(Boolean).join(' · '), 0);
+  swapText($('.np-title'), title ?? '', 40);
+  swapText($('.np-artist-name'), artist ?? '', 100);
   swapText($('.np-album-name'), album ?? '', 140);
-  /* No record name → no dangling dash. */
+  /* No record name → no dangling dot in the ambient caption. */
   $('.np-artist')?.classList.toggle('no-album', !album);
-
-  /* The 18d caption follows the same choreography. */
-  const lowerTitle = $('.np-lower-title');
-  if (lowerTitle) {
-    /* Long names step down to 44px before they ellipsize (handoff). */
-    lowerTitle.classList.toggle('long', (title ?? '').length > 22);
-    swapText(lowerTitle, title ?? '', 0);
-  }
-  swapText($('.np-lower-sub'), [artist, album].filter(Boolean).join(' · '), 60);
 }
 
 /* ── Song-change choreography ─────────────────────────────── */
@@ -361,34 +340,55 @@ function crossfadeArt(art, url) {
   incoming.src = url;
 }
 
-/** 18d: over a very light record, the ambient scrim reaches the top so
-    the clock keeps its contrast. Sampled tiny and fire-and-forget; a
-    cross-origin cover that taints the canvas just keeps the default. */
+/** The album's light: sample the cover small, average it, and hand the
+    colour to the warm glow and the art card's halo. Fire-and-forget; a
+    cross-origin cover that taints the canvas keeps the reference hue. */
 function assessArt(stage, url) {
   stage.dataset.trackArt = url;
   const probe = new Image();
   probe.crossOrigin = 'anonymous';
   probe.onload = () => {
-    let bright;
+    let r = 0, g = 0, b = 0;
     try {
       const c = document.createElement('canvas');
       c.width = c.height = 8;
       const ctx = c.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(probe, 0, 0, 8, 8);
       const px = ctx.getImageData(0, 0, 8, 8).data;
-      let sum = 0;
-      for (let i = 0; i < px.length; i += 4) {
-        sum += 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
-      }
-      bright = sum / (px.length / 4) / 255 > 0.6;
+      for (let k = 0; k < px.length; k += 4) { r += px[k]; g += px[k + 1]; b += px[k + 2]; }
+      const n = px.length / 4;
+      r = Math.round(r / n); g = Math.round(g / n); b = Math.round(b / n);
     } catch { return; }
     /* Only if this is still the cover on the wall — the lookup is a
        fetch away, and the room may have skipped on. */
     if (stage.isConnected && stage.dataset.trackArt === url) {
-      stage.classList.toggle('bright-art', bright);
+      stage.style.setProperty('--np-halo', `rgba(${r}, ${g}, ${b}, 0.12)`);
+      swapGlow(stage, `rgba(${r}, ${g}, ${b}, 0.18)`);
     }
   };
   probe.src = url;
+}
+
+/** Alternate the two warm glow layers so a track change crossfades the
+    room's light (~800ms, per the handoff) instead of hard-cutting —
+    background-image itself cannot animate. */
+function swapGlow(stage, color) {
+  const layers = [...stage.querySelectorAll('.np-glow')];
+  if (!layers.length) return;
+  const glow = `radial-gradient(1100px 700px at 30% 40%, ${color}, transparent 60%)`;
+  const current = layers.find((l) => l.classList.contains('current')) ?? null;
+  if (current?.dataset.color === color) return;
+  if (!current) {
+    layers[0].style.backgroundImage = glow;
+    layers[0].dataset.color = color;
+    layers[0].classList.add('current');
+    return;
+  }
+  const idle = layers.find((l) => l !== current) ?? current;
+  idle.style.backgroundImage = glow;
+  idle.dataset.color = color;
+  idle.classList.add('current');
+  current.classList.remove('current');
 }
 
 /**
@@ -425,12 +425,10 @@ export function swapText(el, text, delay = 0) {
 function paintTransport() {
   const playBtn = $('.np-play');
   if (playBtn) {
-    fill(playBtn, icon(player.state === 'playing' ? 'pause' : 'play', { size: 40 }));
+    fill(playBtn, icon(player.state === 'playing' ? 'pause' : 'play', { size: 44 }));
   }
-  const ambPlay = $('.np-amb-play');
-  if (ambPlay) {
-    fill(ambPlay, icon(player.state === 'playing' ? 'pause' : 'play', { size: 30 }));
-  }
+  /* The 18b EQ only dances while music actually plays. */
+  $('.np-stage')?.classList.toggle('is-playing', player.state === 'playing');
   $('.np-shuffle')?.classList.toggle('on', player.shuffle);
   const repeatBtn = $('.np-repeat');
   if (repeatBtn) {
@@ -507,7 +505,7 @@ function startScrubLoop() {
      device that is meant to sit on a wall all day. */
   const bar = $('.np-track-fill');
   const knob = $('.np-track-knob');
-  const lowerFill = $('.np-lower-fill');
+  const edgeFill = $('.np-edge-fill');
   const elapsed = $('.np-elapsed');
   const remaining = $('.np-remaining');
   if (!bar) return;
@@ -536,8 +534,8 @@ function startScrubLoop() {
       }
     }
 
-    /* The 18d progress line rides the same loop. */
-    if (lowerFill) lowerFill.style.width = `${pct}%`;
+    /* The 18b bottom-edge hairline rides the same loop. */
+    if (edgeFill) edgeFill.style.width = `${pct}%`;
 
     /* The mini player drives its own hairline on a one-second timer, so
        there is nothing to do for it here — it has to keep moving while
@@ -603,11 +601,13 @@ function armFade(root) {
     if (hasTrack() && player.state === 'playing') root.classList.add('resting');
   };
   const wake = (event) => {
-    /* Tapping the moon must not wake the player it is about to leave:
-       the wake would fade the button out from under the finger before
-       the tap lands. The ambient transport handles its own wake, after
-       acting, for the same reason. */
-    if (event?.target?.closest?.('.np-saver-btn, .np-lower-controls')) return;
+    /* Tapping the photo button must not wake the player it is about to
+       leave, and tapping ☾ must not wake what it is dimming — either
+       wake would fade the button out from under the finger before the
+       tap lands. */
+    if (event?.target?.closest?.('.np-saver-btn, .np-dim-btn')) return;
+    /* Any other touch is also the lights back on. */
+    if (nightDim.active) setNightDim(false);
     root.classList.remove('resting');
     clearTimeout(fadeTimer);
     /* Only a real touch cancels the music saver's fast settle — the

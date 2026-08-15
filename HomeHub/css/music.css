@@ -151,43 +151,92 @@
 }
 #mini-player.paused .mini-art { filter: saturate(0.7) brightness(0.85); }
 
-/* ── Now Playing — the "Split" set (handoff 18c/18d) ──────────
-   Controls: the record owns the left 46% of the frame, full height,
-   melting into the canvas; title, scrubber, transport and queue in a
-   column on the right. Untouched for FADE_AFTER while playing, the same
-   DOM becomes the ambient screen (.panel.resting): art full-bleed, a
-   quiet lower-third caption with its own transport, clock top right.
-   One crossfade carries every piece between the two. */
+/* ── Now Playing — the "Immersive" set (handoff 18a/18b) ──────
+   The album's light fills the room: a warm glow derived from the cover
+   sits behind everything, a cool counter-glow answers it, and the art
+   card is haloed in the same colour. Controls (18a): lit art left, full
+   hierarchy right, glass queue bar at the foot. Untouched for
+   FADE_AFTER while playing, the same DOM becomes the ambient screen
+   (.panel.resting): the art floats centered in its glow with a pulsing
+   EQ, clock top right, a hairline of progress along the bottom edge,
+   night-dim in the corner. */
 
 .np-stage {
   position: relative;
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border-radius: inherit;
-  background: #0b0e18;
-  /* Controls ⇄ ambient crossfade (18d asks for 400–600ms). */
+  /* Reference warm hue until the artwork lands (handoff). */
+  --np-halo: rgba(180, 160, 130, 0.12);
+  background: radial-gradient(800px 600px at 85% 90%, rgba(90, 110, 180, 0.14), transparent 60%),
+              #0b0e18;
+  padding: calc(var(--px) * 20) calc(var(--px) * 40) calc(var(--px) * 22);
+  gap: calc(var(--px) * 16);
+  /* Controls ⇄ ambient crossfade (the handoff asks for 400–600ms). */
   --np-mode: 560ms;
 }
 
-/* The record. Left 46% while the controls are up; the whole frame at
-   rest. The img never resizes itself — cover-fit just re-crops as its
-   box grows, which is what makes the mode change one movement. */
-.np-art-wrap {
+/* The warm glow, twice: JS alternates .current between songs so the
+   room's light crossfades (~800ms) — background-image cannot animate. */
+.np-glow {
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 46%;
+  inset: 0;
+  background-image: radial-gradient(1100px 700px at 30% 40%, rgba(196, 178, 148, 0.18), transparent 60%);
+  opacity: 0;
+  transition: opacity 800ms var(--ease-in-out);
+  pointer-events: none;
+}
+.np-glow.current { opacity: 1; }
+
+/* Night-dim: a veil over the whole stage. The display bridge drops the
+   real backlight where it exists; this carries the effect everywhere. */
+.np-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 600ms var(--ease-in-out);
+  pointer-events: none;
+  z-index: 4;
+}
+.np-stage.night-dim::after { opacity: 1; }
+
+/* ── The 18a composition ──────────────────────────────────── */
+
+.np-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: calc(var(--px) * 64);
+  align-items: center;
+  padding: 0 calc(var(--px) * 8);
+  transition: gap var(--np-mode) var(--ease-in-out);
+}
+
+/* The record: a lit card (18a 400 → 18b 440, centered). The vh guard
+   only bites on genuinely short viewports — at the design frame the
+   full card shows. */
+.np-art-wrap {
+  width: min(calc(var(--px) * 400), 52vh);
+  aspect-ratio: 1;
+  position: relative;   /* the outgoing cover overlays during a swap */
+  border-radius: calc(var(--px) * 24);
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 100px var(--np-halo);
   display: grid;
   place-items: center;
   color: var(--fg-4);
   background: repeating-linear-gradient(45deg, #232a42, #232a42 14px, #1c2236 14px, #1c2236 28px);
-  transition: width var(--np-mode) var(--ease-in-out), height var(--np-mode) var(--ease-in-out);
+  transition: width var(--np-mode) var(--ease-in-out),
+              border-radius var(--np-mode) var(--ease-in-out);
 }
-.panel.resting .np-art-wrap { width: 100%; }
-
 .np-art {
   position: absolute;
   inset: 0;
@@ -210,35 +259,6 @@
 }
 .np-art.outgoing.gone { opacity: 0; transform: scale(1.05); }
 
-/* 18c: no hard edge — the art dissolves into the canvas colour. */
-.np-art-melt {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to right, transparent 60%, #0b0e18);
-  pointer-events: none;
-  z-index: 2;
-  transition: opacity var(--np-mode) var(--ease-in-out);
-}
-.panel.resting .np-art-melt { opacity: 0; }
-
-/* 18d: footing for the lower-third; the top half of the art stays
-   clean. Over a very light record (.bright-art, measured from the
-   cover) the veil reaches the top so the clock keeps its contrast. */
-.np-art-scrim {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(8, 10, 16, 0.85), rgba(8, 10, 16, 0.25) 32%, transparent 55%);
-  pointer-events: none;
-  z-index: 2;
-  opacity: 0;
-  transition: opacity var(--np-mode) var(--ease-in-out);
-}
-.panel.resting .np-art-scrim { opacity: 1; }
-.np-stage.bright-art .np-art-scrim {
-  background: linear-gradient(to top, rgba(8, 10, 16, 0.85), rgba(8, 10, 16, 0.25) 32%,
-              rgba(8, 10, 16, 0.1) 55%, rgba(8, 10, 16, 0.1));
-}
-
 /* One caption line trading places: ease out, retext, ease back in.
    Shared by the player captions and the pill title. */
 @keyframes np-text-out {
@@ -251,117 +271,61 @@
 .swap-out { animation: np-text-out 200ms var(--ease-out) both; }
 .swap-in { animation: np-text-in 340ms var(--ease-out) both; }
 
-/* ── The right column (18c) ───────────────────────────────── */
-
 .np-right {
-  position: absolute;
-  left: 52%;
-  right: calc(var(--px) * 48);
-  top: calc(var(--px) * 36);
-  bottom: calc(var(--px) * 36);
   display: flex;
   flex-direction: column;
+  gap: calc(var(--px) * 30);
   min-width: 0;
-  transition: opacity var(--np-mode) var(--ease-out);
-}
-.panel.resting .np-right { opacity: 0; pointer-events: none; }
-
-/* The split stage owns the whole frame — the art reaches the top edge —
-   so the panel's own header folds away; the .np-head row stands in. */
-.panel.np-split .panel-head {
-  opacity: 0;
-  pointer-events: none;
-  max-height: 0;
-  min-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-  overflow: hidden;
-}
-.panel .panel-head {
-  max-height: calc(var(--u) * 16);
-  transition: opacity var(--dur-rest) var(--ease-out), max-height var(--dur-rest) var(--ease-in-out),
-              padding var(--dur-rest) var(--ease-in-out), min-height var(--dur-rest) var(--ease-in-out);
 }
 
-.np-head {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--px) * 16);
-  flex: none;
-}
-.np-back {
-  width: calc(var(--px) * 44);
-  height: calc(var(--px) * 44);
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: none;
-  color: rgba(231, 234, 244, 0.7);
-  display: grid;
-  place-items: center;
-  flex: none;
-}
-.np-head-label {
-  font-size: calc(var(--px) * 13);
+.np-meta { min-width: 0; }
+.np-kicker {
+  font-size: calc(var(--px) * 12);
   font-weight: 600;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: rgba(231, 234, 244, 0.45);
+  transition: opacity var(--np-mode) var(--ease-out);
 }
-.np-seg {
-  margin-left: auto;
-  display: flex;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: var(--r-pill);
-  padding: calc(var(--px) * 3);
-}
-.np-seg-btn {
-  padding: calc(var(--px) * 8) calc(var(--px) * 16);
-  border-radius: var(--r-pill);
-  border: none;
-  background: none;
-  font-size: calc(var(--px) * 13);
-  color: rgba(231, 234, 244, 0.6);
-}
-.np-seg-btn.on {
-  background: #e7eaf4;
-  color: #0b0e18;
-  font-weight: 600;
-}
-
-.np-meta { margin-top: calc(var(--px) * 56); min-width: 0; }
 .np-title {
   font-family: var(--font-display);
-  font-size: calc(var(--px) * 66);
+  font-size: calc(var(--px) * 60);
   font-weight: 500;
-  line-height: 1.02;
-  letter-spacing: -0.025em;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-top: calc(var(--px) * 12);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
+  transition: font-size var(--np-mode) var(--ease-in-out);
 }
 .np-artist {
   display: flex;
   align-items: baseline;
   gap: calc(var(--px) * 8);
-  font-size: calc(var(--px) * 21);
+  font-size: calc(var(--px) * 22);
   color: rgba(231, 234, 244, 0.6);
-  margin-top: calc(var(--px) * 14);
+  margin-top: calc(var(--px) * 8);
   min-width: 0;
 }
 .np-artist span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.np-artist .np-album-name { color: rgba(231, 234, 244, 0.4); }
+/* 18a shows the artist alone; the record joins it in ambient (18b). */
+.np-artist .np-artist-dot,
+.np-artist .np-album-name { display: none; }
+.panel.resting .np-artist .np-artist-dot,
+.panel.resting .np-artist .np-album-name { display: inline; }
 .np-artist.no-album .np-artist-dot,
-.np-artist.no-album .np-album-name { display: none; }
+.np-artist.no-album .np-album-name { display: none !important; }
 
-/* ── Scrubber (18c: 5px track, light fill, 15px thumb) ────── */
+/* ── Scrubber (5px track, light fill, 15px thumb) ─────────── */
 
 .np-scrub {
-  margin-top: calc(var(--px) * 36);
   display: flex;
   flex-direction: column;
   gap: calc(var(--px) * 10);
+  max-height: calc(var(--px) * 60);
+  transition: opacity var(--np-mode) var(--ease-out), max-height var(--np-mode) var(--ease-in-out);
 }
 .np-track {
   position: relative;
@@ -402,13 +366,14 @@
   font-variant-numeric: tabular-nums lining-nums;
 }
 
-/* ── Transport (18c: ghost 48 · ring 62 · filled 84) ──────── */
+/* ── Transport (18a: ghost 48 · ring 62 · filled 92) ──────── */
 
 .np-buttons {
-  margin-top: calc(var(--px) * 26);
   display: flex;
   align-items: center;
   gap: calc(var(--px) * 26);
+  max-height: calc(var(--px) * 100);
+  transition: opacity var(--np-mode) var(--ease-out), max-height var(--np-mode) var(--ease-in-out);
 }
 .np-btn {
   display: grid;
@@ -435,8 +400,8 @@
   border: 1px solid rgba(255, 255, 255, 0.18);
 }
 .np-play {
-  width: calc(var(--px) * 84);
-  height: calc(var(--px) * 84);
+  width: calc(var(--px) * 92);
+  height: calc(var(--px) * 92);
   background: #e7eaf4;
   color: #0b0e18;
   box-shadow: 0 12px 36px rgba(231, 234, 244, 0.22);
@@ -454,20 +419,52 @@
   color: var(--accent);
 }
 
-/* ── Queue (18c: pinned to the column's foot) ─────────────── */
+/* ── 18b: the EQ pulse ────────────────────────────────────── */
 
-.np-queue-host { margin-top: auto; }
-.np-queue {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-top: calc(var(--px) * 20);
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--px) * 14);
+.np-eq {
+  display: none;
+  align-items: flex-end;
+  gap: 3px;
+  height: calc(var(--px) * 20);
 }
-.np-queue-head {
+.panel.resting .np-eq { display: flex; }
+.np-eq span {
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: rgba(231, 234, 244, 0.7);
+  transform-origin: bottom;
+  transform: scaleY(0.3);   /* frozen low when paused */
+}
+/* ssEq lives in boards.css (the glass rail's bars) — one shared pulse. */
+.np-stage.is-playing .np-eq span { animation: ssEq 1.1s ease-in-out infinite; }
+.np-stage.is-playing .np-eq span:nth-child(2) { animation-duration: 1.4s; animation-delay: 0.2s; }
+.np-stage.is-playing .np-eq span:nth-child(3) { animation-duration: 0.9s; animation-delay: 0.1s; }
+.np-stage.is-playing .np-eq span:nth-child(4) { animation-duration: 1.25s; animation-delay: 0.35s; }
+
+/* ── Queue bar (18a foot) ─────────────────────────────────── */
+
+.np-queue-host {
+  position: relative;
+  flex: none;
+  max-height: calc(var(--px) * 90);
+  transition: opacity var(--np-mode) var(--ease-out), max-height var(--np-mode) var(--ease-in-out);
+}
+.panel.resting .np-queue-host {
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.np-queue {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
+  gap: calc(var(--px) * 22);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: calc(var(--px) * 18);
+  padding: calc(var(--px) * 13) calc(var(--px) * 22);
+  min-width: 0;
 }
 .np-queue-label {
   font-size: calc(var(--px) * 12);
@@ -475,18 +472,15 @@
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: rgba(231, 234, 244, 0.45);
+  flex: none;
 }
-.np-queue-count {
-  font-size: calc(var(--px) * 13);
-  color: rgba(231, 234, 244, 0.4);
-  font-variant-numeric: tabular-nums;
-}
-.np-queue-row {
+.np-queue-item {
   display: flex;
   align-items: center;
-  gap: calc(var(--px) * 14);
-  min-height: calc(var(--px) * 44);
+  gap: calc(var(--px) * 12);
+  min-width: 0;
 }
+.np-queue-item + .np-queue-item { margin-left: calc(var(--px) * 10); }
 .np-queue-art {
   width: calc(var(--px) * 40);
   height: calc(var(--px) * 40);
@@ -499,9 +493,9 @@
   color: var(--fg-4);
 }
 .np-queue-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.np-queue-meta { flex: 1; min-width: 0; }
+.np-queue-meta { min-width: 0; }
 .np-queue-title {
-  font-size: calc(var(--px) * 16);
+  font-size: calc(var(--px) * 15);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -514,119 +508,97 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.np-queue-dur {
-  font-size: calc(var(--px) * 13);
-  color: rgba(231, 234, 244, 0.35);
-  font-variant-numeric: tabular-nums lining-nums;
+.np-queue-count {
+  margin-left: auto;
+  font-size: calc(var(--px) * 14);
+  color: rgba(231, 234, 244, 0.4);
+  white-space: nowrap;
   flex: none;
+  font-variant-numeric: tabular-nums;
 }
 
-/* ── Ambient (18d): lower-third, clock, moon ──────────────── */
+/* ── Ambient (18b): the gallery composition ───────────────── */
 
-.np-lower {
-  position: absolute;
-  left: calc(var(--px) * 52);
-  right: calc(var(--px) * 52);
-  bottom: calc(var(--px) * 44);
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: calc(var(--px) * 30);
-  z-index: 3;
+/* The header folds away while ambient, so the floating art owns the
+   frame; any wake brings it straight back. */
+.panel.resting .panel-head {
   opacity: 0;
   pointer-events: none;
-  transform: translateY(calc(var(--px) * 10));
-  transition: opacity var(--np-mode) var(--ease-out), transform var(--np-mode) var(--ease-out);
+  max-height: 0;
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+  overflow: hidden;
 }
-.panel.resting .np-lower { opacity: 1; pointer-events: auto; transform: none; }
+.panel .panel-head {
+  max-height: calc(var(--u) * 16);
+  transition: opacity var(--dur-rest) var(--ease-out), max-height var(--dur-rest) var(--ease-in-out),
+              padding var(--dur-rest) var(--ease-in-out), min-height var(--dur-rest) var(--ease-in-out);
+}
 
-.np-lower-info { min-width: 0; }
-.np-lower-kicker {
-  font-size: calc(var(--px) * 12);
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: rgba(231, 234, 244, 0.55);
+.panel.resting .np-body {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  align-content: center;
+  gap: calc(var(--px) * 34);
 }
-.np-lower-title {
-  font-family: var(--font-display);
-  font-size: calc(var(--px) * 52);
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  margin-top: calc(var(--px) * 10);
-  text-shadow: 0 3px 30px rgba(0, 0, 0, 0.55);
-  white-space: nowrap;
+.panel.resting .np-art-wrap {
+  width: min(calc(var(--px) * 440), 56vh);
+  border-radius: calc(var(--px) * 26);
+}
+.panel.resting .np-right { align-items: center; gap: 0; }
+.panel.resting .np-meta { text-align: center; }
+.panel.resting .np-kicker {
+  opacity: 0;
+  height: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  pointer-events: none;
 }
-/* Long names step down before they ellipsize (handoff). */
-.np-lower-title.long { font-size: calc(var(--px) * 44); }
-.np-lower-sub {
-  font-size: calc(var(--px) * 19);
-  color: rgba(231, 234, 244, 0.7);
-  margin-top: calc(var(--px) * 6);
-  white-space: nowrap;
+.panel.resting .np-title {
+  font-size: calc(var(--px) * 44);
+  margin-top: 0;
+}
+.panel.resting .np-artist { justify-content: center; font-size: calc(var(--px) * 19); }
+.panel.resting .np-scrub,
+.panel.resting .np-buttons {
+  opacity: 0;
+  max-height: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  pointer-events: none;
 }
-.np-lower-line {
-  width: calc(var(--px) * 340);
-  max-width: 100%;
-  height: calc(var(--px) * 4);
-  border-radius: calc(var(--px) * 2);
-  background: rgba(255, 255, 255, 0.2);
-  position: relative;
-  margin-top: calc(var(--px) * 18);
-  overflow: hidden;
+.panel.resting .np-eq { margin-top: calc(var(--px) * 34); }
+
+/* The progress hairline along the screen's very bottom edge. */
+.np-edge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  opacity: 0;
+  transition: opacity var(--np-mode) var(--ease-out);
+  pointer-events: none;
+  z-index: 2;
 }
-.np-lower-fill {
+.panel.resting .np-edge { opacity: 1; }
+.np-edge-fill {
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
   width: 0;
-  border-radius: inherit;
-  background: #fff;
+  background: rgba(231, 234, 244, 0.55);
 }
 
-.np-lower-controls {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--px) * 18);
-  flex: none;
-}
-.np-amb-btn {
-  width: calc(var(--px) * 56);
-  height: calc(var(--px) * 56);
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(11, 14, 24, 0.12);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  color: var(--hh-text);
-  display: grid;
-  place-items: center;
-}
-.np-amb-play {
-  width: calc(var(--px) * 76);
-  height: calc(var(--px) * 76);
-  border-radius: 50%;
-  border: none;
-  background: rgba(231, 234, 244, 0.94);
-  color: #0b0e18;
-  display: grid;
-  place-items: center;
-}
-.np-amb-btn:active, .np-amb-play:active { transform: scale(0.92); }
-
-/* The clock — top right, lit only while ambient (18d). */
+/* The clock — top right, lit only while ambient (18b). */
 .np-clock {
   position: absolute;
-  top: calc(var(--px) * 38);
-  right: calc(var(--px) * 52);
+  top: calc(var(--px) * 30);
+  right: calc(var(--px) * 44);
   text-align: right;
-  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.6);
-  z-index: 3;
+  z-index: 2;
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--np-mode) var(--ease-out);
@@ -634,40 +606,37 @@
 .panel.resting .np-clock { opacity: 1; }
 .np-clock-time {
   font-family: var(--font-display);
-  font-size: calc(var(--px) * 34);
+  font-size: calc(var(--px) * 38);
   font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
 }
 .np-clock-ampm {
   font-family: var(--font);
-  font-size: calc(var(--px) * 16);
-  color: rgba(231, 234, 244, 0.6);
+  font-size: calc(var(--px) * 17);
+  color: rgba(231, 234, 244, 0.5);
 }
 .np-clock-date {
-  margin-top: calc(var(--px) * 5);
-  font-size: calc(var(--px) * 11.5);
+  margin-top: calc(var(--px) * 6);
+  font-size: calc(var(--px) * 12);
   font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: rgba(231, 234, 244, 0.6);
+  color: rgba(231, 234, 244, 0.5);
   font-variant-numeric: tabular-nums;
 }
 
-/* Top left, opposite the clock: the way across to the photo
-   screensaver. Ambient-only — while the controls are up, this screen
-   is for playing music, not leaving it. */
+/* Top left: the way across to the photo screensaver. Ambient-only —
+   while the controls are up this screen is for playing music. */
 .np-saver-btn {
   position: absolute;
   left: calc(var(--px) * 44);
-  top: calc(var(--px) * 36);
+  top: calc(var(--px) * 30);
   width: calc(var(--px) * 48);
   height: calc(var(--px) * 48);
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(11, 14, 24, 0.35);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  color: rgba(231, 234, 244, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(231, 234, 244, 0.55);
   display: grid;
   place-items: center;
   z-index: 3;
@@ -677,6 +646,27 @@
 }
 .panel.resting .np-saver-btn { opacity: 1; pointer-events: auto; }
 .np-saver-btn:active { background: rgba(255, 255, 255, 0.12); color: var(--hh-text); }
+
+/* Bottom right: ☾ night-dim (18b). Lights out; any tap restores. */
+.np-dim-btn {
+  position: absolute;
+  right: calc(var(--px) * 44);
+  bottom: calc(var(--px) * 26);
+  width: calc(var(--px) * 44);
+  height: calc(var(--px) * 44);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(231, 234, 244, 0.55);
+  display: grid;
+  place-items: center;
+  z-index: 5;   /* above the night-dim veil, so a second tap could undim */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--np-mode) var(--ease-out);
+}
+.panel.resting .np-dim-btn { opacity: 1; pointer-events: auto; }
+.np-dim-btn:active { background: rgba(255, 255, 255, 0.12); color: var(--hh-text); }
 
 .np-empty {
   flex: 1;
@@ -1341,8 +1331,11 @@
   .swap-out, .swap-in { animation-duration: 1ms; }
   .mini-art.outgoing { transition-duration: 1ms; }
   .np-art.outgoing { transition-duration: 1ms; }
-  /* And so does the controls ⇄ ambient crossfade. */
+  /* And so do the controls ⇄ ambient crossfade and the room's glow. */
   .np-stage { --np-mode: 1ms; }
+  .np-glow { transition-duration: 1ms; }
+  /* The EQ holds still rather than pulsing. */
+  .np-stage.is-playing .np-eq span { animation: none; transform: scaleY(0.55); }
 }
 
 /* ── Narrow / portrait ────────────────────────────────────── */
@@ -1351,20 +1344,20 @@
   /* The countdown is the pill's most expendable tenant on a tight bar. */
   .mini-time { display: none; }
 
-  /* Portrait: the record becomes a hero band across the top, the column
-     slides under it, and the melt turns downward. Ambient is unchanged —
-     full-bleed art reads the same either way up. */
-  .np-art-wrap { width: 100%; bottom: auto; height: 40%; }
-  .np-art-melt { background: linear-gradient(to bottom, transparent 55%, #0b0e18); }
-  .np-right {
-    left: calc(var(--px) * 48);
-    top: calc(40% + var(--px) * 8);
+  /* Portrait stacks the 18a grid: the lit card above, the hierarchy
+     below, centred. Ambient is already a centred column either way up. */
+  .np-body {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: calc(var(--px) * 36);
+    align-content: center;
   }
-  .panel.resting .np-art-wrap { height: 100%; }
-  .np-meta { margin-top: calc(var(--px) * 24); }
-  .np-title { font-size: calc(var(--px) * 52); }
-  .np-lower-title { font-size: calc(var(--px) * 42); }
-  .np-lower-title.long { font-size: calc(var(--px) * 34); }
+  .np-art-wrap { width: min(56vw, 36vh); }
+  .np-right { width: 100%; max-width: calc(var(--px) * 620); align-items: center; }
+  .np-meta { text-align: center; }
+  .np-scrub { width: 100%; }
+  .np-buttons { justify-content: center; }
+  .np-title { font-size: calc(var(--px) * 48); }
 }
 
 /* Below this the bar is too narrow to hold a centred pill: an absolutely
