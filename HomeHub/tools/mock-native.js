@@ -12,6 +12,20 @@
  *   <script type="module" src="js/main.js"></script>
  */
 (function () {
+  /* The probe tier drives the CLASSIC home unless a probe opts into
+     depth (the app itself boots DEPTH by default since handoff 28a).
+     Seeded here — the mock is the one script every probe injects first
+     — and only on loopback with no saved state, so the artifact
+     preview, the bundles, and the wall all keep the real default. A
+     probe that wants depth writes homeStyle through seedState, which
+     merges over this. */
+  try {
+    if (/^(127\.0\.0\.1|localhost)$/.test(location.hostname)
+        && !localStorage.getItem('homehub.state.v1')) {
+      localStorage.setItem('homehub.state.v1', JSON.stringify({ homeStyle: 'classic' }));
+    }
+  } catch { /* file:// or storage-less context — the app default stands */ }
+
   const log = [];
   let auth = 'granted';
   let brightness = 1;

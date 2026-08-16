@@ -22,7 +22,10 @@ export function createWeatherWidget() {
   return card;
 }
 
-function worstAlert(model) {
+/* Exported: the DEPTH home's front-pane pick is the same one this
+   card's warning mode uses — one definition of "the alert that
+   matters". */
+export function worstAlert(model) {
   const alerts = model.alerts ?? [];
   if (!alerts.length) return null;
   const rank = (a) => (/extreme/i.test(a.severity) ? 3 : /severe/i.test(a.severity) ? 2

@@ -1,0 +1,504 @@
+/* ============================================================
+   DEPTH home (handoff 28a) — the volumetric glass stack
+   ============================================================
+   Active only under body.depth-home. Every size is frame-
+   proportional via --px (design frame 1180×880). The classic
+   home's DOM stays in index.html; it simply never shows here. */
+
+body.depth-home #topbar,
+body.depth-home #grid { display: none; }
+
+#depth-root {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: radial-gradient(1200px 800px at 50% 40%, #141a26, #08090e 75%);
+  color: #eef0f6;
+  --dh-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* The hub's own frame padding would inset the HUD corners; DEPTH
+   positions everything itself against the full frame. */
+body.depth-home #hub { padding: 0; }
+
+/* Amber ambience behind the stack — only during a warning. */
+.dh-ambience {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: calc(var(--px) * 1000);
+  height: calc(var(--px) * 660);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(240, 150, 80, 0.12), transparent 70%);
+  filter: blur(40px);
+  opacity: 0;
+  transition: opacity 900ms var(--ease-in-out);
+  pointer-events: none;
+}
+#depth-root.alerted .dh-ambience { opacity: 1; }
+
+/* ── HUD ──────────────────────────────────────────────────── */
+
+.dh-clock {
+  position: absolute;
+  left: calc(var(--px) * 64);
+  top: calc(var(--px) * 52);
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  z-index: 2;
+}
+.dh-time {
+  font-family: var(--font-display);
+  font-size: calc(var(--px) * 84);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.dh-ampm {
+  font-size: calc(var(--px) * 24);
+  color: rgba(238, 240, 246, 0.45);
+  margin-left: calc(var(--px) * 8);
+}
+.dh-status {
+  font-size: calc(var(--px) * 14);
+  letter-spacing: 0.22em;
+  color: rgba(238, 240, 246, 0.5);
+  font-weight: 600;
+  margin-top: calc(var(--px) * 10);
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-temp {
+  position: absolute;
+  right: calc(var(--px) * 64);
+  top: calc(var(--px) * 56);
+  text-align: right;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  z-index: 2;
+}
+.dh-temp-num {
+  font-family: var(--font-display);
+  font-size: calc(var(--px) * 48);
+  font-weight: 300;
+  line-height: 1;
+}
+.dh-cond {
+  font-size: calc(var(--px) * 14);
+  color: rgba(238, 240, 246, 0.55);
+  margin-top: calc(var(--px) * 6);
+}
+
+.dh-footer {
+  position: absolute;
+  left: calc(var(--px) * 64);
+  right: calc(var(--px) * 64);
+  bottom: calc(var(--px) * 40);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: calc(var(--px) * 24);
+  font-size: calc(var(--px) * 14);
+  color: rgba(238, 240, 246, 0.45);
+  z-index: 2;
+}
+.dh-foot { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dh-foot-right {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 12);
+  flex: none;
+  overflow: visible;
+}
+.dh-foot-audio {
+  font-variant-numeric: tabular-nums;
+  max-width: calc(var(--px) * 300);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dh-gear {
+  width: calc(var(--px) * 34);
+  height: calc(var(--px) * 34);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(238, 240, 246, 0.12);
+  background: none;
+  color: rgba(238, 240, 246, 0.45);
+  flex: none;
+}
+.dh-gear:active { background: rgba(255, 255, 255, 0.1); color: #eef0f6; }
+
+/* ── The stack ────────────────────────────────────────────── */
+
+.dh-stack {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: calc(var(--px) * 940);
+  height: calc(var(--px) * 620);
+  transform: translate(-50%, -50%);
+  perspective: 1200px;
+  z-index: 1;
+}
+/* The rotateX lives on an inner coordinate space: applying it with the
+   centering transform on the same element would tilt the centering too.
+   Every pane shares it via transform-style on this wrapper. */
+.dh-stack > .dh-pane { transform-style: preserve-3d; }
+
+.dh-pane {
+  position: absolute;
+  border-radius: calc(var(--px) * 28);
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: transform 650ms var(--ease-in-out),
+              filter 650ms var(--ease-in-out),
+              opacity 650ms var(--ease-in-out),
+              left 650ms var(--ease-in-out),
+              right 650ms var(--ease-in-out),
+              top 650ms var(--ease-in-out),
+              bottom 650ms var(--ease-in-out);
+}
+
+/* The depth recipe (handoff tokens): each step back is translateZ
+   −60/−120/−200, scale +6/13/22%, blur 1.5/4/7, opacity .75/.5/.4.
+   Insets travel with the slot so a pane sliding forward also takes the
+   front slot's framing. */
+.dh-pane.slot-0 {
+  left: 14%; right: 14%; top: 24%; bottom: 18%;
+  transform: rotateX(8deg);
+  filter: none;
+  opacity: 1;
+  z-index: 5;
+  background: linear-gradient(160deg, rgba(150, 170, 230, 0.14), rgba(150, 170, 230, 0.05));
+  border: 1px solid rgba(180, 200, 255, 0.3);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 40px 100px rgba(0, 0, 10, 0.6);
+  padding: calc(var(--px) * 34) calc(var(--px) * 46);
+  display: flex;
+  flex-direction: column;
+}
+.dh-pane.slot-1 {
+  left: 9%; right: 9%; top: 14%; bottom: 1%;
+  transform: rotateX(8deg) translateZ(calc(var(--px) * -60)) scale(1.06);
+  filter: blur(1.5px);
+  opacity: 0.75;
+  z-index: 4;
+  background: rgba(120, 140, 200, 0.11);
+  border: 1px solid rgba(160, 180, 240, 0.24);
+  padding: calc(var(--px) * 24) calc(var(--px) * 44);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+.dh-pane.slot-2 {
+  left: 4%; right: 4%; top: 6%; bottom: -7%;
+  transform: rotateX(8deg) translateZ(calc(var(--px) * -120)) scale(1.13);
+  filter: blur(4px);
+  opacity: 0.5;
+  z-index: 3;
+  background: rgba(120, 140, 200, 0.09);
+  border: 1px solid rgba(160, 180, 240, 0.18);
+  border-radius: calc(var(--px) * 32);
+  padding: calc(var(--px) * 28) calc(var(--px) * 42);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+.dh-pane.slot-3 {
+  left: 0; right: 0; top: 0; bottom: 0;
+  transform: rotateX(8deg) translateZ(calc(var(--px) * -200)) scale(1.22);
+  filter: blur(7px);
+  opacity: 0.4;
+  z-index: 2;
+  background: rgba(120, 140, 200, 0.07);
+  border: 1px solid rgba(160, 180, 240, 0.12);
+  border-radius: calc(var(--px) * 36);
+  padding: calc(var(--px) * 16) calc(var(--px) * 44);
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+.dh-pane.dh-gone {
+  left: 0; right: 0; top: 0; bottom: 0;
+  transform: rotateX(8deg) translateZ(calc(var(--px) * -260)) scale(1.28);
+  filter: blur(9px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* The music pane is a corner resident whatever its depth. */
+.dh-pane.dh-music {
+  left: 0; right: 0; top: 0; bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: calc(var(--px) * 16) calc(var(--px) * 44);
+}
+
+/* An alerted stack warms every border a touch. */
+.dh-stack.alerted .dh-pane.slot-0 {
+  border-color: rgba(240, 162, 95, 0.55);
+  box-shadow: 0 40px 100px rgba(0, 0, 10, 0.6), 0 0 80px rgba(240, 150, 80, 0.15);
+}
+
+/* Sheets are visual; TOUCH belongs to each layer's content band, so a
+   deep layer (the music row, bottom right) stays reachable through the
+   glass of nearer sheets — the handoff's collision rule, applied to
+   fingers. The front pane and a peeked pane own their whole sheet. */
+.dh-pane { pointer-events: none; }
+.dh-pane .dh-hit {
+  pointer-events: auto;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+}
+.dh-pane.slot-0, .dh-pane.peek { pointer-events: auto; }
+.dh-pane.slot-0 .dh-hit { flex: 1; }
+.dh-pane.dh-gone, .dh-pane.dh-gone .dh-hit { pointer-events: none !important; }
+
+/* Peek: the tapped layer comes up to read; the rest step back. */
+.dh-stack[data-peek] .dh-pane { opacity: 0.22; }
+.dh-stack[data-peek] .dh-pane.peek {
+  transform: rotateX(8deg) translateZ(calc(var(--px) * 24)) scale(1);
+  filter: none;
+  opacity: 1;
+  z-index: 8;
+}
+
+/* ── Pane contents ────────────────────────────────────────── */
+
+.dh-pane-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: calc(var(--px) * 16);
+}
+.dh-mono {
+  font-family: var(--dh-mono);
+  font-size: calc(var(--px) * 13);
+  color: rgba(238, 240, 246, 0.5);
+  white-space: nowrap;
+}
+
+/* Alert (28a front) */
+.dh-alert-name {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 10);
+  font-size: calc(var(--px) * 13);
+  letter-spacing: 0.24em;
+  color: #f8c89a;
+  font-weight: 600;
+  text-transform: uppercase;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dh-alert-dot {
+  width: calc(var(--px) * 9);
+  height: calc(var(--px) * 9);
+  border-radius: 50%;
+  background: #f0a25f;
+  box-shadow: 0 0 14px rgba(240, 162, 95, 0.9);
+  flex: none;
+  animation: warning-pulse 2.2s var(--ease-in-out) infinite;
+}
+.dh-alert-headline {
+  font-family: var(--font-display);
+  font-size: calc(var(--px) * 40);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  margin-top: calc(var(--px) * 18);
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.dh-alert-body {
+  font-size: calc(var(--px) * 17);
+  color: rgba(238, 240, 246, 0.65);
+  margin-top: calc(var(--px) * 10);
+}
+
+/* Lead (26c front) */
+.dh-lead-label {
+  font-size: calc(var(--px) * 13);
+  letter-spacing: 0.24em;
+  color: #9db4ff;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.dh-lead-title {
+  font-family: var(--font-display);
+  font-size: calc(var(--px) * 54);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  margin-top: calc(var(--px) * 22);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dh-lead-sub {
+  font-size: calc(var(--px) * 19);
+  color: rgba(238, 240, 246, 0.6);
+  margin-top: calc(var(--px) * 10);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-actions {
+  margin-top: auto;
+  display: flex;
+  gap: calc(var(--px) * 14);
+}
+.dh-btn {
+  border: 1px solid rgba(180, 200, 255, 0.4);
+  border-radius: var(--r-pill);
+  padding: calc(var(--px) * 12) calc(var(--px) * 26);
+  font-size: calc(var(--px) * 15);
+  font-weight: 600;
+  background: none;
+  color: #eef0f6;
+  min-height: calc(var(--px) * 44);
+}
+.dh-btn.ghost { border-color: rgba(180, 200, 255, 0.2); color: rgba(238, 240, 246, 0.6); }
+.dh-btn.amber { background: #f0a25f; border-color: transparent; color: #141017; font-weight: 700; }
+.dh-stack.alerted .dh-btn.ghost { border-color: rgba(240, 162, 95, 0.4); color: rgba(238, 240, 246, 0.75); }
+.dh-btn:active { transform: scale(0.96); }
+
+/* Today band */
+.dh-band-label {
+  font-size: calc(var(--px) * 13);
+  letter-spacing: 0.24em;
+  color: rgba(238, 240, 246, 0.6);
+  font-weight: 600;
+  text-transform: uppercase;
+  flex: none;
+}
+.dh-today-row {
+  display: flex;
+  gap: calc(var(--px) * 44);
+  margin-top: calc(var(--px) * 8);
+  align-items: baseline;
+  min-width: 0;
+  max-width: 100%;
+}
+.dh-today-item { min-width: 0; }
+.dh-today-title {
+  font-family: var(--font-display);
+  font-size: calc(var(--px) * 28);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dh-today-title.second { font-size: calc(var(--px) * 22); color: rgba(238, 240, 246, 0.8); }
+.dh-today-sub {
+  font-size: calc(var(--px) * 14);
+  color: rgba(238, 240, 246, 0.55);
+  margin-top: calc(var(--px) * 4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tomorrow band */
+.dh-tomorrow-row {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--px) * 20);
+  min-width: 0;
+  max-width: 100%;
+}
+.dh-tomorrow-title {
+  font-family: var(--font-display);
+  font-size: calc(var(--px) * 24);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Music, the very back */
+.dh-music-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 14);
+  min-width: 0;
+}
+.dh-art {
+  width: calc(var(--px) * 40);
+  height: calc(var(--px) * 40);
+  border-radius: calc(var(--px) * 10);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #4e4234, #241f18);
+  color: rgba(238, 240, 246, 0.6);
+  flex: none;
+  overflow: hidden;
+}
+.dh-music-title {
+  font-size: calc(var(--px) * 15);
+  font-weight: 600;
+  color: rgba(238, 240, 246, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dh-music-sub {
+  font-size: calc(var(--px) * 12.5);
+  color: rgba(238, 240, 246, 0.5);
+  white-space: nowrap;
+}
+.dh-eq {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: calc(var(--px) * 15);
+  margin-left: calc(var(--px) * 4);
+}
+.dh-eq span {
+  width: 3px;
+  border-radius: 2px;
+  background: #c4a878;
+  transform-origin: bottom;
+  height: 100%;
+  transform: scaleY(0.3);
+}
+.dh-pane.dh-music.playing .dh-eq span { animation: ssEq 1.1s ease-in-out infinite; }
+.dh-pane.dh-music.playing .dh-eq span:nth-child(2) { animation-duration: 1.4s; animation-delay: 0.2s; }
+.dh-pane.dh-music.playing .dh-eq span:nth-child(3) { animation-duration: 0.9s; animation-delay: 0.1s; }
+
+/* ── Care ─────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-pane { transition-duration: 1ms; }
+  .dh-ambience { transition-duration: 1ms; }
+  .dh-alert-dot { animation: none; }
+  .dh-pane.dh-music.playing .dh-eq span { animation: none; transform: scaleY(0.6); }
+}
+
+/* Portrait: --px already shrinks the frame to fit the narrow side; the
+   stack just sits a touch higher so the footer keeps clear air. */
+@media (orientation: portrait) {
+  .dh-stack { top: 44%; }
+}

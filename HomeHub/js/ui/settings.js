@@ -640,6 +640,24 @@ function renderFamily(body) {
 
 function renderDisplay(body) {
   fill(body,
+    group('Home screen',
+      'Two looks for the wall. Classic is the widget grid; Depth floats the day in layered glass, whatever matters most in front.',
+      h('div.field-row',
+        ...[['classic', 'Classic'], ['depth', 'Depth']].map(([value, label]) =>
+          h(`button.chip.small${(state.homeStyle ?? 'depth') === value ? '.on' : ''}`, {
+            onclick: () => {
+              if (state.homeStyle === value) return;
+              state.homeStyle = value;
+              save('settings');
+              /* A reload, not a live remount: on a wall kiosk the flash
+                 is invisible and neither home needs teardown code. Past
+                 the 120ms save debounce, so the choice is on disk. */
+              setTimeout(() => location.reload(), 350);
+            },
+          }, label)),
+      ),
+    ),
+
     group('Size', 'Scale everything up if the iPad is mounted further away.',
       h('div.slider-row',
         h('span.slider-label', 'Smaller'),
