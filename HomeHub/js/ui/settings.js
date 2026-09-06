@@ -641,17 +641,17 @@ function renderFamily(body) {
 function renderDisplay(body) {
   fill(body,
     group('Home screen',
-      'Two looks for the wall. Classic is the widget grid; Depth floats the day in layered glass, whatever matters most in front.',
+      'Three looks for the wall. Jarvis is the heads-up display — the day as a lab readout; Depth floats it in layered glass, whatever matters most in front; Classic is the widget grid.',
       h('div.field-row',
-        ...[['classic', 'Classic'], ['depth', 'Depth']].map(([value, label]) =>
-          h(`button.chip.small${(state.homeStyle ?? 'depth') === value ? '.on' : ''}`, {
+        ...[['jarvis', 'Jarvis'], ['depth', 'Depth'], ['classic', 'Classic']].map(([value, label]) =>
+          h(`button.chip.small${(state.homeStyle ?? 'jarvis') === value ? '.on' : ''}`, {
             onclick: () => {
               if (state.homeStyle === value) return;
               state.homeStyle = value;
               save('settings');
               /* A reload, not a live remount: on a wall kiosk the flash
-                 is invisible and neither home needs teardown code. Past
-                 the 120ms save debounce, so the choice is on disk. */
+                 is invisible and no home needs teardown code. Past the
+                 120ms save debounce, so the choice is on disk. */
               setTimeout(() => location.reload(), 350);
             },
           }, label)),

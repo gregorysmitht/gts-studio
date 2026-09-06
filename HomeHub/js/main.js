@@ -8,6 +8,7 @@ import { onNativeEvent } from './core/native.js';
 import { mountTopbar } from './ui/topbar.js';
 import { mountHome } from './ui/home.js';
 import { mountDepthHome } from './ui/depth-home.js';
+import { mountJarvisHome } from './ui/jarvis-home.js';
 import { startIdleWatch } from './core/idle.js';
 import { startDaypart } from './core/daypart.js';
 import { startMusic } from './data/music.js';
@@ -44,17 +45,21 @@ function boot() {
   on('place-changed', refreshSky);
   on('settings', applyScale);
 
-  /* Two homes, one switch (Settings → Display). DEPTH is the volumetric
-     stack from handoff 28a; classic is the widget grid. A style change
-     reloads the page rather than remounting live — on a wall kiosk a
-     reload is invisible, and it keeps both homes free of teardown code. */
-  if (state.homeStyle !== 'classic') {
-    document.body.classList.add('depth-home');
-    mountDepthHome();
-  } else {
+  /* Three homes, one switch (Settings → Display). JARVIS is the Stark
+     heads-up display; DEPTH is the volumetric stack from handoff 28a;
+     classic is the widget grid. A style change reloads the page rather
+     than remounting live — on a wall kiosk a reload is invisible, and
+     it keeps every home free of teardown code. */
+  if (state.homeStyle === 'classic') {
     mountTopbar();
     mountHome();
     mountMiniPlayer();
+  } else if (state.homeStyle === 'depth') {
+    document.body.classList.add('depth-home');
+    mountDepthHome();
+  } else {
+    document.body.classList.add('jarvis-home');
+    mountJarvisHome();
   }
   startData();
   startMusic();

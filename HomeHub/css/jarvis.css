@@ -1,0 +1,781 @@
+/* ============================================================
+   JARVIS home — the Stark heads-up display
+   ============================================================
+   Active only under body.jarvis-home. Every size is frame-
+   proportional via --px (design frame 1180×880).
+
+   The language: one hologram cyan for lines, ticks and labels;
+   the hottest white-cyan for the digits you read from across the
+   room; gold reserved strictly for "now" (the reactor dot, the
+   next-up marker, the ruler caret); and the alert family — amber
+   for a watch, red for a warning — that re-tints the whole surface
+   when the sky turns. Michroma carries the labels (the HUD's own
+   square face), Rajdhani the numerals, Plex Mono the telemetry
+   and Jarvis's voice. */
+
+body.jarvis-home #topbar,
+body.jarvis-home #grid { display: none; }
+/* The hub's frame padding would inset the corner furniture. */
+body.jarvis-home #hub { padding: 0; }
+
+#jarvis-root {
+  --jv-c: 95, 217, 242;                  /* hologram cyan, as a triplet */
+  --jv-hot: #dbf7ff;
+  --jv-gold-rgb: 245, 201, 106;
+  --jv-alert-rgb: 255, 176, 84;          /* amber — a watch or advisory */
+  --jv-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --jv-disp: "Michroma", "Eurostile", "Bank Gothic", "Orbitron", "Avenir Next", system-ui, sans-serif;
+  --jv-num: "Rajdhani", "Avenir Next Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse calc(var(--px) * 760) calc(var(--px) * 560) at 50% 42%,
+      rgba(var(--jv-c), 0.10), transparent 70%),
+    radial-gradient(ellipse 120% 90% at 50% 50%, #070c16, #04070d 80%);
+  color: var(--jv-hot);
+  font-family: var(--jv-mono);
+  -webkit-user-select: none;
+  user-select: none;
+}
+#jarvis-root[data-level="warning"] { --jv-alert-rgb: 255, 92, 73; }
+
+/* Graticule and scanlines — one static layer each, faded toward
+   the corners so the grid reads as depth, not wallpaper. */
+#jarvis-root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(var(--jv-c), 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--jv-c), 0.06) 1px, transparent 1px);
+  background-size: calc(var(--px) * 60) calc(var(--px) * 60);
+  background-position: center;
+  -webkit-mask-image: radial-gradient(ellipse 72% 72% at 50% 50%, #000 20%, transparent 100%);
+  mask-image: radial-gradient(ellipse 72% 72% at 50% 50%, #000 20%, transparent 100%);
+}
+#jarvis-root::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22) 0 1px, transparent 1px 3px);
+  opacity: 0.5;
+}
+
+/* Alert ambience behind the core — lit only while something is posted. */
+.jv-ambience {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: calc(var(--px) * 980);
+  height: calc(var(--px) * 640);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(var(--jv-alert-rgb), 0.16), transparent 70%);
+  filter: blur(30px);
+  opacity: 0;
+  transition: opacity 900ms var(--ease-in-out);
+  pointer-events: none;
+}
+#jarvis-root.alerted .jv-ambience { opacity: 1; }
+
+/* ── Frame furniture ──────────────────────────────────────── */
+
+.jv-brace {
+  position: absolute;
+  width: calc(var(--px) * 46);
+  height: calc(var(--px) * 46);
+  border: 0 solid rgba(var(--jv-c), 0.55);
+  pointer-events: none;
+  z-index: 6;
+}
+.jv-brace.tl { left: calc(var(--px) * 30); top: calc(var(--px) * 26); border-top-width: 1.5px; border-left-width: 1.5px; }
+.jv-brace.tr { right: calc(var(--px) * 30); top: calc(var(--px) * 26); border-top-width: 1.5px; border-right-width: 1.5px; }
+.jv-brace.bl { left: calc(var(--px) * 30); bottom: calc(var(--px) * 26); border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.jv-brace.br { right: calc(var(--px) * 30); bottom: calc(var(--px) * 26); border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+/* Tick combs along the top and bottom edges. */
+.jv-edge {
+  position: absolute;
+  left: 24%;
+  right: 24%;
+  height: calc(var(--px) * 7);
+  background: repeating-linear-gradient(90deg,
+    rgba(var(--jv-c), 0.35) 0 1px, transparent 1px calc(var(--px) * 12));
+  pointer-events: none;
+}
+.jv-edge.top { top: calc(var(--px) * 26); }
+.jv-edge.bottom { bottom: calc(var(--px) * 26); }
+
+/* The boot scan: one sweep down the glass while the HUD assembles. */
+.jv-scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(var(--px) * 90);
+  background: linear-gradient(180deg, transparent, rgba(var(--jv-c), 0.10) 80%, rgba(var(--jv-c), 0.55) 100%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 7;
+}
+.jv-boot .jv-scan { animation: jvScan 1300ms 150ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+@keyframes jvScan {
+  from { transform: translateY(-100%); opacity: 1; }
+  85%  { opacity: 1; }
+  to   { transform: translateY(100vh); opacity: 0; }
+}
+
+/* ── Identity (top-left) and uplink readouts (top-right) ──── */
+
+.jv-ident {
+  position: absolute;
+  left: calc(var(--px) * 64);
+  top: calc(var(--px) * 46);
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  z-index: 3;
+}
+.jv-wordmark {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 12);
+  font-family: var(--jv-disp);
+  font-size: calc(var(--px) * 15);
+  letter-spacing: 0.3em;
+  color: var(--jv-hot);
+  text-shadow: 0 0 calc(var(--px) * 14) rgba(var(--jv-c), 0.5);
+}
+.jv-reactor-dot {
+  width: calc(var(--px) * 9);
+  height: calc(var(--px) * 9);
+  border-radius: 50%;
+  background: rgb(var(--jv-gold-rgb));
+  box-shadow: 0 0 calc(var(--px) * 10) rgba(var(--jv-gold-rgb), 0.9),
+              0 0 calc(var(--px) * 22) rgba(var(--jv-gold-rgb), 0.4);
+  animation: jvPulse 2.4s ease-in-out infinite;
+  flex: none;
+}
+.jv-status {
+  margin-top: calc(var(--px) * 9);
+  font-size: calc(var(--px) * 11.5);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(var(--jv-c), 0.62);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.jv-status .alert {
+  color: rgb(var(--jv-alert-rgb));
+  animation: jvPulse 1.6s ease-in-out infinite;
+}
+
+.jv-uplink {
+  position: absolute;
+  right: calc(var(--px) * 64);
+  top: calc(var(--px) * 46);
+  text-align: right;
+  font-size: calc(var(--px) * 11.5);
+  letter-spacing: 0.12em;
+  line-height: 1.8;
+  color: rgba(var(--jv-c), 0.5);
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  z-index: 3;
+}
+.jv-uplink b {
+  font-weight: 500;
+  color: rgba(var(--jv-c), 0.9);
+  margin-left: calc(var(--px) * 10);
+}
+
+/* ── The core ─────────────────────────────────────────────── */
+
+.jv-core {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: calc(var(--px) * 400);
+  height: calc(var(--px) * 400);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  z-index: 2;
+}
+.jv-rings,
+.jv-ring,
+.jv-core-glow,
+.jv-clock { position: absolute; inset: 0; }
+.jv-ring svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  display: block;
+}
+.jv-ring.r1 { color: rgba(var(--jv-c), 0.5); animation: jvSpin 180s linear infinite; }
+.jv-ring.r1 .major { stroke: rgba(var(--jv-c), 0.9); }
+.jv-ring.r2 { color: rgba(var(--jv-c), 0.55); animation: jvSpin 70s linear infinite reverse; }
+.jv-ring.r3 { color: rgba(var(--jv-c), 0.8); animation: jvSpin 40s linear infinite; }
+.jv-ring.r3 .bracket { stroke: rgba(219, 247, 255, 0.85); }
+#jarvis-root.alerted .jv-ring.r1 { color: rgba(var(--jv-alert-rgb), 0.5); }
+#jarvis-root.alerted .jv-ring.r1 .major { stroke: rgba(var(--jv-alert-rgb), 0.9); }
+#jarvis-root.alerted .jv-ring.r3 .bracket { stroke: rgb(var(--jv-alert-rgb)); }
+@keyframes jvSpin { to { transform: rotate(360deg); } }
+
+.jv-core-glow {
+  inset: 17%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--jv-c), 0.22), rgba(var(--jv-c), 0.06) 55%, transparent 72%);
+  animation: jvBreathe 5s ease-in-out infinite;
+  pointer-events: none;
+}
+#jarvis-root.alerted .jv-core-glow {
+  background: radial-gradient(circle, rgba(var(--jv-alert-rgb), 0.2), rgba(var(--jv-alert-rgb), 0.05) 55%, transparent 72%);
+}
+@keyframes jvBreathe {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.04); }
+}
+
+.jv-clock {
+  display: grid;
+  place-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+.jv-time {
+  font-family: var(--jv-num);
+  font-weight: 300;
+  font-size: calc(var(--px) * 112);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--jv-hot);
+  text-shadow: 0 0 calc(var(--px) * 22) rgba(var(--jv-c), 0.55),
+               0 0 calc(var(--px) * 2) rgba(219, 247, 255, 0.8);
+}
+.jv-sec {
+  margin-top: calc(var(--px) * 8);
+  font-size: calc(var(--px) * 13);
+  letter-spacing: 0.32em;
+  color: rgba(var(--jv-c), 0.65);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Jarvis speaks ────────────────────────────────────────── */
+
+.jv-voice {
+  position: absolute;
+  left: 50%;
+  top: calc(42% + var(--px) * 226);
+  width: calc(var(--px) * 640);
+  transform: translateX(-50%);
+  text-align: center;
+  font-size: calc(var(--px) * 16);
+  line-height: 1.55;
+  min-height: calc(var(--px) * 50);
+  color: rgba(219, 247, 255, 0.86);
+  z-index: 3;
+}
+.jv-prompt {
+  color: rgb(var(--jv-gold-rgb));
+  margin-right: calc(var(--px) * 10);
+  text-shadow: 0 0 calc(var(--px) * 8) rgba(var(--jv-gold-rgb), 0.6);
+}
+.jv-caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.05em;
+  margin-left: calc(var(--px) * 3);
+  vertical-align: text-bottom;
+  background: rgba(var(--jv-c), 0.8);
+  animation: jvBlink 1s steps(2, start) infinite;
+}
+.jv-voice.speaking .jv-caret { animation: none; }
+@keyframes jvBlink { to { visibility: hidden; } }
+
+/* ── Modules: notched-corner glass ─────────────────────────── */
+
+.jv-module {
+  --notch: calc(var(--px) * 14);
+  position: absolute;
+  top: calc(var(--px) * 214);
+  width: calc(var(--px) * 300);
+  padding: 0;
+  clip-path: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch),
+                     100% 100%, var(--notch) 100%, 0 calc(100% - var(--notch)));
+  /* The element paints the outline; the pseudo, inset one pixel and
+     clipped the same way, paints the fill — a border that follows
+     the notch. */
+  background: rgba(var(--jv-c), 0.28);
+  color: inherit;
+  text-align: left;
+  z-index: 3;
+  cursor: pointer;
+}
+.jv-module::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  clip-path: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch),
+                     100% 100%, var(--notch) 100%, 0 calc(100% - var(--notch)));
+  background: linear-gradient(180deg, rgba(10, 20, 34, 0.94), rgba(6, 11, 20, 0.94));
+}
+.jv-module > * { position: relative; }
+.jv-schedule { left: calc(var(--px) * 64); }
+.jv-env { right: calc(var(--px) * 64); }
+#jarvis-root.alerted .jv-env { background: rgba(var(--jv-alert-rgb), 0.55); }
+
+.jv-mod-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: calc(var(--px) * 12);
+  padding: calc(var(--px) * 14) calc(var(--px) * 18) calc(var(--px) * 10);
+  border-bottom: 1px solid rgba(var(--jv-c), 0.14);
+}
+.jv-mod-title {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 9);
+  font-family: var(--jv-disp);
+  font-size: calc(var(--px) * 10.5);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(var(--jv-c), 0.78);
+  white-space: nowrap;
+}
+.jv-mod-title::before {
+  content: "";
+  width: calc(var(--px) * 3);
+  height: calc(var(--px) * 11);
+  background: rgba(var(--jv-c), 0.9);
+  box-shadow: 0 0 calc(var(--px) * 6) rgba(var(--jv-c), 0.6);
+}
+#jarvis-root.alerted .jv-env .jv-mod-title::before { background: rgb(var(--jv-alert-rgb)); box-shadow: 0 0 calc(var(--px) * 6) rgba(var(--jv-alert-rgb), 0.6); }
+.jv-mod-meta {
+  font-size: calc(var(--px) * 11);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(var(--jv-c), 0.5);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.jv-mod-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: calc(var(--px) * 10);
+  padding: calc(var(--px) * 10) calc(var(--px) * 18) calc(var(--px) * 13);
+  border-top: 1px solid rgba(var(--jv-c), 0.12);
+  font-size: calc(var(--px) * 11);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(var(--jv-c), 0.5);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.jv-mod-foot span { overflow: hidden; text-overflow: ellipsis; }
+.jv-mod-foot span + span { flex: none; color: rgba(var(--jv-c), 0.7); }
+
+/* Schedule rows */
+.jv-rows { padding: calc(var(--px) * 6) calc(var(--px) * 18) calc(var(--px) * 8); }
+.jv-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: calc(var(--px) * 64) minmax(0, 1fr);
+  column-gap: calc(var(--px) * 12);
+  align-items: baseline;
+  width: 100%;
+  min-height: calc(var(--px) * 44);
+  padding: calc(var(--px) * 8) 0;
+  border: none;
+  border-bottom: 1px dashed rgba(var(--jv-c), 0.14);
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+.jv-row:last-child { border-bottom: none; }
+.jv-row-time {
+  font-size: calc(var(--px) * 12);
+  letter-spacing: 0.06em;
+  color: rgba(var(--jv-c), 0.8);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.jv-row-title {
+  font-family: var(--jv-num);
+  font-weight: 500;
+  font-size: calc(var(--px) * 21);
+  line-height: 1.1;
+  color: var(--jv-hot);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jv-row-sub {
+  grid-column: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: calc(var(--px) * 10);
+  min-width: 0;
+  margin-top: calc(var(--px) * 2);
+}
+.jv-row-loc {
+  font-size: calc(var(--px) * 11);
+  letter-spacing: 0.04em;
+  color: rgba(var(--jv-c), 0.45);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jv-row-cd {
+  font-size: calc(var(--px) * 11.5);
+  letter-spacing: 0.08em;
+  color: rgb(var(--jv-gold-rgb));
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex: none;
+}
+/* The next event carries the gold: a bar in the gutter and its T−. */
+.jv-row.next::before,
+.jv-row.now::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--px) * -18);
+  top: calc(var(--px) * 10);
+  bottom: calc(var(--px) * 10);
+  width: calc(var(--px) * 3);
+  background: rgb(var(--jv-gold-rgb));
+  box-shadow: 0 0 calc(var(--px) * 8) rgba(var(--jv-gold-rgb), 0.7);
+}
+.jv-row.now .jv-row-cd { animation: jvPulse 1.6s ease-in-out infinite; }
+.jv-empty {
+  padding: calc(var(--px) * 22) calc(var(--px) * 18);
+  font-size: calc(var(--px) * 12);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  line-height: 1.9;
+  color: rgba(var(--jv-c), 0.7);
+}
+.jv-empty .dim { color: rgba(var(--jv-c), 0.42); }
+
+/* Environment */
+.jv-temp-row {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--px) * 14);
+  padding: calc(var(--px) * 12) calc(var(--px) * 18) calc(var(--px) * 2);
+  min-width: 0;
+}
+.jv-temp-num {
+  font-family: var(--jv-num);
+  font-weight: 300;
+  font-size: calc(var(--px) * 76);
+  line-height: 1;
+  color: var(--jv-hot);
+  text-shadow: 0 0 calc(var(--px) * 16) rgba(var(--jv-c), 0.4);
+  flex: none;
+}
+.jv-cond {
+  font-family: var(--jv-disp);
+  font-size: calc(var(--px) * 10.5);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  line-height: 1.6;
+  color: rgba(var(--jv-c), 0.72);
+  min-width: 0;
+}
+.jv-tele {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: calc(var(--px) * 8) calc(var(--px) * 14);
+  padding: calc(var(--px) * 8) calc(var(--px) * 18) calc(var(--px) * 6);
+}
+.jv-tele div {
+  font-size: calc(var(--px) * 10.5);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(var(--jv-c), 0.45);
+  min-width: 0;
+}
+.jv-tele b {
+  display: block;
+  margin-top: calc(var(--px) * 2);
+  font-weight: 500;
+  font-size: calc(var(--px) * 13.5);
+  letter-spacing: 0.04em;
+  color: rgba(var(--jv-c), 0.92);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jv-spark { padding: calc(var(--px) * 4) calc(var(--px) * 18) calc(var(--px) * 14); }
+.jv-spark svg { display: block; width: 100%; height: auto; overflow: visible; }
+.jv-spark .base { stroke: rgba(var(--jv-c), 0.3); stroke-width: 1; }
+.jv-spark .tick { stroke: rgba(var(--jv-c), 0.16); stroke-width: 1; stroke-dasharray: 2 3; }
+.jv-spark .area { fill: rgba(var(--jv-c), 0.12); }
+.jv-spark .line { fill: none; stroke: rgba(var(--jv-c), 0.9); stroke-width: 1.5; stroke-linejoin: round; }
+.jv-spark .dot { fill: rgba(var(--jv-c), 0.9); }
+.jv-spark .dot.now { fill: rgb(var(--jv-gold-rgb)); }
+.jv-spark .lab {
+  fill: rgba(var(--jv-c), 0.45);
+  font-family: var(--jv-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+.jv-alert-band {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 10);
+  margin: calc(var(--px) * 12) calc(var(--px) * 18) 0;
+  padding: calc(var(--px) * 9) calc(var(--px) * 12);
+  border: 1px solid rgba(var(--jv-alert-rgb), 0.6);
+  background: rgba(var(--jv-alert-rgb), 0.1);
+  color: rgb(var(--jv-alert-rgb));
+  font-size: calc(var(--px) * 11);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.jv-alert-dot {
+  width: calc(var(--px) * 8);
+  height: calc(var(--px) * 8);
+  border-radius: 50%;
+  background: rgb(var(--jv-alert-rgb));
+  box-shadow: 0 0 calc(var(--px) * 8) rgba(var(--jv-alert-rgb), 0.8);
+  animation: jvPulse 1.2s ease-in-out infinite;
+  flex: none;
+}
+
+/* ── Audio readout (bottom-left) ──────────────────────────── */
+
+.jv-audio {
+  position: absolute;
+  left: calc(var(--px) * 64);
+  bottom: calc(var(--px) * 46);
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 14);
+  min-height: calc(var(--px) * 44);
+  max-width: calc(var(--px) * 280);
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  z-index: 3;
+}
+.jv-audio-label {
+  font-family: var(--jv-disp);
+  font-size: calc(var(--px) * 10);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(var(--jv-c), 0.55);
+  flex: none;
+}
+.jv-eq {
+  display: flex;
+  align-items: flex-end;
+  gap: calc(var(--px) * 3);
+  height: calc(var(--px) * 18);
+  flex: none;
+}
+.jv-eq span {
+  width: calc(var(--px) * 3);
+  height: 100%;
+  background: rgba(var(--jv-c), 0.8);
+  transform: scaleY(0.22);
+  transform-origin: bottom;
+}
+.jv-audio.playing .jv-eq span { animation: ssEq 1.1s ease-in-out infinite; }
+.jv-audio.playing .jv-eq span:nth-child(2) { animation-duration: 1.4s; animation-delay: 0.2s; }
+.jv-audio.playing .jv-eq span:nth-child(3) { animation-duration: 0.9s; animation-delay: 0.1s; }
+.jv-audio.playing .jv-eq span:nth-child(4) { animation-duration: 1.25s; animation-delay: 0.3s; }
+.jv-audio.playing .jv-eq span:nth-child(5) { animation-duration: 1.05s; animation-delay: 0.05s; }
+.jv-audio-text { display: flex; flex-direction: column; min-width: 0; }
+.jv-audio-title {
+  font-family: var(--jv-num);
+  font-weight: 500;
+  font-size: calc(var(--px) * 18);
+  line-height: 1.1;
+  color: var(--jv-hot);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jv-audio-title.dim { color: rgba(var(--jv-c), 0.6); letter-spacing: 0.1em; text-transform: uppercase; font-size: calc(var(--px) * 14); }
+.jv-audio-sub {
+  font-size: calc(var(--px) * 11.5);
+  letter-spacing: 0.08em;
+  color: rgba(var(--jv-c), 0.5);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── The day ruler (bottom-center) ────────────────────────── */
+
+.jv-ruler {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--px) * 44);
+  width: calc(var(--px) * 470);
+  height: calc(var(--px) * 44);
+  transform: translateX(-50%);
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  z-index: 3;
+}
+.jv-ruler-lab {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: calc(var(--px) * 9);
+  letter-spacing: 0.14em;
+  color: rgba(var(--jv-c), 0.45);
+}
+.jv-ticks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--px) * 16);
+  background: repeating-linear-gradient(90deg,
+    rgba(var(--jv-c), 0.35) 0 1px, transparent 1px calc(100% / 24));
+}
+.jv-ticks.minor { height: calc(var(--px) * 6); }
+.jv-ticks.major {
+  height: calc(var(--px) * 12);
+  background: repeating-linear-gradient(90deg,
+    rgba(var(--jv-c), 0.6) 0 1px, transparent 1px 25%);
+}
+.jv-ruler-base {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--px) * 15);
+  height: 1px;
+  background: rgba(var(--jv-c), 0.4);
+}
+.jv-ruler-sun {
+  position: absolute;
+  bottom: calc(var(--px) * 10);
+  height: calc(var(--px) * 3);
+  background: rgba(var(--jv-gold-rgb), 0.4);
+}
+.jv-ruler-ev {
+  position: absolute;
+  bottom: calc(var(--px) * 13);
+  width: calc(var(--px) * 5);
+  height: calc(var(--px) * 5);
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: rgba(var(--jv-c), 0.9);
+}
+.jv-ruler-ev.past { background: rgba(var(--jv-c), 0.3); }
+.jv-ruler-ev.next {
+  width: calc(var(--px) * 7);
+  height: calc(var(--px) * 7);
+  bottom: calc(var(--px) * 12);
+  background: rgb(var(--jv-gold-rgb));
+  box-shadow: 0 0 calc(var(--px) * 8) rgba(var(--jv-gold-rgb), 0.8);
+}
+.jv-now {
+  position: absolute;
+  bottom: calc(var(--px) * 8);
+  height: calc(var(--px) * 26);
+  width: 1px;
+  background: rgb(var(--jv-gold-rgb));
+  box-shadow: 0 0 calc(var(--px) * 6) rgba(var(--jv-gold-rgb), 0.9);
+}
+.jv-now::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--px) * -4);
+  top: calc(var(--px) * -5);
+  border: calc(var(--px) * 4.5) solid transparent;
+  border-top-color: rgb(var(--jv-gold-rgb));
+}
+
+/* ── The way back (bottom-right) ──────────────────────────── */
+
+.jv-gear {
+  position: absolute;
+  right: calc(var(--px) * 64);
+  bottom: calc(var(--px) * 46);
+  width: calc(var(--px) * 40);
+  height: calc(var(--px) * 40);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--jv-c), 0.3);
+  background: none;
+  color: rgba(var(--jv-c), 0.65);
+  z-index: 3;
+}
+.jv-gear:active { background: rgba(var(--jv-c), 0.15); color: var(--jv-hot); }
+
+/* ── Boot sequence ────────────────────────────────────────── */
+
+.jv-boot .jv-in {
+  animation: jvIn 900ms var(--ease-out) both;
+  animation-delay: var(--d, 0ms);
+}
+.jv-boot .jv-rings { animation: jvRingIn 1100ms var(--ease-out) both; }
+.jv-boot .jv-core-glow { animation: jvIn 900ms 300ms var(--ease-out) both; }
+@keyframes jvIn {
+  from { opacity: 0; transform: translateY(calc(var(--px) * 10)); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes jvRingIn {
+  from { opacity: 0; transform: scale(0.82); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes jvPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jv-ring, .jv-core-glow, .jv-caret, .jv-reactor-dot, .jv-status .alert,
+  .jv-alert-dot, .jv-row.now .jv-row-cd, .jv-eq span, .jv-scan,
+  .jv-boot .jv-in, .jv-boot .jv-rings, .jv-boot .jv-core-glow {
+    animation: none !important;
+    opacity: 1;
+  }
+  .jv-audio.playing .jv-eq span { transform: scaleY(0.7); }
+}
+
+/* ── Portrait: the core rides high, the modules pair up below ── */
+@media (orientation: portrait) {
+  .jv-core { top: 26%; }
+  .jv-ambience { top: 26%; }
+  .jv-voice { top: calc(26% + var(--px) * 222); width: min(calc(var(--px) * 640), 88vw); }
+  .jv-module {
+    top: calc(26% + var(--px) * 300);
+    width: calc(50% - var(--px) * 48);
+  }
+  .jv-schedule { left: calc(var(--px) * 32); }
+  .jv-env { right: calc(var(--px) * 32); }
+  /* The ruler takes the full width a row above the audio and the gear. */
+  .jv-ruler { bottom: calc(var(--px) * 112); width: 86vw; }
+  .jv-audio { left: calc(var(--px) * 32); }
+  .jv-gear { right: calc(var(--px) * 32); }
+  .jv-uplink { display: none; }
+}

@@ -14,13 +14,15 @@
 <meta name="format-detection" content="telephone=no"/>
 <meta name="theme-color" content="#0a1020"/>
 
-<!-- Handoff type: Space Grotesk + IBM Plex Sans. display=swap plus native
-     fallback stacks in tokens.css means offline or first-paint never shows
-     an unstyled flash — just the fallback face until the woff2 lands. The
-     service worker caches the font files after first load. -->
+<!-- Handoff type: Space Grotesk + IBM Plex Sans (+ Plex Mono for the
+     players' telemetry; Michroma + Rajdhani for the JARVIS home's HUD).
+     display=swap plus native fallback stacks in tokens.css means offline
+     or first-paint never shows an unstyled flash — just the fallback face
+     until the woff2 lands. The service worker caches the font files after
+     first load. -->
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Michroma&family=Rajdhani:wght@300;500;600&display=swap"/>
 
 <link rel="manifest" href="manifest.webmanifest"/>
 <link rel="apple-touch-icon" href="assets/icon-180.png"/>
@@ -38,6 +40,7 @@
 <link rel="stylesheet" href="css/music.css"/>
 <link rel="stylesheet" href="css/modal.css"/>
 <link rel="stylesheet" href="css/depth.css"/>
+<link rel="stylesheet" href="css/jarvis.css"/>
 </head>
 <body>
 

@@ -80,12 +80,12 @@ const DEFAULTS = {
   demo: 'auto',           // 'auto' | 'on' | 'off'
   onboarded: false,
 
-  /* Which home screen the wall boots into. 'depth' is the volumetric
-     glass stack (handoff 28a); 'classic' is the widget grid. The
-     Settings → Display toggle flips this and reloads — kept as a
-     switch, not a replacement, so trying the new look is reversible
-     in one tap. */
-  homeStyle: 'depth',
+  /* Which home screen the wall boots into. 'jarvis' is the Stark
+     heads-up display; 'depth' is the volumetric glass stack (handoff
+     28a); 'classic' is the widget grid. The Settings → Display control
+     flips this and reloads — kept as a switch, not a replacement, so
+     trying a new look is reversible in one tap. */
+  homeStyle: 'jarvis',
 };
 
 function load() {

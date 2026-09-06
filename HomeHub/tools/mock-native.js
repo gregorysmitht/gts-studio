@@ -13,12 +13,12 @@
  */
 (function () {
   /* The probe tier drives the CLASSIC home unless a probe opts into
-     depth (the app itself boots DEPTH by default since handoff 28a).
-     Seeded here — the mock is the one script every probe injects first
-     — and only on loopback with no saved state, so the artifact
-     preview, the bundles, and the wall all keep the real default. A
-     probe that wants depth writes homeStyle through seedState, which
-     merges over this. */
+     another (the app itself boots the JARVIS home by default; DEPTH is
+     the other switchable one). Seeded here — the mock is the one script
+     every probe injects first — and only on loopback with no saved
+     state, so the artifact preview, the bundles, and the wall all keep
+     the real default. A probe that wants depth or jarvis writes
+     homeStyle through seedState, which merges over this. */
   try {
     if (/^(127\.0\.0\.1|localhost)$/.test(location.hostname)
         && !localStorage.getItem('homehub.state.v1')) {
