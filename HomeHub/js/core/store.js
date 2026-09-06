@@ -11,6 +11,9 @@ import { PALETTE } from './palette.js';
 export const uid = () =>
   Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
+/** The home screen a wall boots into unless someone chose another. */
+export const HOME_DEFAULT = 'jarvis';
+
 const DEFAULTS = {
   /* Charlotte, NC as a sensible starting point — Settings replaces it
      on first run via geolocation or a place search. */
@@ -80,12 +83,20 @@ const DEFAULTS = {
   demo: 'auto',           // 'auto' | 'on' | 'off'
   onboarded: false,
 
-  /* Which home screen the wall boots into. 'jarvis' is the Stark
-     heads-up display; 'depth' is the volumetric glass stack (handoff
-     28a); 'classic' is the widget grid. The Settings → Display control
-     flips this and reloads — kept as a switch, not a replacement, so
-     trying a new look is reversible in one tap. */
-  homeStyle: 'jarvis',
+  /* Which home screen the wall boots into: 'jarvis' is the Stark
+     heads-up display; 'depth' the volumetric glass stack (handoff 28a);
+     'classic' the widget grid. The Settings → Display control flips it
+     and reloads — a switch, not a replacement, so trying a look is
+     reversible in one tap.
+
+     save() writes the whole state, so every install freezes whatever
+     default it last saved under; the value alone cannot tell a
+     deliberate pick from an inherited default. Only a choice made in
+     Settings sets homeChosen, and only then does homeStyle override
+     HOME_DEFAULT — so a new default still reaches walls that never
+     chose. */
+  homeStyle: HOME_DEFAULT,
+  homeChosen: false,
 };
 
 function load() {
@@ -186,6 +197,9 @@ export function seedFirstRun() {
 }
 
 /* ── Derived helpers ──────────────────────────────────────── */
+
+/** The home to boot — see homeChosen in DEFAULTS for why it's not the field. */
+export const activeHomeStyle = () => (state.homeChosen ? state.homeStyle : HOME_DEFAULT);
 
 export const activeCalendars = () => state.calendars.filter((c) => c.enabled !== false && c.url);
 

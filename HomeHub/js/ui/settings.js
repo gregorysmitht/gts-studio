@@ -12,7 +12,7 @@ import {
 import { searchPlaces, currentPosition } from '../data/geocode.js';
 import { normalizeFeedUrl } from '../data/calendar.js';
 import { live, refresh } from '../data/hub.js';
-import { emit } from '../core/store.js';
+import { emit, activeHomeStyle } from '../core/store.js';
 import { clockTime } from '../core/time.js';
 import {
   isNative, nativeSummary, calendarAuthStatus, requestCalendarAccess, nativeCalendars,
@@ -644,10 +644,11 @@ function renderDisplay(body) {
       'Three looks for the wall. Jarvis is the heads-up display — the day as a lab readout; Depth floats it in layered glass, whatever matters most in front; Classic is the widget grid.',
       h('div.field-row',
         ...[['jarvis', 'Jarvis'], ['depth', 'Depth'], ['classic', 'Classic']].map(([value, label]) =>
-          h(`button.chip.small${(state.homeStyle ?? 'jarvis') === value ? '.on' : ''}`, {
+          h(`button.chip.small${activeHomeStyle() === value ? '.on' : ''}`, {
             onclick: () => {
-              if (state.homeStyle === value) return;
+              if (activeHomeStyle() === value) return;
               state.homeStyle = value;
+              state.homeChosen = true;
               save('settings');
               /* A reload, not a live remount: on a wall kiosk the flash
                  is invisible and no home needs teardown code. Past the

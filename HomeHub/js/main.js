@@ -2,7 +2,7 @@
 
 import { installIconDefs } from './ui/icons.js';
 import { paintSky, drawStars } from './core/sky.js';
-import { state, on, seedFirstRun } from './core/store.js';
+import { state, on, seedFirstRun, activeHomeStyle } from './core/store.js';
 import { live, startData, refresh } from './data/hub.js';
 import { onNativeEvent } from './core/native.js';
 import { mountTopbar } from './ui/topbar.js';
@@ -50,11 +50,12 @@ function boot() {
      classic is the widget grid. A style change reloads the page rather
      than remounting live — on a wall kiosk a reload is invisible, and
      it keeps every home free of teardown code. */
-  if (state.homeStyle === 'classic') {
+  const home = activeHomeStyle();
+  if (home === 'classic') {
     mountTopbar();
     mountHome();
     mountMiniPlayer();
-  } else if (state.homeStyle === 'depth') {
+  } else if (home === 'depth') {
     document.body.classList.add('depth-home');
     mountDepthHome();
   } else {
@@ -93,8 +94,11 @@ function boot() {
 
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
-  // file:// has no service worker scope; skip rather than throw.
-  if (location.protocol === 'file:') return;
+  /* Only a real web origin wants the cache: file:// has no worker scope,
+     and the iPad app serves the bundled files through its own URL scheme
+     — offline by construction, and a stale-while-revalidate cache there
+     would only ever hand a fresh build the previous launch's code. */
+  if (!/^https?:$/.test(location.protocol)) return;
   addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch((err) => {
       console.info('[main] service worker not registered:', err.message);

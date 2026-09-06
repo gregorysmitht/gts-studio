@@ -22,7 +22,7 @@
   try {
     if (/^(127\.0\.0\.1|localhost)$/.test(location.hostname)
         && !localStorage.getItem('homehub.state.v1')) {
-      localStorage.setItem('homehub.state.v1', JSON.stringify({ homeStyle: 'classic' }));
+      localStorage.setItem('homehub.state.v1', JSON.stringify({ homeStyle: 'classic', homeChosen: true }));
     }
   } catch { /* file:// or storage-less context — the app default stands */ }
 
